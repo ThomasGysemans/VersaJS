@@ -1,0 +1,21 @@
+tag Greet {
+    prop name
+
+    func _private_function() {
+        return 1
+    }
+    
+    func render() {
+        const important_variable = do _private_function();
+        let name = self.name ?? "stranger";
+        return (
+            <div>
+                <h1>Hello {name}</h1>
+            </div>
+        );
+    }
+}
+
+__RUN__(
+    <Greet name={"Thomas"}>
+)
