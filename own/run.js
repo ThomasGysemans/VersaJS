@@ -109,6 +109,21 @@ class InvalidSyntaxError extends CustomError {
     }
 }
 
+/**
+ * @classdesc Error thrown when there is an invalid syntax.
+ */
+class RTError extends CustomError {
+    /**
+     * @constructs RTError
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     * @param {string} details Details about the error.
+     */
+    constructor(pos_start, pos_end, details) {
+        super(pos_start, pos_end, "Runtime Error", details);
+    }
+}
+
 /*
 *
 * TOKENS
@@ -260,7 +275,7 @@ class Lexer {
         while (this.current_char !== null) {
             if (this.current_char === " " || this.current_char === "\t") {
                 this.advance();
-            } else if (this.current_char in Array.from(DIGITS)) {
+            } else if (Array.from(DIGITS).includes(this.current_char)) {
                 tokens.push(this.make_number());
             } else {
                 let found = false;
@@ -315,7 +330,7 @@ class Lexer {
         let dot_count = 0;
         let pos_start = this.pos.copy();
 
-        while (this.current_char !== null && this.current_char in Array.from(DIGITS + ".")) {
+        while (this.current_char !== null && Array.from(DIGITS + ".").includes(this.current_char)) {
             if (this.current_char === ".") {
                 if (dot_count === 1) break;
                 dot_count += 1;
@@ -350,6 +365,8 @@ class NumberNode {
      */
     constructor(tok) {
         this.tok = tok;
+        this.pos_start = this.tok.pos_start;
+        this.pos_end = this.tok.pos_end;
     }
 
     toString() {
@@ -365,12 +382,15 @@ class BinOpNode {
      * @constructs BinOpNode
      * @param {NumberNode} left_node The left side of an operation.
      * @param {Token} op_tok The type of operation (+, -, etc.)
-     * @param {NumberNode|BinOpNode} right_node The right side of an operation.
+     * @param {NumberNode} right_node The right side of an operation.
      */
     constructor(left_node, op_tok, right_node) {
         this.left_node = left_node;
         this.op_tok = op_tok;
         this.right_node = right_node;
+
+        this.pos_start = this.left_node.pos_start;
+        this.pos_end = this.right_node.pos_end;
     }
 
     toString() {
@@ -390,6 +410,9 @@ class UnaryOpNode {
     constructor(op_tok, node) {
         this.op_tok = op_tok;
         this.node = node;
+
+        this.pos_start = this.op_tok.pos_start;
+        this.pos_end = this.node.pos_end;
     }
 
     toString() {
@@ -469,7 +492,7 @@ class Parser {
     constructor(tokens) {
         this.tokens = tokens;
         this.tok_idx = -1; 
-        this.advance(); // we begin the token index at 2
+        this.advance();
     }
 
     advance() {
@@ -567,19 +590,270 @@ class Parser {
     }
 }
 
+/*
+*
+* RUNTIME ERROR
+*
+*/
+
+/**
+ * @classdesc Keeps track of an error during runtime.
+ */
+class RTResult {
+    /**
+     * @constructs RTResult
+     */
+    constructor() {
+        /** @var {any} */
+        this.value = null;
+        /** @var {null|CustomError} */
+        this.error = null;
+    }
+
+    /**
+     * Registers an action during runtime and checks if an error has been thrown.
+     * @param {any} res The value to be registered.
+     * @return {any} The value.
+     */
+    register(res) {
+        if (res.error) this.error = res.error;
+        return res.value;
+    }
+
+    /**
+     * Registers a successful action during runtime.
+     * @param {any} value The correct value.
+     * @return {RTResult} this.
+     */
+    success(value) {
+        this.value = value;
+        return this;
+    }
+
+    /**
+     * Registers an unsuccessful action during runtime.
+     * @param {CustomError} error The error.
+     * @return {RTResult} this.
+     */
+    failure(error) {
+        this.error = error;
+        return this;
+    }
+}
+
+/*
+*
+* VALUES
+*
+*/
+
+/**
+ * @classdesc A number of the program.
+ */
+class CustomNumber {
+    /**
+     * @constructs CustomNumebr
+     * @param {number} value The value of a NumberNode.
+     */
+    constructor(value) {
+        this.value = value;
+        this.set_pos();
+    }
+
+    /**
+     * We need to know where is that number in the program.
+     * @param {Position|null} pos_start The starting position of the number.
+     * @param {Position|null} pos_end The end position of the number.
+     * @return {CustomNumber} this.
+     */
+    set_pos(pos_start=null, pos_end=null) {
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+        return this;
+    }
+
+    // The functions needed to perform calculations on that number (this.value).
+
+    /**
+     * Adds a number.
+     * @param {CustomNumber} other_number The number to be added to our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    added_to(other_number) {
+        return { result: new CustomNumber(this.value + other_number.value), error: null };
+    }
+
+    /**
+     * Substracts by a number.
+     * @param {CustomNumber} other_number The number to be substracted by our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    subbed_by(other_number) {
+        return { result: new CustomNumber(this.value - other_number.value), error: null };
+    }
+
+    /**
+     * Multiplies by a number.
+     * @param {CustomNumber} other_number The number to be multiplied by our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    multed_by(other_number) {
+        return { result: new CustomNumber(this.value * other_number.value), error: null };
+    }
+
+    /**
+     * Divides a number.
+     * @param {CustomNumber} other_number The number to be divided by our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    dived_by(other_number) {
+        if (other_number.value === 0) {
+            return { result: null, error: new RTError(
+                other_number.pos_start, other_number.pos_end,
+                "Division by Zero"
+            )};
+        }
+        return { result: new CustomNumber(this.value / other_number.value), error: null };
+    }
+
+    // ----------------
+
+    toString() {
+        return `${this.value}`;
+    }
+}
+
+/*
+*
+* Interpreter
+*
+*/
+
+/**
+ * @classdesc This class will read the parsed tokens and evaluates the code accordingly.
+ */
+class Interpreter {
+    /**
+     * @param {NumberNode|UnaryOpNode|BinOpNode} node The node to be visited.
+     * @return {RTResult}
+     */
+    visit(node) {
+        if (node instanceof NumberNode) {
+            return this.visit_NumberNode(node);
+        } else if (node instanceof UnaryOpNode) {
+            return this.visit_UnaryOpNode(node);
+        } else if (node instanceof BinOpNode) {
+            return this.visit_BinOpNode(node);
+        } else {
+            throw new Error("No visit method defined for '" + typeof node + "'");
+        }
+    }
+
+    // ----------------
+
+    /**
+     * Visits a number node in order to create a CustomNumber (a valide number).
+     * @param {NumberNode} node The node to be visited.
+     * @return {RTResult}
+     */
+    visit_NumberNode(node) {
+        return new RTResult().success(
+            new CustomNumber(node.tok.value).set_pos(node.pos_start, node.pos_end)
+        );
+    }
+    
+    /**
+     * @param {BinOpNode} node The node to be visited.
+     * @return {RTResult}
+     */
+    visit_BinOpNode(node) {
+        let res = new RTResult();
+
+        // we also need to visit its own nodes (left number & right number)
+
+        /** @type {CustomNumber} */
+        let left = res.register(this.visit(node.left_node)); // this line will create an instance of CustomNumber
+        if (res.error) return res;
+
+        /** @type {CustomNumber} */
+        let right = res.register(this.visit(node.right_node)); // this line will create an instance of CustomNumber
+        if (res.error) return res;
+
+        
+        let operation = null;
+
+        if (node.op_tok.type == TOKENS.PLUS) {
+            operation = left.added_to(right);
+        } else if (node.op_tok.type == TOKENS.MINUS) {
+            operation = left.subbed_by(right);
+        } else if (node.op_tok.type == TOKENS.MUL) {
+            operation = left.multed_by(right);
+        } else if (node.op_tok.type == TOKENS.DIV) {
+            operation = left.dived_by(right);
+        }
+
+        let result = operation.result;
+        let error = operation.error;
+
+        if (error) {
+            return res.failure(error);
+        } else {
+            return res.success(result.set_pos(node.pos_start, node.pos_end));
+        }
+    }
+
+    /**
+     * @param {UnaryOpNode} node The node to be visited.
+     * @return {RTResult}
+     */
+    visit_UnaryOpNode(node) {
+        let res = new RTResult();
+
+        // same as BinOpNode, we need to visit the nodes of the UnaryOpNode (its unique number)
+
+        /** @type {CustomNumber} */
+        let number = res.register(this.visit(node.node));
+        if (res.error) return res;
+
+        let error = null;
+        let operation = null;
+
+        if (node.op_tok.type === TOKENS.MINUS) {
+            operation = number.multed_by(new CustomNumber(-1));
+            number = operation.result;
+            error = operation.error;
+        }
+            
+        if (error) {
+            return res.failure(error);
+        } else {
+            return res.success(number.set_pos(node.pos_start, node.pos_start));
+        }
+    }
+
+    // ----------------
+}
+
 /**
  * Executes the program.
  * @param {string} filename The filename.
  * @param {string} text The source code.
+ * @return {{result: any, error: CustomError}}
  */
 export default function run(filename, text) {
+    // Generate tokens
     const lexer = new Lexer(filename, text);
     const { tokens, error } = lexer.make_tokens();
     if (error) return { result: null, error };
 
     // Generate abstract syntax tree
     const parser = new Parser(tokens);
-    const ast = parser.parse();
+    const ast = parser.parse(); // the ast will contain a node, that node is the entire list of parsed tokens as an expression.
+    if (ast.error) return { result: null, error: ast.error };
 
-    return { result: ast.node, error: ast.error };
+    // Run the program
+    const interpreter = new Interpreter();
+    const result = interpreter.visit(ast.node);
+
+    return { result: result.value, error: result.error };
 }
