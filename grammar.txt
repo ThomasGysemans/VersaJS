@@ -2,9 +2,11 @@ expr        : term ((PLUS|MINUS) term)*
 
 term        : factor ((MUL|DIV) factor)*
 
-power       : factor (POWER factor)
+factor      : (PLUS|MINUS) factor
+            : power
+
+power       : atom (POWER factor)*
 
 # most priority
-factor      : INT|FLOAT
-            : (PLUS|MINUS) factor
+atom        : INT|FLOAT
             : LPAREN expr RPAREN

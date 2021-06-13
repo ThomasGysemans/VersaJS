@@ -545,6 +545,16 @@ class Parser {
 
     // -------------
 
+    // an expression is looking for terms.
+    expr() {
+        return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]); // evaluate a binary operation between two terms separated by PLUS or MINUS.
+    }
+
+    // a term is looking for a factor
+    term() {
+        return this.bin_op(this.factor.bind(this), [TOKENS.MUL, TOKENS.DIV]); // evaluate a binary operation between two factors separated by MUL or DIV.
+    }
+
     factor() {
         let res = new ParseResult();
         let tok = this.current_tok;
@@ -555,7 +565,21 @@ class Parser {
             if (res.error) return res;
             // @ts-ignore
             return res.success(new UnaryOpNode(tok, factor));
-        } else if ([TOKENS.INT, TOKENS.FLOAT].includes(tok.type)) {
+        }
+
+        return this.power();
+    }
+
+    // a power operation is looking for atoms
+    power() {
+        return this.bin_op(this.atom.bind(this), [TOKENS.POWER], this.factor.bind(this));
+    }
+
+    atom() {
+        let res = new ParseResult();
+        let tok = this.current_tok;
+
+        if ([TOKENS.INT, TOKENS.FLOAT].includes(tok.type)) {
             res.register(this.advance());
             return res.success(new NumberNode(tok));
         } else if (tok.type === TOKENS.LPAREN) {
@@ -576,42 +600,32 @@ class Parser {
 
         return res.failure(new InvalidSyntaxError(
             tok.pos_start, tok.pos_end,
-            "Expected int or float"
+            "Expected int, float, '+', '-', or '('"
         ));
-    }
-
-    // an expression is looking for terms.
-    expr() {
-        return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]); // evaluate a binary operation between two terms separated by PLUS or MINUS.
-    }
-
-    // a term is looking for a power operation
-    term() {
-        return this.bin_op(this.power.bind(this), [TOKENS.MUL, TOKENS.DIV]); // evaluate a binary operation between two factors separated by MUL or DIV.
-    }
-
-    // a power operation is looking for factors
-    power() {
-        return this.bin_op(this.factor.bind(this), [TOKENS.POWER]);
     }
 
     // -------------
 
     /**
      * Evaluate a binary operation (a term or an expr).
-     * @param {Function} func A function a the Parser.
+     * @param {Function} func_a A function of the Parser.
      * @param {Array<string>} ops The possible operations.
+     * @param {Function} func_b Another function of the Parser.
      * @return {ParseResult}
      */
-    bin_op(func, ops) {
+    bin_op(func_a, ops, func_b=null) {
+        if (func_b === null) {
+            func_b = func_a; 
+        }
+
         let res = new ParseResult();
-        let left = res.register(func());
+        let left = res.register(func_a());
         if (res.error) return res;
 
         while (ops.includes(this.current_tok.type)) {
             let op_tok = this.current_tok;
             res.register(this.advance());
-            let right = res.register(func());
+            let right = res.register(func_b());
             if (res.error) return res;
             // the left member of the operation becomes a binary operation
             // of the previous left and right members.
