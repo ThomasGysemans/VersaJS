@@ -326,8 +326,8 @@ class Parser {
      */
     constructor(tokens) {
         this.tokens = tokens;
-        this.tok_idx = -1;
-        this.advance();
+        this.tok_idx = -1; 
+        this.advance(); // we begin the token index at 2
     }
 
     advance() {
@@ -353,12 +353,12 @@ class Parser {
         }
     }
 
-    expr() {
-        return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]); // evaluate a binary operation between two terms separated by PLUS or MINUS.
-    }
-
     term() {
         return this.bin_op(this.factor.bind(this), [TOKENS.MUL, TOKENS.DIV]); // evaluate a binary operation between two factors separated by MUL or DIV.
+    }
+
+    expr() {
+        return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]); // evaluate a binary operation between two terms separated by PLUS or MINUS.
     }
 
     // -------------
@@ -375,7 +375,9 @@ class Parser {
             let op_tok = this.current_tok;
             this.advance();
             let right = func();
-            return new BinOpNode(left, op_tok, right);
+            // the left member of the operation becomes a binary operation
+            // of the previous left and right members.
+            left = new BinOpNode(left, op_tok, right);
         }
 
         return left;
@@ -392,6 +394,7 @@ export default function run(filename, text) {
     const { tokens, error } = lexer.make_tokens();
     if (error) return { result: null, error };
 
+    // Generate abstract syntax tree
     const parser = new Parser(tokens);
     const ast = parser.parse();
 
