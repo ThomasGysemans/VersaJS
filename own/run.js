@@ -536,6 +536,11 @@ class ParseResult {
         this.error = null;
         /** @var {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|null} */
         this.node = null;
+        this.advance_count = 0;
+    }
+
+    register_advancement() {
+        this.advance_count += 1;
     }
 
     /**
@@ -544,17 +549,14 @@ class ParseResult {
      * @return {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode} res.node or res.
      */
     register(res) {
-        if (res instanceof ParseResult) {
-            if (res.error) this.error = res.error;
-            return res.node;
-        } 
-
-        return res;
+        this.advance_count += res.advance_count;
+        if (res.error) this.error = res.error;
+        return res.node;
     }
 
     /**
      * A new node is correct.
-     * @param {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode} node The errorless node.
+     * @param {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode} node The errorless node.
      * @return {ParseResult} this.
      */
     success(node) {
@@ -568,7 +570,9 @@ class ParseResult {
      * @returns {ParseResult} this.
      */
     failure(error) {
-        this.error = error;
+        if (!this.error || this.advance_count === 0) { // overwrite an error
+            this.error = error;
+        }
         return this;
     }
 }
@@ -603,14 +607,16 @@ class Parser {
 
     parse() {
         let res = this.expr();
-        if (res instanceof ParseResult) {
-            if (!res.error && this.current_tok.type !== TOKENS.EOF) {
-                return res.failure(new InvalidSyntaxError(
-                    this.current_tok.pos_start, this.current_tok.pos_end,
-                    "Expected '+', '-', '*', '/', '^'"
-                ));
-            }
-        } 
+        // console.log("---");
+        // console.log(`res.error = ${res.error}`);
+        // console.log(`res.node = ${res.node}`);
+        // console.log("---");
+        if (!res.error && this.current_tok.type !== TOKENS.EOF) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Error - Expected '+', '-', '*', '/' or '^'"
+            ));
+        }
         return res;
     }
 
@@ -621,7 +627,9 @@ class Parser {
         // first of all, we need to check if this is a variable declaration
         let res = new ParseResult();
         if (this.current_tok.matches(TOKENS.KEYWORD, 'VAR')) {
-            res.register(this.advance());
+            res.register_advancement();
+            this.advance();
+
             // after the "VAR" keyword, we need to check if there is an identifier
             if (this.current_tok.type !== TOKENS.IDENTIFIER) {
                 return res.failure(new InvalidSyntaxError(
@@ -631,7 +639,8 @@ class Parser {
             }
 
             let var_name_tok = this.current_tok;
-            res.register(this.advance());
+            res.register_advancement();
+            this.advance();
 
             // now we want the equals token
             if (this.current_tok.type !== TOKENS.EQ) {
@@ -641,7 +650,8 @@ class Parser {
                 ));
             }
 
-            res.register(this.advance());
+            res.register_advancement();
+            this.advance();
 
             // we need to check if there is now an expr
             let expr = res.register(this.expr());
@@ -651,7 +661,17 @@ class Parser {
             return res.success(new VarAssignNode(var_name_tok, expr));
         }
 
-        return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]); // evaluate a binary operation between two terms separated by PLUS or MINUS.
+        // evaluate a binary operation between two terms separated by PLUS or MINUS.
+        let node = res.register(this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]));
+        
+        if (res.error) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'VAR', int, float, identifier, '+', '-' or '('"
+            ));
+        }
+
+        return res.success(node);
     }
 
     // a term is looking for a factor
@@ -664,7 +684,8 @@ class Parser {
         let tok = this.current_tok;
 
         if ([TOKENS.PLUS, TOKENS.MINUS].includes(tok.type)) {
-            res.register(this.advance());
+            res.register_advancement();
+            this.advance();
             let factor = res.register(this.factor());
             if (res.error) return res;
             // @ts-ignore
@@ -684,17 +705,21 @@ class Parser {
         let tok = this.current_tok;
 
         if ([TOKENS.INT, TOKENS.FLOAT].includes(tok.type)) {
-            res.register(this.advance());
+            res.register_advancement();
+            this.advance();
             return res.success(new NumberNode(tok));
         } else if (tok.type === TOKENS.IDENTIFIER) {
-            res.register(this.advance());
+            res.register_advancement();
+            this.advance();
             return res.success(new VarAccessNode(tok));
         } else if (tok.type === TOKENS.LPAREN) {
-            res.register(this.advance());
+            res.register_advancement();
+            this.advance();
             let expr = res.register(this.expr());
             if (res.error) return res;
             if (this.current_tok.type === TOKENS.RPAREN) {
-                res.register(this.advance());
+                res.register_advancement();
+                this.advance();
                 // @ts-ignore
                 return res.success(expr);
             } else {
@@ -707,7 +732,7 @@ class Parser {
 
         return res.failure(new InvalidSyntaxError(
             tok.pos_start, tok.pos_end,
-            "Expected int, float, '+', '-', or '('"
+            "Expected int, float, identifier, '+', '-', or '('"
         ));
     }
 
@@ -731,7 +756,8 @@ class Parser {
 
         while (ops.includes(this.current_tok.type)) {
             let op_tok = this.current_tok;
-            res.register(this.advance());
+            res.register_advancement();
+            this.advance();
             let right = res.register(func_b());
             if (res.error) return res;
             // the left member of the operation becomes a binary operation
@@ -893,6 +919,13 @@ class CustomNumber {
 
     // ----------------
 
+    copy() {
+        let copy = new CustomNumber(this.value);
+        copy.set_pos(this.pos_start, this.pos_end);
+        copy.set_context(this.context);
+        return copy;
+    }
+
     toString() {
         return `${this.value}`;
     }
@@ -1036,6 +1069,7 @@ class Interpreter {
             ));
         }
 
+        value = value.copy().set_pos(node.pos_start, node.pos_end);
         return res.success(value);
     }
 
