@@ -7,4 +7,4 @@ power       : factor (POWER factor)*
 # most priority
 factor      : INT|FLOAT
             : (PLUS|MINUS) factor
-            : LPAREN expre RPAREN
+            : LPAREN expr RPAREN

@@ -81,7 +81,7 @@ term        : factor ((MUL|DIV) factor)*
 
 factor      : INT|FLOAT
             : (PLUS|MINUS) factor
-            : LPAREN expre RPAREN
+            : LPAREN expr RPAREN
 
 Pour exemple:
 
