@@ -89,7 +89,7 @@ class IllegalCharError extends CustomError {
      * @param {Position} pos_end The end position.
      * @param {string} details Details about the error.
      */
-    constructor(pos_start, pos_end, details) {
+    constructor(pos_start, pos_end, details='') {
         super(pos_start, pos_end, "Illegal Character", details);
     }
 }
@@ -104,7 +104,7 @@ class InvalidSyntaxError extends CustomError {
      * @param {Position} pos_end The end position.
      * @param {string} details Details about the error.
      */
-    constructor(pos_start, pos_end, details) {
+    constructor(pos_start, pos_end, details='') {
         super(pos_start, pos_end, "Invalid Syntax", details);
     }
 }
@@ -118,9 +118,32 @@ class RTError extends CustomError {
      * @param {Position} pos_start The starting position.
      * @param {Position} pos_end The end position.
      * @param {string} details Details about the error.
+     * @param {Context} context The context where the error occured.
      */
-    constructor(pos_start, pos_end, details) {
+    constructor(pos_start, pos_end, details, context) {
         super(pos_start, pos_end, "Runtime Error", details);
+        this.context = context;
+    }
+
+    toString() {
+        let result = this.generate_traceback();
+        result    += `${this.error_name}: ${this.details}\n\n`;
+        result    += string_with_arrows(this.pos_start.ftxt, this.pos_start, this.pos_end);
+        return result;
+    }
+
+    generate_traceback() {
+        let result = "";
+        let pos = this.pos_start;
+        let ctx = this.context;
+
+        while (ctx) {
+            result = `   File ${pos.fn}, line ${pos.ln + 1}, in ${ctx.display_name}\n` + result;
+            pos = ctx.parent_entry_pos;
+            ctx = ctx.parent;
+        }
+
+        return 'Traceback (most recent call last):\n' + result;
     }
 }
 
@@ -658,6 +681,7 @@ class CustomNumber {
     constructor(value) {
         this.value = value;
         this.set_pos();
+        this.set_context();
     }
 
     /**
@@ -672,6 +696,15 @@ class CustomNumber {
         return this;
     }
 
+    /**
+     * Saves the context.
+     * @param {Context|null} context The current context.
+     */
+    set_context(context=null) {
+        this.context = context;
+        return this;
+    }
+
     // The functions needed to perform calculations on that number (this.value).
 
     /**
@@ -680,7 +713,7 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     added_to(other_number) {
-        return { result: new CustomNumber(this.value + other_number.value), error: null };
+        return { result: new CustomNumber(this.value + other_number.value).set_context(this.context), error: null };
     }
 
     /**
@@ -689,7 +722,7 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     subbed_by(other_number) {
-        return { result: new CustomNumber(this.value - other_number.value), error: null };
+        return { result: new CustomNumber(this.value - other_number.value).set_context(this.context), error: null };
     }
 
     /**
@@ -698,7 +731,7 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     multed_by(other_number) {
-        return { result: new CustomNumber(this.value * other_number.value), error: null };
+        return { result: new CustomNumber(this.value * other_number.value).set_context(this.context), error: null };
     }
 
     /**
@@ -710,16 +743,40 @@ class CustomNumber {
         if (other_number.value === 0) {
             return { result: null, error: new RTError(
                 other_number.pos_start, other_number.pos_end,
-                "Division by Zero"
+                "Division by Zero",
+                this.context
             )};
         }
-        return { result: new CustomNumber(this.value / other_number.value), error: null };
+        return { result: new CustomNumber(this.value / other_number.value).set_context(this.context), error: null };
     }
 
     // ----------------
 
     toString() {
         return `${this.value}`;
+    }
+}
+
+/*
+*
+* CONTEXT
+*
+*/
+
+/**
+ * @classdesc Creates a context to keep track of the user's actions.
+ */
+class Context {
+    /**
+     * @constructs Context
+     * @param {string} display_name The name of the context (the name of the function where an error has occured for example).
+     * @param {Context} parent The parent context of the current context.
+     * @param {Position} parent_entry_pos The position in the code where the paren context has been created.
+     */
+    constructor(display_name, parent=null, parent_entry_pos=null) {
+        this.display_name = display_name;
+        this.parent = parent;
+        this.parent_entry_pos = parent_entry_pos;
     }
 }
 
@@ -735,15 +792,16 @@ class CustomNumber {
 class Interpreter {
     /**
      * @param {NumberNode|UnaryOpNode|BinOpNode} node The node to be visited.
+     * @param {Context} context The rpot context.
      * @return {RTResult}
      */
-    visit(node) {
+    visit(node, context) {
         if (node instanceof NumberNode) {
-            return this.visit_NumberNode(node);
+            return this.visit_NumberNode(node, context);
         } else if (node instanceof UnaryOpNode) {
-            return this.visit_UnaryOpNode(node);
+            return this.visit_UnaryOpNode(node, context);
         } else if (node instanceof BinOpNode) {
-            return this.visit_BinOpNode(node);
+            return this.visit_BinOpNode(node, context);
         } else {
             throw new Error("No visit method defined for '" + typeof node + "'");
         }
@@ -754,29 +812,32 @@ class Interpreter {
     /**
      * Visits a number node in order to create a CustomNumber (a valide number).
      * @param {NumberNode} node The node to be visited.
+     * @param {Context} context The current context.
      * @return {RTResult}
      */
-    visit_NumberNode(node) {
+    visit_NumberNode(node, context) {
         return new RTResult().success(
-            new CustomNumber(node.tok.value).set_pos(node.pos_start, node.pos_end)
+            new CustomNumber(node.tok.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         );
     }
     
     /**
+     * Visits a binary operation node in order to perform the calculations on the NumberNodes contained inside.
      * @param {BinOpNode} node The node to be visited.
+     * @param {Context} context The current context.
      * @return {RTResult}
      */
-    visit_BinOpNode(node) {
+    visit_BinOpNode(node, context) {
         let res = new RTResult();
 
         // we also need to visit its own nodes (left number & right number)
 
         /** @type {CustomNumber} */
-        let left = res.register(this.visit(node.left_node)); // this line will create an instance of CustomNumber
+        let left = res.register(this.visit(node.left_node, context)); // this line will create an instance of CustomNumber
         if (res.error) return res;
 
         /** @type {CustomNumber} */
-        let right = res.register(this.visit(node.right_node)); // this line will create an instance of CustomNumber
+        let right = res.register(this.visit(node.right_node, context)); // this line will create an instance of CustomNumber
         if (res.error) return res;
 
         
@@ -798,21 +859,23 @@ class Interpreter {
         if (error) {
             return res.failure(error);
         } else {
-            return res.success(result.set_pos(node.pos_start, node.pos_end));
+            return res.success(result.set_context(context).set_pos(node.pos_start, node.pos_end));
         }
     }
 
     /**
+     * Visits the unary operator node in order to perform the calculations on the NumberNode contained inside.
      * @param {UnaryOpNode} node The node to be visited.
+     * @param {Context} context The current context.
      * @return {RTResult}
      */
-    visit_UnaryOpNode(node) {
+    visit_UnaryOpNode(node, context) {
         let res = new RTResult();
 
         // same as BinOpNode, we need to visit the nodes of the UnaryOpNode (its unique number)
 
         /** @type {CustomNumber} */
-        let number = res.register(this.visit(node.node));
+        let number = res.register(this.visit(node.node, context));
         if (res.error) return res;
 
         let error = null;
@@ -827,7 +890,7 @@ class Interpreter {
         if (error) {
             return res.failure(error);
         } else {
-            return res.success(number.set_pos(node.pos_start, node.pos_start));
+            return res.success(number.set_context(context).set_pos(node.pos_start, node.pos_start));
         }
     }
 
@@ -853,7 +916,9 @@ export default function run(filename, text) {
 
     // Run the program
     const interpreter = new Interpreter();
-    const result = interpreter.visit(ast.node);
+    const context = new Context('<program>');
+    // the context will get modified by visiting the different user's actions.
+    const result = interpreter.visit(ast.node, context);
 
     return { result: result.value, error: result.error };
 }
