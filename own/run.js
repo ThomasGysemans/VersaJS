@@ -162,6 +162,7 @@ const TOKENS = {
     DIV: 'DIV',
     LPAREN: 'LPAREN',
     RPAREN: 'RPAREN',
+    POWER: 'POWER',
     EOF: 'EOF',
 };
 
@@ -320,6 +321,9 @@ class Lexer {
                 }, {
                     symbol: ")",
                     token: TOKENS.RPAREN
+                }, {
+                    symbol: "^",
+                    token: TOKENS.POWER
                 }];
 
                 for (let keyword of keywords) {
@@ -532,7 +536,7 @@ class Parser {
             if (!res.error && this.current_tok.type !== TOKENS.EOF) {
                 return res.failure(new InvalidSyntaxError(
                     this.current_tok.pos_start, this.current_tok.pos_end,
-                    "Expected '+', '-', '*', '/'"
+                    "Expected '+', '-', '*', '/', '^'"
                 ));
             }
         } 
@@ -576,12 +580,19 @@ class Parser {
         ));
     }
 
-    term() {
-        return this.bin_op(this.factor.bind(this), [TOKENS.MUL, TOKENS.DIV]); // evaluate a binary operation between two factors separated by MUL or DIV.
-    }
-
+    // an expression is looking for terms.
     expr() {
         return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]); // evaluate a binary operation between two terms separated by PLUS or MINUS.
+    }
+
+    // a term is looking for a power operation
+    term() {
+        return this.bin_op(this.power.bind(this), [TOKENS.MUL, TOKENS.DIV]); // evaluate a binary operation between two factors separated by MUL or DIV.
+    }
+
+    // a power operation is looking for factors
+    power() {
+        return this.bin_op(this.factor.bind(this), [TOKENS.POWER]);
     }
 
     // -------------
@@ -750,6 +761,15 @@ class CustomNumber {
         return { result: new CustomNumber(this.value / other_number.value).set_context(this.context), error: null };
     }
 
+    /**
+     * Powered by a number.
+     * @param {CustomNumber} other_number The number to be powered by our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    powered_by(other_number) {
+        return { result: new CustomNumber(this.value ** other_number.value).set_context(this.context), error: null };
+    }
+
     // ----------------
 
     toString() {
@@ -851,6 +871,8 @@ class Interpreter {
             operation = left.multed_by(right);
         } else if (node.op_tok.type == TOKENS.DIV) {
             operation = left.dived_by(right);
+        } else if (node.op_tok.type == TOKENS.POWER) {
+            operation = left.powered_by(right);
         }
 
         let result = operation.result;

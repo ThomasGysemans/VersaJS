@@ -2,7 +2,7 @@ expr        : term ((PLUS|MINUS) term)*
 
 term        : factor ((MUL|DIV) factor)*
 
-power       : factor (POWER factor)*
+power       : factor (POWER factor)
 
 # most priority
 factor      : INT|FLOAT
