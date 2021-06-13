@@ -109,3 +109,80 @@ La déclaration d'une variable doit être ce qui prend le moins de priorité dan
 * `(VAR a = 5) + 5`
 
 **Note:** maintenant, quand on cherche un facteur, il faut aussi penser à vérifier la présence d'un IDENTIFIER.
+
+Ces variables représenteront des noeuds, comme le nombres etc dont il faudra vérifier la présence dans l'évaluation d'une expression. Une seule et même classe contiendra toutes les variables courantes ainsi que les méthodes permettant de créer, modifier ou supprimer des variables.
+
+On programmera un système de suppression automatique des variables lorsque l'on change de contexte en définissant le tableau de variables parent.
+
+En parallèle, il est possible ainsi de définir des variables globales.
+
+## Opérations logiques
+
+Les opérations logiques sont :
+
+* `<` (inférieur à)
+* `<=` (inférieur ou égal à)
+* `>` (supérieur à)
+* `>=` (supérieur ou égal à)
+* `==` (égal à)
+
+Au niveau de la grammaire, le comportement suivant est attendu :
+
+* `5 + 5 == 2 + 8`
+* `(5 + 5) == (2 + 8)`
+
++ `VAR is_equal = 5 == 5`
++ `VAR is_equal = (5 == 5)`
+
+Il faut éviter :
+
+* `5 + (5 == 2) + 8`
++ `(VAR is_equal = 5) == 5`
+
+Pour réaliser ça, il nous faudra de nouveaux tokens et de nouveaux noeuds ainsi qu'une modification de la grammaire pour identifier les bonnes priorités. **Une comparaison logique doit prendre plus de priorité qu'une affectation de variable.**
+
+### AND, OR
+
+Avec `AND` (pareil qu'avec `OR`), on veut comparer deux membres qui doivent être vrais. Par exemple :
+
+* `5 == 5 AND 6 == 6`
+* `(5 == 5) AND (6 == 6)`
+
+Il faut éviter :
+
+* `5 == (5 AND 6) == 6`
+
+**Cela signifie qu'un `AND` doit prendre moins de priorité qu'une comparaison logique.**
+
+### NOT
+
+Ceci va permettre de renvoyer l'inverse d'une comparaison logique. Exemple :
+
+* `NOT 1 == 2`
+
+Ceci doit se comporter de la manière suivante :
+
+* `NOT (1 == 2)`
+
+Ainsi, un `NOT` apparaîtra toujours avant une comparaison logique.
+
+On pourra utiliser la grammaire suivante :
+
+expr        : KEYWORD:VAR IDENTIFIER EQ expr
+            : comp-expr ((KEYWORD:AND|KEYWORD:OR) comp-expr)*
+
+comp-expr   : NOT comp-expr
+            : arith-expr ((EE|LT|GT|LTE|GTE)* arith-expr)*
+
+arith-expr  : term ((PLUS|MINUS) term)*
+
+term        : factor ((MUL|DIV) factor)*
+
+factor      : (PLUS|MINUS) factor
+            : power
+
+power       : atom (POWER factor)*
+
+# most priority
+atom        : INT|FLOAT|IDENTIFIER
+            : LPAREN expr RPAREN

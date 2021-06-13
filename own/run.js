@@ -97,6 +97,21 @@ class IllegalCharError extends CustomError {
 }
 
 /**
+ * @classdesc Error thrown when there is an illegal or unexpected character.
+ */
+class ExpectedCharError extends CustomError {
+    /**
+     * @constructs ExpectedCharError
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     * @param {string} details Details about the error.
+     */
+    constructor(pos_start, pos_end, details='') {
+        super(pos_start, pos_end, "Expected Character", details);
+    }
+}
+
+/**
  * @classdesc Error thrown when there is an invalid syntax.
  */
 class InvalidSyntaxError extends CustomError {
@@ -168,11 +183,20 @@ const TOKENS = {
     IDENTIFIER: 'IDENTIFIER',
     KEYWORD: 'KEYWORD',
     EQ: 'EQUALS',
+    EE: 'DOUBLE_EQUALS',
+    NE: 'NOT EQUALS',
+    LT: 'LESS THAN',
+    GT: 'GREATER THAN',
+    LTE: 'LESS THAN OR EQUALS',
+    GTE: 'GREATER THAN OR EQUALS',
     EOF: 'EOF',
 };
 
 const KEYWORDS = [
-    "VAR"
+    "VAR",
+    "AND",
+    "OR",
+    "NOT"
 ];
 
 /***
@@ -322,6 +346,16 @@ class Lexer {
                 tokens.push(this.make_number());
             } else if (Array.from(LETTERS).includes(this.current_char)) {
                 tokens.push(this.make_identifier());
+            } else if (this.current_char === "!") {
+                const { tok, error } = this.make_not_equals();
+                if (error) return { tokens: [], error };
+                tokens.push(tok);
+            } else if (this.current_char === "=") {
+                tokens.push(this.make_equals());
+            } else if (this.current_char === "<") {
+                tokens.push(this.make_less_than()); // less than / less than or equals
+            } else if (this.current_char === ">") {
+                tokens.push(this.make_greater_than()); // greater than / greater than or equals
             } else {
                 let found = false;
                 const keywords = [{
@@ -345,9 +379,6 @@ class Lexer {
                 }, {
                     symbol: "^",
                     token: TOKENS.POWER
-                }, {
-                    symbol: "=",
-                    token: TOKENS.EQ
                 }];
 
                 for (let keyword of keywords) {
@@ -411,6 +442,64 @@ class Lexer {
         let tok_type = Array.from(KEYWORDS).includes(id_str) ? TOKENS.KEYWORD : TOKENS.IDENTIFIER;
         return new Token(tok_type, id_str, pos_start, this.pos);
     }
+
+    make_not_equals() {
+        let pos_start = this.pos.copy();
+        this.advance();
+
+        if (this.current_char === '=') {
+            this.advance();
+            return { tok: new Token(TOKENS.NE, null, pos_start=pos_start, this.pos), error: null };
+        }
+
+        this.advance();
+        return { tok: null, error: new ExpectedCharError(
+            pos_start, this.pos,
+            "'=' (after '!')"
+        ) };
+    }
+
+    make_equals() {
+        let tok_type = TOKENS.EQ;
+        let pos_start = this.pos.copy();
+        this.advance();
+
+        // do we have "==" ?
+        if (this.current_char === '=') {
+            this.advance();
+            tok_type = TOKENS.EE;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_less_than() {
+        let tok_type = TOKENS.LT;
+        let pos_start = this.pos.copy();
+        this.advance();
+
+        // do we have "==" ?
+        if (this.current_char === '=') {
+            this.advance();
+            tok_type = TOKENS.LTE;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_greater_than() {
+        let tok_type = TOKENS.GT;
+        let pos_start = this.pos.copy();
+        this.advance();
+
+        // do we have "==" ?
+        if (this.current_char === '=') {
+            this.advance();
+            tok_type = TOKENS.GTE;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
 }
 
 /*
@@ -468,8 +557,6 @@ class VarAssignNode {
         this.pos_start = this.var_name_tok.pos_start;
         this.pos_end = this.value_node.pos_end;
     }
-
-    
 }
 
 /**
@@ -607,14 +694,10 @@ class Parser {
 
     parse() {
         let res = this.expr();
-        // console.log("---");
-        // console.log(`res.error = ${res.error}`);
-        // console.log(`res.node = ${res.node}`);
-        // console.log("---");
         if (!res.error && this.current_tok.type !== TOKENS.EOF) {
             return res.failure(new InvalidSyntaxError(
                 this.current_tok.pos_start, this.current_tok.pos_end,
-                "Error - Expected '+', '-', '*', '/' or '^'"
+                "Expected '+', '-', '*', '/' or '^'"
             ));
         }
         return res;
@@ -662,12 +745,12 @@ class Parser {
         }
 
         // evaluate a binary operation between two terms separated by PLUS or MINUS.
-        let node = res.register(this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]));
+        let node = res.register(this.bin_op(this.comp_expr.bind(this), [[TOKENS.KEYWORD, "AND"], [TOKENS.KEYWORD, "OR"]]));
         
         if (res.error) {
             return res.failure(new InvalidSyntaxError(
                 this.current_tok.pos_start, this.current_tok.pos_end,
-                "Expected 'VAR', int, float, identifier, '+', '-' or '('"
+                "Expected 'VAR', int, float, identifier, '+', '-', '(' or 'NOT'"
             ));
         }
 
@@ -677,6 +760,37 @@ class Parser {
     // a term is looking for a factor
     term() {
         return this.bin_op(this.factor.bind(this), [TOKENS.MUL, TOKENS.DIV]); // evaluate a binary operation between two factors separated by MUL or DIV.
+    }
+
+    arith_expr() {
+        return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]);
+    }
+
+    comp_expr() {
+        let res = new ParseResult();
+        
+        if (this.current_tok.matches(TOKENS.KEYWORD, 'NOT')) {
+            let op_tok = this.current_tok;
+            res.register_advancement();
+            this.advance();
+
+            let node = res.register(this.comp_expr());
+            if (res.error) return res;
+            
+            // @ts-ignore
+            return res.success(new UnaryOpNode(op_tok, node));
+        }
+
+        let node = res.register(this.bin_op(this.arith_expr.bind(this), [TOKENS.EE, TOKENS.NE, TOKENS.LT, TOKENS.GT, TOKENS.LTE, TOKENS.GTE]));
+        
+        if (res.error) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected int, float, identifier, '+', '-', '(' or 'NOT'"
+            ));
+        }
+
+        return res.success(node);
     }
 
     factor() {
@@ -741,7 +855,7 @@ class Parser {
     /**
      * Evaluate a binary operation (a term or an expr).
      * @param {Function} func_a A function of the Parser.
-     * @param {Array<string>} ops The possible operations.
+     * @param {Array<string>|Array<Array<string>>} ops The possible operations.
      * @param {Function} func_b Another function of the Parser.
      * @return {ParseResult}
      */
@@ -754,7 +868,19 @@ class Parser {
         let left = res.register(func_a());
         if (res.error) return res;
 
-        while (ops.includes(this.current_tok.type)) {
+        // Array.protoype.includes is crap ;(
+        const check_combination = (comb) => {
+            for (let combination of ops) {
+                if (combination[0] === comb[0] && combination[1] === comb[1]) {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        // @ts-ignore
+        while (ops.includes(this.current_tok.type) || check_combination([this.current_tok.type, this.current_tok.value])) {
             let op_tok = this.current_tok;
             res.register_advancement();
             this.advance();
@@ -915,6 +1041,86 @@ class CustomNumber {
      */
     powered_by(other_number) {
         return { result: new CustomNumber(this.value ** other_number.value).set_context(this.context), error: null };
+    }
+
+    /**
+     * Checks if our value is equals to the other value.
+     * @param {CustomNumber} other_number The number to be compared with our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    get_comparison_eq(other_number) {
+        return { result: new CustomNumber(new Number(this.value == other_number.value).valueOf()).set_context(this.context), error: null };
+    }
+
+    /**
+     * Checks if our value is not equals to the other value.
+     * @param {CustomNumber} other_number The number to be compared with our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    get_comparison_ne(other_number) {
+        return { result: new CustomNumber(new Number(this.value != other_number.value).valueOf()).set_context(this.context), error: null };
+    }
+
+    /**
+     * Checks if our value is less than the other value.
+     * @param {CustomNumber} other_number The number to be compared with our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    get_comparison_lt(other_number) {
+        return { result: new CustomNumber(new Number(this.value < other_number.value).valueOf()).set_context(this.context), error: null };
+    }
+
+    /**
+     * Checks if our value is greater than the other value.
+     * @param {CustomNumber} other_number The number to be compared with our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    get_comparison_gt(other_number) {
+        return { result: new CustomNumber(new Number(this.value > other_number.value).valueOf()).set_context(this.context), error: null };
+    }
+
+    /**
+     * Checks if our value is less than or equals the other value.
+     * @param {CustomNumber} other_number The number to be compared with our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    get_comparison_lte(other_number) {
+        return { result: new CustomNumber(new Number(this.value <= other_number.value).valueOf()).set_context(this.context), error: null };
+    }
+
+    /**
+     * Checks if our value is greater than or equals the other value.
+     * @param {CustomNumber} other_number The number to be compared with our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    get_comparison_gte(other_number) {
+        return { result: new CustomNumber(new Number(this.value >= other_number.value).valueOf()).set_context(this.context), error: null };
+    }
+
+    /**
+     * Checks if both values are true (1).
+     * @param {CustomNumber} other_number The number to be compared with our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    anded_by(other_number) {
+        return { result: new CustomNumber(new Number(this.value && other_number.value).valueOf()).set_context(this.context), error: null };
+    }
+
+    /**
+     * Checks if one or both values are true (1).
+     * @param {CustomNumber} other_number The number to be compared with our value.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    ored_by(other_number) {
+        return { result: new CustomNumber(new Number(this.value || other_number.value).valueOf()).set_context(this.context), error: null };
+    }
+
+    /**
+     * Gets the contrary of a comparison operator.
+     * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
+     */
+    notted() {
+        return { result: new CustomNumber(this.value == 0 ? 1 : 0).set_context(this.context), error: null };
     }
 
     // ----------------
@@ -1121,6 +1327,22 @@ class Interpreter {
             operation = left.dived_by(right);
         } else if (node.op_tok.type == TOKENS.POWER) {
             operation = left.powered_by(right);
+        } else if (node.op_tok.type == TOKENS.EE) {
+            operation = left.get_comparison_eq(right);
+        } else if (node.op_tok.type == TOKENS.NE) {
+            operation = left.get_comparison_ne(right);
+        } else if (node.op_tok.type == TOKENS.LT) {
+            operation = left.get_comparison_lt(right);
+        } else if (node.op_tok.type == TOKENS.GT) {
+            operation = left.get_comparison_gt(right);
+        } else if (node.op_tok.type == TOKENS.LTE) {
+            operation = left.get_comparison_lte(right);
+        } else if (node.op_tok.type == TOKENS.GTE) {
+            operation = left.get_comparison_gte(right);
+        } else if (node.op_tok.matches(TOKENS.KEYWORD, 'AND')) {
+            operation = left.anded_by(right);
+        } else if (node.op_tok.matches(TOKENS.KEYWORD, 'OR')) {
+            operation = left.ored_by(right);
         }
 
         let result = operation.result;
@@ -1155,6 +1377,10 @@ class Interpreter {
             operation = number.multed_by(new CustomNumber(-1));
             number = operation.result;
             error = operation.error;
+        } else if (node.op_tok.matches(TOKENS.KEYWORD, 'NOT')) {
+            operation = number.notted();
+            number = operation.result;
+            error = operation.error;
         }
             
         if (error) {
@@ -1174,7 +1400,9 @@ class Interpreter {
 */
 
 const global_symbol_table = new SymbolTable();
-global_symbol_table.set("null", new CustomNumber(0));
+global_symbol_table.set("NULL", new CustomNumber(0));
+global_symbol_table.set("YES", new CustomNumber(1));
+global_symbol_table.set("NO", new CustomNumber(1));
 
 /**
  * Executes the program.
