@@ -266,6 +266,122 @@ class Lexer {
     }
 }
 
+/*
+*
+* NODES
+*
+*/
+
+/**
+ * @classdesc This node represents a single number while reading the tokens.
+ */
+class NumberNode {
+    /**
+     * @constructs NumberNode
+     * @param {Token} tok The token that represents a number.
+     */
+    constructor(tok) {
+        this.tok = tok;
+    }
+
+    toString() {
+        return `${this.tok.toString()}`;
+    }
+}
+
+/**
+ * @classdesc Describes an operation between a left node and a right node.
+ */
+class BinOpNode {
+    /**
+     * @constructs BinOpNode
+     * @param {NumberNode} left_node The left side of an operation.
+     * @param {Token} op_tok The type of operation (+, -, etc.)
+     * @param {NumberNode} right_node The right side of an operation.
+     */
+    constructor(left_node, op_tok, right_node) {
+        this.left_node = left_node;
+        this.op_tok = op_tok;
+        this.right_node = right_node;
+    }
+
+    toString() {
+        return `(${this.left_node.toString()}, ${this.op_tok.type.toString()}, ${this.right_node.toString()})`;
+    }
+}
+
+/*
+*
+* Parser
+*
+*/
+
+/**
+ * @classdesc Read the tokens and creates the hierarchy between the operations.
+ */
+class Parser {
+    /**
+     * @constructs
+     * @param {Array<Token>} tokens The tokens of the program.
+     */
+    constructor(tokens) {
+        this.tokens = tokens;
+        this.tok_idx = -1;
+        this.advance();
+    }
+
+    advance() {
+        this.tok_idx += 1;
+        if (this.tok_idx < this.tokens.length) {
+            this.current_tok = this.tokens[this.tok_idx];
+        }
+        return this.current_tok;
+    }
+
+    parse() {
+        let expr = this.expr();
+        return expr;
+    }
+
+    // -------------
+
+    factor() {
+        let tok = this.current_tok;
+        if ([TOKENS.INT, TOKENS.FLOAT].includes(tok.type)) {
+            this.advance();
+            return new NumberNode(tok);
+        }
+    }
+
+    expr() {
+        return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]); // evaluate a binary operation between two terms separated by PLUS or MINUS.
+    }
+
+    term() {
+        return this.bin_op(this.factor.bind(this), [TOKENS.MUL, TOKENS.DIV]); // evaluate a binary operation between two factors separated by MUL or DIV.
+    }
+
+    // -------------
+
+    /**
+     * Evaluate a binary operation (a term or an expr).
+     * @param {Function} func A function a the Parser.
+     * @param {Array<string>} ops The possible operations.
+     */
+    bin_op(func, ops) {
+        let left = func();
+
+        while (ops.includes(this.current_tok.type)) {
+            let op_tok = this.current_tok;
+            this.advance();
+            let right = func();
+            return new BinOpNode(left, op_tok, right);
+        }
+
+        return left;
+    }
+}
+
 /**
  * Executes the program.
  * @param {string} filename The filename.
@@ -274,6 +390,10 @@ class Lexer {
 export default function run(filename, text) {
     const lexer = new Lexer(filename, text);
     const { tokens, error } = lexer.make_tokens();
+    if (error) return { result: null, error };
 
-    return { result: tokens, error };
+    const parser = new Parser(tokens);
+    const ast = parser.parse();
+
+    return { result: ast, error: null };
 }

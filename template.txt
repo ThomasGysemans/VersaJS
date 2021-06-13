@@ -1,11 +1,11 @@
 tag Greet {
     prop name
 
-    func _private_function() {
+    def _private_function() {
         return 1
     }
     
-    func render() {
+    def render() {
         const important_variable = do _private_function();
         let name = self.name ?? "stranger";
         return (
