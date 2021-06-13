@@ -90,3 +90,22 @@ Pour exemple:
 * `24 * 2` représente un terme (un terme est créé quand il y a un facteur, puis MUL|DIV, puis un autre facteur OU juste un facteur)
 * `8` est un terme à lui tout seul.
 * Un terme plus/moins un autre terme représente une expression.
+
+## Variables
+
+Une variable doit contenir une valeur et être réutilisable à volonté sans déclencher une erreur "Illegal Character". Pour faire fonctionner nos variables, il nous faut trois types de tokens:
+
+* IDENTIFIER
+* KEYWORD
+* EQ
+
+VAR      variable_name     =     `<expr>`
+ ^             ^           ^        
+KEYWORD    IDENTIFIER    EQUALS
+
+La déclaration d'une variable doit être ce qui prend le moins de priorité dans la grammaire. En effet, il faut absolument éviter le cas suivant :
+
+* `VAR a = 5 + 5`
+* `(VAR a = 5) + 5`
+
+**Note:** maintenant, quand on cherche un facteur, il faut aussi penser à vérifier la présence d'un IDENTIFIER.

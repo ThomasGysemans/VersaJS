@@ -46,6 +46,8 @@ function string_with_arrows(text, pos_start, pos_end) {
 */
 
 const DIGITS = '0123456789';
+const LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const LETTERS_DIGITS = LETTERS + DIGITS;
 
 /*
 *
@@ -163,8 +165,15 @@ const TOKENS = {
     LPAREN: 'LPAREN',
     RPAREN: 'RPAREN',
     POWER: 'POWER',
+    IDENTIFIER: 'IDENTIFIER',
+    KEYWORD: 'KEYWORD',
+    EQ: 'EQUALS',
     EOF: 'EOF',
 };
+
+const KEYWORDS = [
+    "VAR"
+];
 
 /***
  * @classdesc Creates a token (that represents a keyword, such as "+", "-", etc.)
@@ -188,6 +197,16 @@ class Token {
         }
 
         if (pos_end) this.pos_end = pos_end.copy();
+    }
+
+    /**
+     * Checks if a the type and the value of this token corresponds with `type` and `value`.
+     * @param {string} type The type of token (TOKENS.KEYWORD for example).
+     * @param {string} value The value that has to correspond.
+     * @returns {boolean} `true` if the type & value of this token correspond with `type` and `value`.
+     */
+    matches(type, value) {
+        return this.type === type && this.value === value;
     }
 
     toString() {
@@ -301,6 +320,8 @@ class Lexer {
                 this.advance();
             } else if (Array.from(DIGITS).includes(this.current_char)) {
                 tokens.push(this.make_number());
+            } else if (Array.from(LETTERS).includes(this.current_char)) {
+                tokens.push(this.make_identifier());
             } else {
                 let found = false;
                 const keywords = [{
@@ -324,6 +345,9 @@ class Lexer {
                 }, {
                     symbol: "^",
                     token: TOKENS.POWER
+                }, {
+                    symbol: "=",
+                    token: TOKENS.EQ
                 }];
 
                 for (let keyword of keywords) {
@@ -374,6 +398,19 @@ class Lexer {
             return new Token(TOKENS.FLOAT, parseFloat(str_num), pos_start, this.pos);
         }
     }
+
+    make_identifier() {
+        let id_str = '';
+        let pos_start = this.pos.copy();
+
+        while (this.current_char !== null && Array.from(LETTERS_DIGITS + "_").includes(this.current_char)) {
+            id_str += this.current_char;
+            this.advance();
+        }
+
+        let tok_type = Array.from(KEYWORDS).includes(id_str) ? TOKENS.KEYWORD : TOKENS.IDENTIFIER;
+        return new Token(tok_type, id_str, pos_start, this.pos);
+    }
 }
 
 /*
@@ -399,6 +436,40 @@ class NumberNode {
     toString() {
         return `${this.tok.toString()}`;
     }
+}
+
+/**
+ * @classdesc Allows our program to access existing variables.
+ */
+class VarAccessNode {
+    /**
+     * @constructs VarAccessNode
+     * @param {Token} var_name_tok The token that represents a variable.
+     */
+    constructor(var_name_tok) {
+        this.var_name_tok = var_name_tok;
+        this.pos_start = var_name_tok.pos_start;
+        this.pos_end = var_name_tok.pos_end;
+    }
+}
+
+/**
+ * @classdesc Creates a variable by saving its name and its value.
+ */
+class VarAssignNode {
+    /**
+     * @constructs VarAssignNode
+     * @param {Token} var_name_tok The name of the variable.
+     * @param {NumberNode|BinOpNode|UnaryOpNode} value_node The value of the variable.
+     */
+    constructor(var_name_tok, value_node) {
+        this.var_name_tok = var_name_tok;
+        this.value_node = value_node;
+        this.pos_start = this.var_name_tok.pos_start;
+        this.pos_end = this.value_node.pos_end;
+    }
+
+    
 }
 
 /**
@@ -463,14 +534,14 @@ class ParseResult {
     constructor() {
         /** @var {CustomError|null} */
         this.error = null;
-        /** @var {UnaryOpNode|NumberNode|BinOpNode|null} */
+        /** @var {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|null} */
         this.node = null;
     }
 
     /**
      * Registers a new node in order to verify if there is an error.
      * @param {any} res The result of an executed function.
-     * @return {ParseResult|UnaryOpNode|NumberNode|BinOpNode} res.node or res.
+     * @return {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode} res.node or res.
      */
     register(res) {
         if (res instanceof ParseResult) {
@@ -483,7 +554,7 @@ class ParseResult {
 
     /**
      * A new node is correct.
-     * @param {UnaryOpNode|NumberNode|BinOpNode} node The errorless node.
+     * @param {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode} node The errorless node.
      * @return {ParseResult} this.
      */
     success(node) {
@@ -547,6 +618,39 @@ class Parser {
 
     // an expression is looking for terms.
     expr() {
+        // first of all, we need to check if this is a variable declaration
+        let res = new ParseResult();
+        if (this.current_tok.matches(TOKENS.KEYWORD, 'VAR')) {
+            res.register(this.advance());
+            // after the "VAR" keyword, we need to check if there is an identifier
+            if (this.current_tok.type !== TOKENS.IDENTIFIER) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected identifier"
+                ));
+            }
+
+            let var_name_tok = this.current_tok;
+            res.register(this.advance());
+
+            // now we want the equals token
+            if (this.current_tok.type !== TOKENS.EQ) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected '='"
+                ));
+            }
+
+            res.register(this.advance());
+
+            // we need to check if there is now an expr
+            let expr = res.register(this.expr());
+            if (res.error) return res;
+
+            // @ts-ignore
+            return res.success(new VarAssignNode(var_name_tok, expr));
+        }
+
         return this.bin_op(this.term.bind(this), [TOKENS.PLUS, TOKENS.MINUS]); // evaluate a binary operation between two terms separated by PLUS or MINUS.
     }
 
@@ -582,6 +686,9 @@ class Parser {
         if ([TOKENS.INT, TOKENS.FLOAT].includes(tok.type)) {
             res.register(this.advance());
             return res.success(new NumberNode(tok));
+        } else if (tok.type === TOKENS.IDENTIFIER) {
+            res.register(this.advance());
+            return res.success(new VarAccessNode(tok));
         } else if (tok.type === TOKENS.LPAREN) {
             res.register(this.advance());
             let expr = res.register(this.expr());
@@ -811,6 +918,56 @@ class Context {
         this.display_name = display_name;
         this.parent = parent;
         this.parent_entry_pos = parent_entry_pos;
+        /** @type {SymbolTable|null} */
+        this.symbol_table = null;
+    }
+}
+
+/*
+*
+* SYMBOL TABLE (for variables)
+*
+*/
+
+/**
+ * @classdesc Keeps track of all the declared variables in our program.
+ */
+class SymbolTable {
+    constructor() {
+        this.symbols = new Map();
+        // a parent symbol table
+        // (for an function for instance)
+        // we'll be able to remove all the variables after the execution of a function
+        /** @type {Map|null} */
+        this.parent = null;
+    }
+
+    /**
+     * Gets a variable.
+     * @param {string} name The name of a variable.
+     */
+    get(name) {
+        let value = this.symbols.has(name) ? this.symbols.get(name) : null;
+        // we check for the parent symbol table
+        if (value === null && this.parent) return this.parent.has(name) ? this.parent.get(name) : null;
+        return value;
+    }
+
+    /**
+     * Modifies the value of a variable.
+     * @param {string} name The name of the variable to modify.
+     * @param {any} value The new value of that variable.
+     */
+    set(name, value) {
+        this.symbols.set(name, value);
+    }
+
+    /**
+     * Removes a variable.
+     * @param {string} name The name of the variable to remove.
+     */
+    remove(name) {
+        this.symbols.delete(name);
     }
 }
 
@@ -825,8 +982,8 @@ class Context {
  */
 class Interpreter {
     /**
-     * @param {NumberNode|UnaryOpNode|BinOpNode} node The node to be visited.
-     * @param {Context} context The rpot context.
+     * @param {NumberNode|UnaryOpNode|BinOpNode|VarAccessNode|VarAssignNode} node The node to be visited.
+     * @param {Context} context The root context.
      * @return {RTResult}
      */
     visit(node, context) {
@@ -836,8 +993,13 @@ class Interpreter {
             return this.visit_UnaryOpNode(node, context);
         } else if (node instanceof BinOpNode) {
             return this.visit_BinOpNode(node, context);
+        } else if (node instanceof VarAssignNode) {
+            return this.visit_VarAssignNode(node, context);
+        } else if (node instanceof VarAccessNode) {
+            return this.visit_VarAccessNode(node, context);
         } else {
-            throw new Error("No visit method defined for '" + typeof node + "'");
+            // @ts-ignore
+            throw new Error("No visit method defined for the node '" + node.constructor.name + "'");
         }
     }
 
@@ -853,6 +1015,44 @@ class Interpreter {
         return new RTResult().success(
             new CustomNumber(node.tok.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         );
+    }
+
+    /**
+     * Gets a variable.
+     * @param {VarAccessNode} node The node to be visited.
+     * @param {Context} context The current context.
+     * @return {RTResult}
+     */
+    visit_VarAccessNode(node, context) {
+        let res = new RTResult();
+        let var_name = node.var_name_tok.value;
+        let value = context.symbol_table.get(var_name);
+
+        if (value === null || value === undefined) {
+            return res.failure(new RTError(
+                node.pos_start, node.pos_end,
+                `'${var_name}' is not defined`,
+                context
+            ));
+        }
+
+        return res.success(value);
+    }
+
+    /**
+     * Creates a variable.
+     * @param {VarAssignNode} node The node to be visited.
+     * @param {Context} context The current context.
+     * @return {RTResult}
+     */
+    visit_VarAssignNode(node, context) {
+        let res = new RTResult();
+        let var_name = node.var_name_tok.value;
+        let value = res.register(this.visit(node.value_node, context));
+        if (res.error) return res;
+
+        context.symbol_table.set(var_name, value);
+        return res.success(value);
     }
     
     /**
@@ -933,6 +1133,15 @@ class Interpreter {
     // ----------------
 }
 
+/*
+*
+* GLOBAL VARIABLES
+*
+*/
+
+const global_symbol_table = new SymbolTable();
+global_symbol_table.set("null", new CustomNumber(0));
+
 /**
  * Executes the program.
  * @param {string} filename The filename.
@@ -952,8 +1161,8 @@ export default function run(filename, text) {
 
     // Run the program
     const interpreter = new Interpreter();
-    const context = new Context('<program>');
-    // the context will get modified by visiting the different user's actions.
+    const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
+    context.symbol_table = global_symbol_table;
     const result = interpreter.visit(ast.node, context);
 
     return { result: result.value, error: result.error };
