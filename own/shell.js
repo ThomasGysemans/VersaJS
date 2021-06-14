@@ -9,7 +9,7 @@ while (!exit) {
 
         if (error) {
             console.log(error.toString());
-        } else {
+        } else if (result) { // there is a chance that result is null because of the if statement
             console.log(result.toString());
         }
     } else {

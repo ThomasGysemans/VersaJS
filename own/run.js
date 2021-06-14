@@ -196,7 +196,11 @@ const KEYWORDS = [
     "VAR",
     "AND",
     "OR",
-    "NOT"
+    "NOT",
+    "IF",
+    "THEN",
+    "ELIF",
+    "ELSE"
 ];
 
 /***
@@ -605,6 +609,24 @@ class UnaryOpNode {
     }
 }
 
+/**
+ * @classdesc Describes a condition (if, elif, else).
+ */
+class IfNode {
+    /**
+     * @constructs IfNode
+     * @param {Array<Array<UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode>>} cases The cases [[condition, expr]].
+     * @param {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode} else_case The else case.
+     */
+    constructor(cases, else_case) {
+        this.cases = cases;
+        this.else_case = else_case;
+
+        this.pos_start = this.cases[0][0].pos_start;
+        this.pos_end = (this.else_case || this.cases[this.cases.length - 1][0]).pos_end;
+    }
+}
+
 /*
 *
 * PARSE RESULT
@@ -621,7 +643,7 @@ class ParseResult {
     constructor() {
         /** @var {CustomError|null} */
         this.error = null;
-        /** @var {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|null} */
+        /** @var {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode|null} */
         this.node = null;
         this.advance_count = 0;
     }
@@ -633,7 +655,7 @@ class ParseResult {
     /**
      * Registers a new node in order to verify if there is an error.
      * @param {any} res The result of an executed function.
-     * @return {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode} res.node or res.
+     * @return {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode} res.node.
      */
     register(res) {
         this.advance_count += res.advance_count;
@@ -643,7 +665,7 @@ class ParseResult {
 
     /**
      * A new node is correct.
-     * @param {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode} node The errorless node.
+     * @param {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode} node The errorless node.
      * @return {ParseResult} this.
      */
     success(node) {
@@ -842,12 +864,98 @@ class Parser {
                     "Expected ')'"
                 ));
             }
+        } else if (tok.matches(TOKENS.KEYWORD, "IF")) {
+            let if_expr = res.register(this.if_expr());
+            if (res.error) return res;
+            return res.success(if_expr);
         }
 
         return res.failure(new InvalidSyntaxError(
             tok.pos_start, tok.pos_end,
             "Expected int, float, identifier, '+', '-', or '('"
         ));
+    }
+
+    if_expr() {
+        let res = new ParseResult();
+        let cases = [];
+        let else_case = null;
+
+        // we must have a "IF" keyword
+
+        if (!this.current_tok.matches(TOKENS.KEYWORD, "IF")) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'IF'"
+            ));
+        }
+
+        // we continue
+
+        res.register_advancement();
+        this.advance();
+
+        // we must have a "THEN" keyword now
+
+        let condition = res.register(this.expr());
+        if (res.error) return res;
+
+        if (!this.current_tok.matches(TOKENS.KEYWORD, "THEN")) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'THEN'"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+
+        // followed by an expression
+
+        let expr = res.register(this.expr());
+        if (res.error) return res;
+        cases.push([condition, expr]);
+
+        // now we check for ELIFs
+
+        while (this.current_tok.matches(TOKENS.KEYWORD, "ELIF")) {
+            res.register_advancement();
+            this.advance();
+
+            // after an ELIF, there must be a condition
+
+            condition = res.register(this.expr());
+            if (res.error) return res;
+
+            // then a "THEN"
+            
+            if (!this.current_tok.matches(TOKENS.KEYWORD, "THEN")) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected 'THEN'"
+                ));
+            }
+
+            // we need now another expression
+
+            res.register_advancement();
+            this.advance();
+
+            expr = res.register(this.expr());
+            if (res.error) return res;
+            cases.push([condition, expr]);
+        }
+
+        if (this.current_tok.matches(TOKENS.KEYWORD, "ELSE")) {
+            res.register_advancement();
+            this.advance();
+
+            else_case = res.register(this.expr());
+            if (res.error) return res;
+        }
+
+        // @ts-ignore
+        return res.success(new IfNode(cases, else_case));
     }
 
     // -------------
@@ -1125,6 +1233,10 @@ class CustomNumber {
 
     // ----------------
 
+    is_true() {
+        return this.value != 0;
+    }
+
     copy() {
         let copy = new CustomNumber(this.value);
         copy.set_pos(this.pos_start, this.pos_end);
@@ -1221,7 +1333,7 @@ class SymbolTable {
  */
 class Interpreter {
     /**
-     * @param {NumberNode|UnaryOpNode|BinOpNode|VarAccessNode|VarAssignNode} node The node to be visited.
+     * @param {NumberNode|UnaryOpNode|BinOpNode|VarAccessNode|VarAssignNode|IfNode} node The node to be visited.
      * @param {Context} context The root context.
      * @return {RTResult}
      */
@@ -1236,6 +1348,8 @@ class Interpreter {
             return this.visit_VarAssignNode(node, context);
         } else if (node instanceof VarAccessNode) {
             return this.visit_VarAccessNode(node, context);
+        } else if (node instanceof IfNode) {
+            return this.visit_IfNode(node, context);
         } else {
             // @ts-ignore
             throw new Error("No visit method defined for the node '" + node.constructor.name + "'");
@@ -1388,6 +1502,36 @@ class Interpreter {
         } else {
             return res.success(number.set_context(context).set_pos(node.pos_start, node.pos_start));
         }
+    }
+
+    /**
+     * Visits the conditional node in order get the right expression.
+     * @param {IfNode} node The node to be visited.
+     * @param {Context} context The current context.
+     * @return {RTResult}
+     */
+    visit_IfNode(node, context) {
+        let res = new RTResult();
+        
+        for (let [condition, expr] of node.cases) {
+            /** @type {CustomNumber} */
+            let condition_value = res.register(this.visit(condition, context));
+            if (res.error) return res;
+
+            if (condition_value.is_true()) {
+                let expr_value = res.register(this.visit(expr, context));
+                if (res.error) return res;
+                return res.success(expr_value);
+            }
+        }
+
+        if (node.else_case) {
+            let else_value = res.register(this.visit(node.else_case, context));
+            if (res.error) return res;
+            return res.success(else_value);
+        }
+
+        return res.success(null);
     }
 
     // ----------------

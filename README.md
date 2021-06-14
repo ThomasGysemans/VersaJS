@@ -186,3 +186,34 @@ power       : atom (POWER factor)*
 # most priority
 atom        : INT|FLOAT|IDENTIFIER
             : LPAREN expr RPAREN
+
+## Conditions
+
+Une condition peut être interprétée de la manière suivante :
+
+* `IF <condition> THEN <expr>`
+
+Pour aller plus loin:
+
+* `IF <condition> THEN <expr> ELIF <condition> THEN <expr> ELSE <expr>`
+
+On pourrait alors utiliser les conditions de la manière suivante :
+
+```
+VAR age = 27
+VAR price = IF age >= 18 THEN 40 ELSE 20
+```
+
+Pour coder cette fonctionnalité, on doit bien sûr ajouter les mots-clés `IF`, `THEN`, `ELIF` et `ELSE`. Contrairement aux autres fonctionnalités, il est inutile de se soucier de l'ordre de priorité. En effet, il est impossible que des parenthèses soient mal placées lors de la lecture du code. Ainsi, on peut modifier la grammaire de la façon suivante :
+
+atom        : INT|FLOAT|IDENTIFIER
+            : LPAREN expr RPAREN
+            : if-expr
+
+if-expr     : KEYWORD:IF expr KEYWORD:THEN expr
+                (KEYWORD:ELIF expr KEYWORD:THEN expr)* // 0 ou plus
+                (KEYWORD:ELSE expr)? // pas obligatoire
+
+On va vérifier la présence du mot-clé `IF`, s'il est présent, alors on regarde la condition qui suit, puis la présence du mot-clé `THEN`, puis une expression. On vérifie ensuite toutes les `ELIF` potientiels avant de vérifier la présence de `ELSE`.
+
+Dans l'interpreter, on verifira la valeur de chaque condition (on visite l'expression et on obtient un nombre,`1` pour `TRUE` et `0` pour `FALSE`). Si une condition est vraie, alors on retourne la valeur de l'expression qui y correspond.
