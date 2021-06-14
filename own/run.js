@@ -516,15 +516,25 @@ class Lexer {
 *
 */
 
+class CustomNode {
+    constructor() {
+        /** @type {Position} */
+        this.pos_start = null;
+        /** @type {Position} */
+        this.pos_end = null;
+    }
+}
+
 /**
  * @classdesc This node represents a single number while reading the tokens.
  */
-class NumberNode {
+class NumberNode extends CustomNode {
     /**
      * @constructs NumberNode
      * @param {Token} tok The token that represents a number.
      */
     constructor(tok) {
+        super();
         this.tok = tok;
         this.pos_start = this.tok.pos_start;
         this.pos_end = this.tok.pos_end;
@@ -538,12 +548,13 @@ class NumberNode {
 /**
  * @classdesc Allows our program to access existing variables.
  */
-class VarAccessNode {
+class VarAccessNode extends CustomNode {
     /**
      * @constructs VarAccessNode
      * @param {Token} var_name_tok The token that represents a variable.
      */
     constructor(var_name_tok) {
+        super();
         this.var_name_tok = var_name_tok;
         this.pos_start = var_name_tok.pos_start;
         this.pos_end = var_name_tok.pos_end;
@@ -553,13 +564,14 @@ class VarAccessNode {
 /**
  * @classdesc Creates a variable by saving its name and its value.
  */
-class VarAssignNode {
+class VarAssignNode extends CustomNode {
     /**
      * @constructs VarAssignNode
      * @param {Token} var_name_tok The name of the variable.
-     * @param {NumberNode|BinOpNode|UnaryOpNode} value_node The value of the variable.
+     * @param {CustomNode} value_node The value of the variable.
      */
     constructor(var_name_tok, value_node) {
+        super();
         this.var_name_tok = var_name_tok;
         this.value_node = value_node;
         this.pos_start = this.var_name_tok.pos_start;
@@ -570,14 +582,15 @@ class VarAssignNode {
 /**
  * @classdesc Describes an operation between a left node and a right node.
  */
-class BinOpNode {
+class BinOpNode extends CustomNode {
     /**
      * @constructs BinOpNode
-     * @param {NumberNode} left_node The left side of an operation.
+     * @param {CustomNode} left_node The left side of an operation.
      * @param {Token} op_tok The type of operation (+, -, etc.)
-     * @param {NumberNode} right_node The right side of an operation.
+     * @param {CustomNode} right_node The right side of an operation.
      */
     constructor(left_node, op_tok, right_node) {
+        super();
         this.left_node = left_node;
         this.op_tok = op_tok;
         this.right_node = right_node;
@@ -594,13 +607,14 @@ class BinOpNode {
 /**
  * @classdesc Describes an unary operation (-1).
  */
-class UnaryOpNode {
+class UnaryOpNode extends CustomNode {
     /**
      * @constructs UnaryOpNode
      * @param {Token} op_tok The type of operation.
-     * @param {NumberNode} node The node.
+     * @param {CustomNode} node The node.
      */
     constructor(op_tok, node) {
+        super();
         this.op_tok = op_tok;
         this.node = node;
 
@@ -616,13 +630,14 @@ class UnaryOpNode {
 /**
  * @classdesc Describes a condition (if, elif, else).
  */
-class IfNode {
+class IfNode extends CustomNode {
     /**
      * @constructs IfNode
-     * @param {Array<Array<UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode>>} cases The cases [[condition, expr]].
-     * @param {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode} else_case The else case.
+     * @param {Array<Array<CustomNode>>} cases The cases [[condition, expr]].
+     * @param {CustomNode} else_case The else case.
      */
     constructor(cases, else_case) {
+        super();
         this.cases = cases;
         this.else_case = else_case;
 
@@ -634,16 +649,17 @@ class IfNode {
 /**
  * @classdesc Describes a for loop.
  */
-class ForNode {
+class ForNode extends CustomNode {
     /**
      * @constructs ForNode
      * @param {Token} var_name_tok The name of the variable in the for statement (i).
-     * @param {UnaryOpNode|NumberNode|BinOpNode} start_value_node The starting value.
-     * @param {UnaryOpNode|NumberNode|BinOpNode} end_value_node The value it will go up to.
-     * @param {UnaryOpNode|NumberNode|BinOpNode} step_value_node The step between each iteration.
-     * @param {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode|ForNode|WhileNode} body_node What gets evaluated on every iteration.
+     * @param {CustomNode} start_value_node The starting value.
+     * @param {CustomNode} end_value_node The value it will go up to.
+     * @param {CustomNode} step_value_node The step between each iteration.
+     * @param {CustomNode} body_node What gets evaluated on every iteration.
      */
     constructor(var_name_tok, start_value_node, end_value_node, step_value_node, body_node) {
+        super();
         this.var_name_tok = var_name_tok;
         this.start_value_node = start_value_node;
         this.end_value_node = end_value_node;
@@ -658,13 +674,14 @@ class ForNode {
 /**
  * @classdesc Describes a while loop.
  */
-class WhileNode {
+class WhileNode extends CustomNode {
     /**
      * @constructs WhileNode
-     * @param {IfNode} condition_node The condition needed to evaluate the body.
-     * @param {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode|ForNode|WhileNode} body_node What gets evaluated on every iteration.
+     * @param {CustomNode} condition_node The condition needed to evaluate the body.
+     * @param {CustomNode} body_node What gets evaluated on every iteration.
      */
     constructor(condition_node, body_node) {
+        super();
         this.condition_node = condition_node;
         this.body_node = body_node;
         
@@ -689,19 +706,19 @@ class ParseResult {
     constructor() {
         /** @var {CustomError|null} */
         this.error = null;
-        /** @var {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode|null} */
+        /** @var {CustomNode|null} */
         this.node = null;
         this.advance_count = 0;
     }
 
     register_advancement() {
-        this.advance_count += 1;
+        this.advance_count += 1; // we want to known the exact amount to advancements.
     }
 
     /**
      * Registers a new node in order to verify if there is an error.
      * @param {any} res The result of an executed function.
-     * @return {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode} res.node.
+     * @return {CustomNode|null} res.node.
      */
     register(res) {
         this.advance_count += res.advance_count;
@@ -711,7 +728,7 @@ class ParseResult {
 
     /**
      * A new node is correct.
-     * @param {ParseResult|UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode} node The errorless node.
+     * @param {CustomNode|null} node The errorless node.
      * @return {ParseResult} this.
      */
     success(node) {
@@ -808,7 +825,6 @@ class Parser {
             let expr = res.register(this.expr());
             if (res.error) return res;
 
-            // @ts-ignore
             return res.success(new VarAssignNode(var_name_tok, expr));
         }
 
@@ -844,8 +860,7 @@ class Parser {
 
             let node = res.register(this.comp_expr());
             if (res.error) return res;
-            
-            // @ts-ignore
+
             return res.success(new UnaryOpNode(op_tok, node));
         }
 
@@ -870,7 +885,6 @@ class Parser {
             this.advance();
             let factor = res.register(this.factor());
             if (res.error) return res;
-            // @ts-ignore
             return res.success(new UnaryOpNode(tok, factor));
         }
 
@@ -902,7 +916,6 @@ class Parser {
             if (this.current_tok.type === TOKENS.RPAREN) {
                 res.register_advancement();
                 this.advance();
-                // @ts-ignore
                 return res.success(expr);
             } else {
                 return res.failure(new InvalidSyntaxError(
@@ -1008,7 +1021,6 @@ class Parser {
             if (res.error) return res;
         }
 
-        // @ts-ignore
         return res.success(new IfNode(cases, else_case));
     }
 
@@ -1100,7 +1112,6 @@ class Parser {
         let body = res.register(this.expr());
         if (res.error) return res;
 
-        // @ts-ignore
         return res.success(new ForNode(var_name_tok, start_value, end_value, step_value, body));
     }
 
@@ -1139,7 +1150,6 @@ class Parser {
         let body = res.register(this.expr());
         if (res.error) return res;
 
-        // @ts-ignore
         return res.success(new WhileNode(condition, body));
     }
 
@@ -1181,11 +1191,9 @@ class Parser {
             if (res.error) return res;
             // the left member of the operation becomes a binary operation
             // of the previous left and right members.
-            // @ts-ignore
             left = new BinOpNode(left, op_tok, right);
         }
 
-        // @ts-ignore
         return res.success(left);
     }
 }
@@ -1518,7 +1526,7 @@ class SymbolTable {
  */
 class Interpreter {
     /**
-     * @param {NumberNode|UnaryOpNode|BinOpNode|VarAccessNode|VarAssignNode|IfNode|ForNode|WhileNode} node The node to be visited.
+     * @param {CustomNode} node The node to be visited.
      * @param {Context} context The root context.
      * @return {RTResult}
      */
@@ -1540,7 +1548,6 @@ class Interpreter {
         } else if (node instanceof WhileNode) {
             return this.visit_WhileNode(node, context);
         } else {
-            // @ts-ignore
             throw new Error("No visit method defined for the node '" + node.constructor.name + "'");
         }
     }

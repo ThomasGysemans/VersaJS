@@ -226,7 +226,7 @@ Voici comment ça devrait fonctionner pour `FOR` :
 FOR <var_name> = <start_value> TO <end_value> (STEP 1)? THEN <expr>
 
 VAR result = 1
-FOR i = 0 TO 10 THEN result = result * i
+FOR i = 0 TO 10 THEN VAR result = result * i
 ```
 
 **Note:** On pensera à autoriser les nombres négatifs pour `STEP`.
