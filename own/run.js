@@ -200,7 +200,11 @@ const KEYWORDS = [
     "IF",
     "THEN",
     "ELIF",
-    "ELSE"
+    "ELSE",
+    "FOR",
+    "TO",
+    "STEP",
+    "WHILE"
 ];
 
 /***
@@ -627,6 +631,48 @@ class IfNode {
     }
 }
 
+/**
+ * @classdesc Describes a for loop.
+ */
+class ForNode {
+    /**
+     * @constructs ForNode
+     * @param {Token} var_name_tok The name of the variable in the for statement (i).
+     * @param {UnaryOpNode|NumberNode|BinOpNode} start_value_node The starting value.
+     * @param {UnaryOpNode|NumberNode|BinOpNode} end_value_node The value it will go up to.
+     * @param {UnaryOpNode|NumberNode|BinOpNode} step_value_node The step between each iteration.
+     * @param {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode|ForNode|WhileNode} body_node What gets evaluated on every iteration.
+     */
+    constructor(var_name_tok, start_value_node, end_value_node, step_value_node, body_node) {
+        this.var_name_tok = var_name_tok;
+        this.start_value_node = start_value_node;
+        this.end_value_node = end_value_node;
+        this.step_value_node = step_value_node;
+        this.body_node = body_node;
+
+        this.pos_start = this.var_name_tok.pos_start;
+        this.pos_end = this.body_node.pos_end;
+    }
+}
+
+/**
+ * @classdesc Describes a while loop.
+ */
+class WhileNode {
+    /**
+     * @constructs WhileNode
+     * @param {IfNode} condition_node The condition needed to evaluate the body.
+     * @param {UnaryOpNode|NumberNode|BinOpNode|VarAssignNode|VarAccessNode|IfNode|ForNode|WhileNode} body_node What gets evaluated on every iteration.
+     */
+    constructor(condition_node, body_node) {
+        this.condition_node = condition_node;
+        this.body_node = body_node;
+        
+        this.pos_start = this.condition_node.pos_start;
+        this.pos_end = this.body_node.pos_end;
+    }
+}
+
 /*
 *
 * PARSE RESULT
@@ -868,6 +914,14 @@ class Parser {
             let if_expr = res.register(this.if_expr());
             if (res.error) return res;
             return res.success(if_expr);
+        } else if (tok.matches(TOKENS.KEYWORD, "FOR")) {
+            let for_expr = res.register(this.for_expr());
+            if (res.error) return res;
+            return res.success(for_expr);
+        } else if (tok.matches(TOKENS.KEYWORD, "WHILE")) {
+            let while_expr = res.register(this.while_expr());
+            if (res.error) return res;
+            return res.success(while_expr);
         }
 
         return res.failure(new InvalidSyntaxError(
@@ -956,6 +1010,137 @@ class Parser {
 
         // @ts-ignore
         return res.success(new IfNode(cases, else_case));
+    }
+
+    for_expr() {
+        let res = new ParseResult();
+
+        // we must check if there is the "FOR" keyword
+        
+        if (!this.current_tok.matches(TOKENS.KEYWORD, "FOR")) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'FOR'"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+
+        // we need now the variable name, so just an identifier (there is no VAR keyword)
+
+        if (this.current_tok.type !== TOKENS.IDENTIFIER) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected identifier"
+            ));
+        }
+
+        let var_name_tok = this.current_tok;
+        res.register_advancement();
+        this.advance();
+
+        // the variable i needs to have a value, so there must be an equal token
+
+        if (this.current_tok.type !== TOKENS.EQ) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected '='"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+
+        // after the equal token, we expect an expr
+
+        let start_value = res.register(this.expr());
+        if (res.error) return res;
+
+        // after the expr, we expect a "TO"
+
+        if (!this.current_tok.matches(TOKENS.KEYWORD, 'TO')) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'TO'"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+        
+        // the "TO" keyword indicates the end value
+
+        let end_value = res.register(this.expr());
+        if (res.error) return res;
+
+        // we could have a "STEP" keyword afterwards
+
+        let step_value = null;
+        if (this.current_tok.matches(TOKENS.KEYWORD, "STEP")) {
+            res.register_advancement();
+            this.advance();
+
+            step_value = res.register(this.expr());
+            if (res.error) return res;
+        }
+
+        if (!this.current_tok.matches(TOKENS.KEYWORD, "THEN")) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'THEN'"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+        
+        // now there is the body of the statement
+
+        let body = res.register(this.expr());
+        if (res.error) return res;
+
+        // @ts-ignore
+        return res.success(new ForNode(var_name_tok, start_value, end_value, step_value, body));
+    }
+
+    while_expr() {
+        let res = new ParseResult();
+
+        // we must check if there is the "WHILE" keyword
+
+        if (!this.current_tok.matches(TOKENS.KEYWORD, "WHILE")) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'WHILE'"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+
+        // after the while keyword, there must be an expression
+
+        let condition = res.register(this.expr());
+        if (res.error) return res;
+
+        // after the condition, we expect a "THEN" keyword
+
+        if (!this.current_tok.matches(TOKENS.KEYWORD, 'THEN')) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'THEN'"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+
+        let body = res.register(this.expr());
+        if (res.error) return res;
+
+        // @ts-ignore
+        return res.success(new WhileNode(condition, body));
     }
 
     // -------------
@@ -1333,7 +1518,7 @@ class SymbolTable {
  */
 class Interpreter {
     /**
-     * @param {NumberNode|UnaryOpNode|BinOpNode|VarAccessNode|VarAssignNode|IfNode} node The node to be visited.
+     * @param {NumberNode|UnaryOpNode|BinOpNode|VarAccessNode|VarAssignNode|IfNode|ForNode|WhileNode} node The node to be visited.
      * @param {Context} context The root context.
      * @return {RTResult}
      */
@@ -1350,6 +1535,10 @@ class Interpreter {
             return this.visit_VarAccessNode(node, context);
         } else if (node instanceof IfNode) {
             return this.visit_IfNode(node, context);
+        } else if (node instanceof ForNode) {
+            return this.visit_ForNode(node, context);
+        } else if (node instanceof WhileNode) {
+            return this.visit_WhileNode(node, context);
         } else {
             // @ts-ignore
             throw new Error("No visit method defined for the node '" + node.constructor.name + "'");
@@ -1529,6 +1718,69 @@ class Interpreter {
             let else_value = res.register(this.visit(node.else_case, context));
             if (res.error) return res;
             return res.success(else_value);
+        }
+
+        return res.success(null);
+    }
+
+    /**
+     * Visits a for statement.
+     * @param {ForNode} node The node to be visited.
+     * @param {Context} context The current context.
+     * @return {RTResult}
+     */
+    visit_ForNode(node, context) {
+        let res = new RTResult();
+
+        let start_value = res.register(this.visit(node.start_value_node, context));
+        if (res.error) return res;
+
+        let end_value = res.register(this.visit(node.end_value_node, context));
+        if (res.error) return res;
+
+        let step_value = new CustomNumber(1);
+        if (node.step_value_node) {
+            step_value = res.register(this.visit(node.step_value_node, context));
+            if (res.error) return res;
+        }
+
+        let condition = () => false;
+        let i = start_value.value;
+
+        if (step_value.value >= 0) {
+            condition = () => { return i < end_value.value; };
+        } else {
+            condition = () => { return i > end_value.value; };
+        }
+
+        while (condition()) {
+            context.symbol_table.set(node.var_name_tok.value, new CustomNumber(i));
+            i += step_value.value;
+
+            res.register(this.visit(node.body_node, context));
+            if (res.error) return res;
+        }
+
+        return res.success(null);
+    }
+
+    /**
+     * Visits a while statement.
+     * @param {WhileNode} node The node to be visited.
+     * @param {Context} context The current context.
+     * @return {RTResult}
+     */
+    visit_WhileNode(node, context) {
+        let res = new RTResult();
+
+        while (true) {
+            let condition = res.register(this.visit(node.condition_node, context));
+            if (res.error) return res;
+
+            if (!condition.is_true()) break;
+
+            res.register(this.visit(node.body_node, context));
+            if (res.error) return res;
         }
 
         return res.success(null);

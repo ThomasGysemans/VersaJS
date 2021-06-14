@@ -217,3 +217,39 @@ if-expr     : KEYWORD:IF expr KEYWORD:THEN expr
 On va vérifier la présence du mot-clé `IF`, s'il est présent, alors on regarde la condition qui suit, puis la présence du mot-clé `THEN`, puis une expression. On vérifie ensuite toutes les `ELIF` potientiels avant de vérifier la présence de `ELSE`.
 
 Dans l'interpreter, on verifira la valeur de chaque condition (on visite l'expression et on obtient un nombre,`1` pour `TRUE` et `0` pour `FALSE`). Si une condition est vraie, alors on retourne la valeur de l'expression qui y correspond.
+
+## FOR et WHILE statements
+
+Voici comment ça devrait fonctionner pour `FOR` :
+
+```
+FOR <var_name> = <start_value> TO <end_value> (STEP 1)? THEN <expr>
+
+VAR result = 1
+FOR i = 0 TO 10 THEN result = result * i
+```
+
+**Note:** On pensera à autoriser les nombres négatifs pour `STEP`.
+
+Pour `WHILE` :
+
+```
+WHILE <condition> THEN <expr>
+```
+
+On modifie la grammaire :
+
+atom        : INT|FLOAT|IDENTIFIER
+            : LPAREN expr RPAREN
+            : if-expr
+            : for-expr
+            : while-expr
+
+// if-expr
+
+for-expr    : KEYWORD:FOR IDENTIFIER EQ expr KEYWORD:TO expr
+                (KEYWORD:STEP expr)? KEYWORD:THEN expr
+
+while-expr  : KEYWORD:WHILE expr KEYWORD:THEN expr
+
+Bien entendu, on devra créer de nouveaux noeuds, modifier le Parser ainsi que l'Interpreter.
