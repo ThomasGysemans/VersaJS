@@ -195,6 +195,8 @@ const TOKENS = {
     COMMA: 'COMMA',
     ARROW: 'ARROW',
     STRING: 'STRING',
+    LSQUARE: 'LSQUARE', // [
+    RSQUARE :'RSQUARE', // ]
     EOF: 'EOF',
 };
 
@@ -398,6 +400,12 @@ class Lexer {
                 }, {
                     symbol: ",",
                     token: TOKENS.COMMA
+                }, {
+                    symbol: "[",
+                    token: TOKENS.LSQUARE
+                }, {
+                    symbol: "]",
+                    token: TOKENS.RSQUARE
                 }];
 
                 for (let keyword of keywords) {
@@ -817,6 +825,24 @@ class StringNode extends CustomNode {
     }
 }
 
+/**
+ * @classdesc This node represents a string while reading the tokens.
+ */
+class ListNode extends CustomNode {
+    /**
+     * @constructs ListNode
+     * @param {Array<CustomNode>} element_nodes The token that represents a string.
+     * @param {Position} pos_start The starting position of the list (we must have it from the constructor because of empty lists).
+     * @param {Position} pos_end The end position of the list (we must have it from the constructor because of empty lists).
+     */
+    constructor(element_nodes, pos_start, pos_end) {
+        super();
+        this.element_nodes = element_nodes;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+}
+
 /*
 *
 * PARSE RESULT
@@ -965,7 +991,7 @@ class Parser {
         if (res.error) {
             return res.failure(new InvalidSyntaxError(
                 this.current_tok.pos_start, this.current_tok.pos_end,
-                "Expected 'VAR', 'IF', 'FOR', 'WHILE', 'FUNC', int, float, identifier, '+', '-', '(' or 'NOT'"
+                "Expected 'VAR', 'IF', 'FOR', 'WHILE', 'FUNC', int, float, identifier, '+', '-', '(', '[' or 'NOT'"
             ));
         }
 
@@ -1000,7 +1026,7 @@ class Parser {
         if (res.error) {
             return res.failure(new InvalidSyntaxError(
                 this.current_tok.pos_start, this.current_tok.pos_end,
-                "Expected int, float, identifier, '+', '-', '(' or 'NOT'"
+                "Expected int, float, identifier, '+', '-', '(', '[' or 'NOT'"
             ));
         }
 
@@ -1048,7 +1074,7 @@ class Parser {
                 if (res.error) {
                     return res.failure(new InvalidSyntaxError(
                         this.current_tok.pos_start, this.current_tok.pos_end,
-                        "Expected ')', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(' or 'NOT'"
+                        "Expected ')', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(', '[' or 'NOT'"
                     ));
                 }
 
@@ -1108,6 +1134,10 @@ class Parser {
                     "Expected ')'"
                 ));
             }
+        } else if (tok.type === TOKENS.LSQUARE) {
+            let list_expr = res.register(this.list_expr());
+            if (res.error) return res;
+            return res.success(list_expr);
         } else if (tok.matches(TOKENS.KEYWORD, "IF")) {
             let if_expr = res.register(this.if_expr());
             if (res.error) return res;
@@ -1128,7 +1158,7 @@ class Parser {
 
         return res.failure(new InvalidSyntaxError(
             tok.pos_start, tok.pos_end,
-            "Expected int, float, identifier, '+', '-', or '(', 'IF', 'FOR', 'WHILE', 'FUNC'"
+            "Expected int, float, identifier '+', '-', '(', '[', 'IF', 'FOR', 'WHILE', 'FUNC'"
         ));
     }
 
@@ -1461,6 +1491,63 @@ class Parser {
             var_name_tok,
             arg_name_toks,
             node_to_return
+        ));
+    }
+
+    list_expr() {
+        let res = new ParseResult();
+        let element_nodes = [];
+        let pos_start = this.current_tok.pos_start.copy();
+
+        if (this.current_tok.type !== TOKENS.LSQUARE) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected '['"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+
+        // if the list is empty ("[]")
+        if (this.current_tok.type === TOKENS.RSQUARE) {
+            res.register_advancement();
+            this.advance();
+        } else {
+            // we have values inside the list
+            // it's actually the same as getting arguments from the call method,
+            // so just copy past ;(
+            element_nodes.push(res.register(this.expr()));
+            if (res.error) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected ']', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(', '[' or 'NOT'"
+                ));
+            }
+
+            while (this.current_tok.type === TOKENS.COMMA) {
+                res.register_advancement();
+                this.advance();
+
+                element_nodes.push(res.register(this.expr()));
+                if (res.error) return res;
+            }
+
+            if (this.current_tok.type !== TOKENS.RSQUARE) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected ',' or ']'"
+                ));
+            }
+
+            res.register_advancement();
+            this.advance();
+        }
+
+        return res.success(new ListNode(
+            element_nodes,
+            pos_start,
+            this.current_tok.pos_end.copy()
         ));
     }
 
@@ -1997,6 +2084,104 @@ class CustomString extends Value {
     }
 }
 
+/**
+ * @classdesc A list in our program.
+ */
+class CustomList extends Value {
+    /**
+     * @constructs CustomList
+     * @param {Array<CustomNode>} elements The elements inside the list.
+     */
+    constructor(elements) {
+        super();
+        this.elements = elements;
+    }
+
+    /**
+     * Adds an element to our list.
+     * @param {CustomNode} other A node to add in our list.
+     * @return {{result: CustomList, error: RTError|null}} The new list (result) and a potential error.
+     */
+    added_to(other) {
+        let new_list = this.copy();
+        new_list.elements.push(other);
+        return { result: new_list, error: null };
+    }
+
+    /**
+     * Removes an element from our list.
+     * @param {CustomNode} other The index of the element to be removed.
+     * @return {{result: CustomList, error: RTError|null}} The new list (result) and a potential error.
+     */
+    subbed_by(other) {
+        if (other instanceof CustomNumber) {
+            let new_list = this.copy();
+            // if the index doesn't exist,
+            // an error can be thrown
+            try {
+                new_list.elements.splice(other.value, 1);
+                return { result: new_list, error: null };
+            } catch(e) {
+                return { result: null, error: new RTError(
+                    other.pos_start, other.pos_end,
+                    "Element at this index could not be removed from list because index is out of bounds",
+                    this.context
+                ) };
+            }
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other) };
+        }
+    }
+
+    /**
+     * Concatenates the list to a another list.
+     * @param {CustomNode} other A list to concatenate to our list.
+     * @return {{result: CustomList, error: RTError|null}} The new list (result) and a potential error.
+     */
+    multed_by(other) {
+        if (other instanceof CustomList) {
+            let new_list = this.copy();
+            new_list.elements = new_list.elements.concat(other.elements);
+            return { result: new_list, error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other) };
+        }
+    }
+
+    /**
+     * Gets an element from the list.
+     * @param {CustomNode} other The index of the element to get. 
+     * @return {{result: CustomNode, error: RTError|null}} The element and a potential error.
+     */
+    dived_by(other) {
+        if (other instanceof CustomNumber) {
+            let value = this.elements[other.value];
+            if (value) {
+                return { result: value, error: null };
+            } else {
+                return { result: null, error: new RTError(
+                    other.pos_start, other.pos_end,
+                    "Element at this index could not be retrieved from list because index is out of bounds",
+                    this.context
+                )};
+            }
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other) };
+        }
+    }
+
+    copy() {
+        let copy = new CustomList(this.elements);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `[${this.elements.join(', ')}]`;
+    }
+}
+
 /*
 *
 * CONTEXT
@@ -2112,6 +2297,8 @@ class Interpreter {
             return this.visit_CallNode(node, context);
         } else if (node instanceof StringNode) {
             return this.visit_StringNode(node, context);
+        } else if (node instanceof ListNode) {
+            return this.visit_ListNode(node, context);
         } else {
             throw new Error("No visit method defined for the node '" + node.constructor.name + "'");
         }
@@ -2226,7 +2413,7 @@ class Interpreter {
         if (error) {
             return res.failure(error);
         } else {
-            return res.success(result.set_context(context).set_pos(node.pos_start, node.pos_end));
+            return res.success(result.set_pos(node.pos_start, node.pos_end));
         }
     }
 
@@ -2303,6 +2490,7 @@ class Interpreter {
      */
     visit_ForNode(node, context) {
         let res = new RTResult();
+        let elements = []; // we want a loop to return by default a CustomList.
 
         let start_value = res.register(this.visit(node.start_value_node, context));
         if (res.error) return res;
@@ -2329,11 +2517,13 @@ class Interpreter {
             context.symbol_table.set(node.var_name_tok.value, new CustomNumber(i));
             i += step_value.value;
 
-            res.register(this.visit(node.body_node, context));
+            elements.push(res.register(this.visit(node.body_node, context)));
             if (res.error) return res;
         }
 
-        return res.success(null);
+        return res.success(
+            new CustomList(elements).set_context(context).set_pos(node.pos_start, node.pos_end),
+        );
     }
 
     /**
@@ -2344,6 +2534,7 @@ class Interpreter {
      */
     visit_WhileNode(node, context) {
         let res = new RTResult();
+        let elements = []; // we want a loop to return a custom list by default.
 
         while (true) {
             let condition = res.register(this.visit(node.condition_node, context));
@@ -2351,11 +2542,13 @@ class Interpreter {
 
             if (!condition.is_true()) break;
 
-            res.register(this.visit(node.body_node, context));
+            elements.push(res.register(this.visit(node.body_node, context)));
             if (res.error) return res;
         }
 
-        return res.success(null);
+        return res.success(
+            new CustomList(elements).set_context(context).set_pos(node.pos_start, node.pos_end),
+        );
     }
 
     /**
@@ -2407,7 +2600,7 @@ class Interpreter {
     }
 
     /**
-     * Visits a string in order to get its return value.
+     * Visits a string.
      * @param {StringNode} node The node that corresponds to a string.
      * @param {Context} context The context.
      */
@@ -2415,6 +2608,23 @@ class Interpreter {
         return new RTResult().success(
             new CustomString(node.tok.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         );
+    }
+
+    /**
+     * Visits a list.
+     * @param {ListNode} node The node that corresponds to a string.
+     * @param {Context} context The context.
+     */
+    visit_ListNode(node, context) {
+        let res = new RTResult();
+        let elements = [];
+
+        for (let element_node of node.element_nodes) {
+            elements.push(res.register(this.visit(element_node, context)));
+            if (res.error) return res;
+        }
+
+        return res.success(new CustomList(elements).set_context(context).set_pos(node.pos_start, node.pos_end));
     }
 
     // ----------------
