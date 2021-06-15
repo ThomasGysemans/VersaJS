@@ -189,6 +189,8 @@ const TOKENS = {
     GT: 'GREATER THAN',
     LTE: 'LESS THAN OR EQUALS',
     GTE: 'GREATER THAN OR EQUALS',
+    COMMA: 'COMMA',
+    ARROW: 'ARROW',
     EOF: 'EOF',
 };
 
@@ -204,7 +206,8 @@ const KEYWORDS = [
     "FOR",
     "TO",
     "STEP",
-    "WHILE"
+    "WHILE",
+    "FUNC"
 ];
 
 /***
@@ -364,15 +367,14 @@ class Lexer {
                 tokens.push(this.make_less_than()); // less than / less than or equals
             } else if (this.current_char === ">") {
                 tokens.push(this.make_greater_than()); // greater than / greater than or equals
+            } else if (this.current_char === "-") {
+                tokens.push(this.make_minus_or_arrow()); // minus / arrow of a function
             } else {
                 let found = false;
                 const keywords = [{
                     symbol: "+",
                     token: TOKENS.PLUS
-                }, {
-                    symbol: "-",
-                    token: TOKENS.MINUS
-                }, {
+                }, { // the minus token is more complicated because it's also the arrow (->) of a function
                     symbol: "*",
                     token: TOKENS.MUL
                 }, {
@@ -387,6 +389,9 @@ class Lexer {
                 }, {
                     symbol: "^",
                     token: TOKENS.POWER
+                }, {
+                    symbol: ",",
+                    token: TOKENS.COMMA
                 }];
 
                 for (let keyword of keywords) {
@@ -504,6 +509,21 @@ class Lexer {
         if (this.current_char === '=') {
             this.advance();
             tok_type = TOKENS.GTE;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_minus_or_arrow() {
+        let tok_type = TOKENS.MINUS;
+        let pos_start = this.pos.copy();
+        this.advance();
+
+        // is the character afterwards a ">"
+
+        if (this.current_char === '>') {
+            this.advance();
+            tok_type = TOKENS.ARROW;
         }
 
         return new Token(tok_type, null, pos_start, this.pos);
@@ -690,6 +710,58 @@ class WhileNode extends CustomNode {
     }
 }
 
+/**
+ * @classdesc Describes the declaration of a function.
+ */
+class FuncDefNode extends CustomNode {
+    /**
+     * @constructs FuncDefNode
+     * @param {Token|null} var_name_tok The identifier that corresponds to the name of the function.
+     * @param {Array<Token>} arg_name_toks The arguments.
+     * @param {CustomNode} body_node The body of the function.
+     */
+    constructor(var_name_tok, arg_name_toks, body_node) { // in the future, we'll update body_node into a list of body nodes
+        super();
+        this.var_name_tok = var_name_tok;
+        this.arg_name_toks = arg_name_toks;
+        this.body_node = body_node;
+
+        if (this.var_name_tok) {
+            this.pos_start = this.var_name_tok.pos_start;
+        } else if (this.arg_name_toks.length > 0) {
+            this.pos_start = this.arg_name_toks[0].pos_start;
+        } else {
+            this.pos_start = this.body_node.pos_start;
+        }
+
+        this.pos_end = this.body_node.pos_end;
+    }
+}
+
+/**
+ * @classdesc Describes the call to a function.
+ */
+class CallNode extends CustomNode {
+    /**
+     * @constructs
+     * @param {CustomNode} node_to_call The identifier that corresponds to the name of the function to be called.
+     * @param {Array<CustomNode>} arg_nodes The list of arguments.
+     */
+    constructor(node_to_call, arg_nodes) {
+        super();
+        this.node_to_call = node_to_call;
+        this.arg_nodes = arg_nodes;
+
+        this.pos_start = this.node_to_call.pos_start;
+
+        if (this.arg_nodes.length > 0) {
+            this.pos_end = this.arg_nodes[this.arg_nodes.length - 1].pos_end;
+        } else {
+            this.pos_end = this.node_to_call.pos_end;
+        }
+    }
+}
+
 /*
 *
 * PARSE RESULT
@@ -777,6 +849,10 @@ class Parser {
         return this.current_tok;
     }
 
+    /**
+     * Parses the tokens.
+     * @returns {ParseResult}
+     */
     parse() {
         let res = this.expr();
         if (!res.error && this.current_tok.type !== TOKENS.EOF) {
@@ -834,7 +910,7 @@ class Parser {
         if (res.error) {
             return res.failure(new InvalidSyntaxError(
                 this.current_tok.pos_start, this.current_tok.pos_end,
-                "Expected 'VAR', int, float, identifier, '+', '-', '(' or 'NOT'"
+                "Expected 'VAR', 'IF', 'FOR', 'WHILE', 'FUNC', int, float, identifier, '+', '-', '(' or 'NOT'"
             ));
         }
 
@@ -891,9 +967,59 @@ class Parser {
         return this.power();
     }
 
-    // a power operation is looking for atoms
+    // a power operation is looking for calls
     power() {
-        return this.bin_op(this.atom.bind(this), [TOKENS.POWER], this.factor.bind(this));
+        return this.bin_op(this.call.bind(this), [TOKENS.POWER], this.factor.bind(this));
+    }
+
+    call() {
+        let res = new ParseResult();
+        let atom = res.register(this.atom());
+        if (res.error) return res;
+
+        // if we have a left parenthesis after our atom
+        // that means we are calling the atom
+
+        if (this.current_tok.type === TOKENS.LPAREN) {
+            res.register_advancement()
+            this.advance();
+
+            let arg_nodes = [];
+            if (this.current_tok.type === TOKENS.RPAREN) {
+                res.register_advancement();
+                this.advance();
+            } else {
+                arg_nodes.push(res.register(this.expr()));
+                if (res.error) {
+                    return res.failure(new InvalidSyntaxError(
+                        this.current_tok.pos_start, this.current_tok.pos_end,
+                        "Expected ')', 'VAR', 'IF', 'FOR', 'WHILE', 'FUN', int, float, identifier, '+', '-', '(' or 'NOT'"
+                    ));
+                }
+
+                while (this.current_tok.type === TOKENS.COMMA) {
+                    res.register_advancement();
+                    this.advance();
+
+                    arg_nodes.push(res.register(this.expr()));
+                    if (res.error) return res;
+                }
+
+                if (this.current_tok.type !== TOKENS.RPAREN) {
+                    return res.failure(new InvalidSyntaxError(
+                        this.current_tok.pos_start, this.current_tok.pos_end,
+                        "Expected ',' or ')'"
+                    ));
+                }
+
+                res.register_advancement();
+                this.advance();
+            }
+
+            return res.success(new CallNode(atom, arg_nodes));
+        }
+
+        return res.success(atom);
     }
 
     atom() {
@@ -935,11 +1061,15 @@ class Parser {
             let while_expr = res.register(this.while_expr());
             if (res.error) return res;
             return res.success(while_expr);
+        } else if (tok.matches(TOKENS.KEYWORD, "FUNC")) {
+            let func_def = res.register(this.func_def());
+            if (res.error) return res;
+            return res.success(func_def);
         }
 
         return res.failure(new InvalidSyntaxError(
             tok.pos_start, tok.pos_end,
-            "Expected int, float, identifier, '+', '-', or '('"
+            "Expected int, float, identifier, '+', '-', or '(', 'IF', 'FOR', 'WHILE', 'FUNC'"
         ));
     }
 
@@ -1153,6 +1283,128 @@ class Parser {
         return res.success(new WhileNode(condition, body));
     }
 
+    func_def() {
+        let res = new ParseResult();
+
+        // we must check if there is the FUNC keyword
+
+        if (!this.current_tok.matches(TOKENS.KEYWORD, "FUNC")) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'FUNC'"
+            ));
+        }
+
+        // we advance in order to find the identifier
+
+        res.register_advancement();
+        this.advance();
+
+        // there might be no identifier (anonymous function)
+
+        let var_name_tok = null;
+        if (this.current_tok.type === TOKENS.IDENTIFIER) {
+            var_name_tok = this.current_tok;
+            res.register_advancement();
+            this.advance();
+            // there must be a left parenthesis after the identifier
+            if (this.current_tok.type !== TOKENS.LPAREN) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected '('"
+                ));
+            }
+        } else {
+            // anonymous function, no identifier
+            // there must be a left parenthesis after anyway
+            if (this.current_tok.type !== TOKENS.LPAREN) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected identifier or '('"
+                ));
+            }
+        }
+
+        // we enter the parenthesis
+
+        res.register_advancement();
+        this.advance();
+
+        let arg_name_toks = [];
+        if (this.current_tok.type === TOKENS.IDENTIFIER) {
+            arg_name_toks.push(this.current_tok);
+            res.register_advancement();
+            this.advance();
+
+            // there are arguments, how many ?
+            // we want them all
+            while (this.current_tok.type === TOKENS.COMMA) {
+                res.register_advancement();
+                this.advance();
+
+                // there must be an identifier after the comma (the arg)
+                if (this.current_tok.type !== TOKENS.IDENTIFIER) {
+                    return res.failure(new InvalidSyntaxError(
+                        this.current_tok.pos_start, this.current_tok.pos_end,
+                        "Expected identifier"
+                    ));
+                }
+
+                arg_name_toks.push(this.current_tok);
+                res.register_advancement();
+                this.advance();
+            }
+
+            // we have all the args,
+            // now there must be a right parenthesis
+
+            if (this.current_tok.type !== TOKENS.RPAREN) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected ',' or ')'"
+                ));
+            }
+        } else {
+            // there is no identifier (no args)
+            // so we must find a right parenthesis
+            if (this.current_tok.type !== TOKENS.RPAREN) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected identifier or ')'"
+                ));
+            }
+        }
+
+        // we get out of the parenthesis
+
+        res.register_advancement();
+        this.advance();
+
+        // we should have an arrow now
+
+        if (this.current_tok.type !== TOKENS.ARROW) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected '->'"
+            ));
+        }
+
+        // great, enter the body now
+
+        res.register_advancement();
+        this.advance();
+
+        // what's our body ?
+        let node_to_return = res.register(this.expr());
+        if (res.error) return res;
+
+        return res.success(new FuncDefNode(
+            var_name_tok,
+            arg_name_toks,
+            node_to_return
+        ));
+    }
+
     // -------------
 
     /**
@@ -1255,16 +1507,8 @@ class RTResult {
 *
 */
 
-/**
- * @classdesc A number of the program.
- */
-class CustomNumber {
-    /**
-     * @constructs CustomNumebr
-     * @param {number} value The value of a NumberNode.
-     */
-    constructor(value) {
-        this.value = value;
+class Value {
+    constructor() {
         this.set_pos();
         this.set_context();
     }
@@ -1273,7 +1517,7 @@ class CustomNumber {
      * We need to know where is that number in the program.
      * @param {Position|null} pos_start The starting position of the number.
      * @param {Position|null} pos_end The end position of the number.
-     * @return {CustomNumber} this.
+     * @return {this}
      */
     set_pos(pos_start=null, pos_end=null) {
         this.pos_start = pos_start;
@@ -1284,10 +1528,73 @@ class CustomNumber {
     /**
      * Saves the context.
      * @param {Context|null} context The current context.
+     * @return {this}
      */
     set_context(context=null) {
         this.context = context;
         return this;
+    }
+
+    // THESE FUNCTIONS ARE MEANT TO BE OVERWRITTEN
+    // HOWEVER IF THEY ARE CALLED WITHOUT BEING OVERWRITTEN,
+    // THAT MEANS IT'S AN ILLEGAL OPERATION (we should not be able to do theses calculations).
+    
+    added_to(other) { return { result: null, error: this.illegal_operation(other) } }
+    subbed_by(other) { return { result: null, error: this.illegal_operation(other) } }
+    multed_by(other) { return { result: null, error: this.illegal_operation(other) } }
+    dived_by(other) { return { result: null, error: this.illegal_operation(other) } }
+    powered_by(other) { return { result: null, error: this.illegal_operation(other) } }
+    get_comparison_eq(other) { return { result: null, error: this.illegal_operation(other) } }
+    get_comparison_ne(other) { return { result: null, error: this.illegal_operation(other) } }
+    get_comparison_lt(other) { return { result: null, error: this.illegal_operation(other) } }
+    get_comparison_gt(other) { return { result: null, error: this.illegal_operation(other) } }
+    get_comparison_lte(other) { return { result: null, error: this.illegal_operation(other) } }
+    get_comparison_gte(other) { return { result: null, error: this.illegal_operation(other) } }
+    anded_by(other) { return { result: null, error: this.illegal_operation(other) } }
+    ored_by(other) { return { result: null, error: this.illegal_operation(other) } }
+    notted(other) { return { result: null, error: this.illegal_operation(other) } }
+    
+    // ----------------
+
+    // meant to be overwritten
+    execute(args) {
+        return new RTResult().failure(this.illegal_operation());
+    }
+
+    copy() {
+        throw new Error("No copy method defined.");
+    }
+
+    is_true() {
+        return false;
+    }
+
+    /**
+     * Throws a runtime error.
+     * @param self The instance.
+     * @param {any} other A number.
+     */
+    illegal_operation(self=this, other=null) {
+        if (!other) other = self;
+        return new RTError(
+            other.pos_start, other.pos_end,
+            "Illegal operation",
+            self.context
+        );
+    }
+}
+
+/**
+ * @classdesc A number of the program.
+ */
+class CustomNumber extends Value {
+    /**
+     * @constructs CustomNumebr
+     * @param {number} value The value of a NumberNode.
+     */
+    constructor(value) {
+        super();
+        this.value = value;
     }
 
     // The functions needed to perform calculations on that number (this.value).
@@ -1298,7 +1605,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     added_to(other_number) {
-        return { result: new CustomNumber(this.value + other_number.value).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(this.value + other_number.value).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1307,7 +1618,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     subbed_by(other_number) {
-        return { result: new CustomNumber(this.value - other_number.value).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(this.value - other_number.value).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1316,7 +1631,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     multed_by(other_number) {
-        return { result: new CustomNumber(this.value * other_number.value).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(this.value * other_number.value).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1325,14 +1644,18 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     dived_by(other_number) {
-        if (other_number.value === 0) {
-            return { result: null, error: new RTError(
-                other_number.pos_start, other_number.pos_end,
-                "Division by Zero",
-                this.context
-            )};
+        if (other_number instanceof CustomNumber) {
+            if (other_number.value === 0) {
+                return { result: null, error: new RTError(
+                    other_number.pos_start, other_number.pos_end,
+                    "Division by Zero",
+                    this.context
+                )};
+            }
+            return { result: new CustomNumber(this.value / other_number.value).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
         }
-        return { result: new CustomNumber(this.value / other_number.value).set_context(this.context), error: null };
     }
 
     /**
@@ -1341,7 +1664,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     powered_by(other_number) {
-        return { result: new CustomNumber(this.value ** other_number.value).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(this.value ** other_number.value).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1350,7 +1677,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     get_comparison_eq(other_number) {
-        return { result: new CustomNumber(new Number(this.value == other_number.value).valueOf()).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(new Number(this.value == other_number.value).valueOf()).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1359,7 +1690,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     get_comparison_ne(other_number) {
-        return { result: new CustomNumber(new Number(this.value != other_number.value).valueOf()).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(new Number(this.value != other_number.value).valueOf()).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1368,7 +1703,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     get_comparison_lt(other_number) {
-        return { result: new CustomNumber(new Number(this.value < other_number.value).valueOf()).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(new Number(this.value < other_number.value).valueOf()).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1377,7 +1716,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     get_comparison_gt(other_number) {
-        return { result: new CustomNumber(new Number(this.value > other_number.value).valueOf()).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(new Number(this.value > other_number.value).valueOf()).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1386,7 +1729,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     get_comparison_lte(other_number) {
-        return { result: new CustomNumber(new Number(this.value <= other_number.value).valueOf()).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(new Number(this.value <= other_number.value).valueOf()).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1395,7 +1742,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     get_comparison_gte(other_number) {
-        return { result: new CustomNumber(new Number(this.value >= other_number.value).valueOf()).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(new Number(this.value >= other_number.value).valueOf()).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1404,7 +1755,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     anded_by(other_number) {
-        return { result: new CustomNumber(new Number(this.value && other_number.value).valueOf()).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(new Number(this.value && other_number.value).valueOf()).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1413,7 +1768,11 @@ class CustomNumber {
      * @return {{result: CustomNumber, error: RTError|null}} The new number (result) and a potential error.
      */
     ored_by(other_number) {
-        return { result: new CustomNumber(new Number(this.value || other_number.value).valueOf()).set_context(this.context), error: null };
+        if (other_number instanceof CustomNumber) {
+            return { result: new CustomNumber(new Number(this.value || other_number.value).valueOf()).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other_number) };
+        }
     }
 
     /**
@@ -1439,6 +1798,84 @@ class CustomNumber {
 
     toString() {
         return `${this.value}`;
+    }
+}
+
+/**
+ * @classdesc A function of the program.
+ */
+class CustomFunction extends Value {
+    /**
+     * @constructs CustomFunction 
+     * @param {string} name The name of the variable.
+     * @param {CustomNode} body_node The body.
+     * @param {Array<string>} arg_names The list of arguments.
+     */
+    constructor(name, body_node, arg_names) {
+        super();
+        this.name = name || "<anonymous>";
+        this.body_node = body_node;
+        this.arg_names = arg_names;
+    }
+
+    /**
+     * Executes a custom function.
+     * @param {Array} args The arguments
+     * @override
+     */
+    execute(args) {
+        let res = new RTResult();
+        let interpreter = new Interpreter();
+        let new_context = new Context(this.name, this.context, this.pos_start);
+        new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
+
+        // too many arguments
+        if (args.length > this.arg_names.length) {
+            return res.failure(new RTError(
+                this.pos_start, this.pos_end,
+                `${args.length - this.arg_names.length} too many args passed into '${this.name}'`,
+                this.context
+            ));
+        }
+
+        // too few arguments
+        if (args.length < this.arg_names.length) {
+            return res.failure(new RTError(
+                this.pos_start, this.pos_end,
+                `${this.arg_names.length - args.length} too few args passed into '${this.name}'`,
+                this.context
+            ));
+        }
+
+        // we have the names of the arguments,
+        // we get the values of our arguments now
+
+        for (let i = 0; i < args.length; i++) {
+            let arg_name = this.arg_names[i];
+            let arg_value = args[i];
+            arg_value.set_context(new_context);
+            // we set the context
+            new_context.symbol_table.set(arg_name, arg_value);
+        }
+
+        let value = res.register(interpreter.visit(this.body_node, new_context));
+        if (res.error) return res;
+        return res.success(value);
+    }
+
+    /**
+     * @override
+     * @return {CustomFunction} A copy of that instance.
+     */
+    copy() {
+        let copy = new CustomFunction(this.name, this.body_node, this.arg_names);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `<function ${this.name}>`;
     }
 }
 
@@ -1477,13 +1914,15 @@ class Context {
  * @classdesc Keeps track of all the declared variables in our program.
  */
 class SymbolTable {
-    constructor() {
+    /**
+     * @constructs SymbolTable
+     * @param {SymbolTable|null} parent The parent symbol table.
+     */
+    constructor(parent=null) {
         this.symbols = new Map();
-        // a parent symbol table
-        // (for an function for instance)
+        // a parent symbol table (for a function for example)
         // we'll be able to remove all the variables after the execution of a function
-        /** @type {Map|null} */
-        this.parent = null;
+        this.parent = parent;
     }
 
     /**
@@ -1493,7 +1932,9 @@ class SymbolTable {
     get(name) {
         let value = this.symbols.has(name) ? this.symbols.get(name) : null;
         // we check for the parent symbol table
-        if (value === null && this.parent) return this.parent.has(name) ? this.parent.get(name) : null;
+        if (value === null && this.parent) {
+            return this.parent.get(name);
+        }
         return value;
     }
 
@@ -1547,6 +1988,10 @@ class Interpreter {
             return this.visit_ForNode(node, context);
         } else if (node instanceof WhileNode) {
             return this.visit_WhileNode(node, context);
+        } else if (node instanceof FuncDefNode) {
+            return this.visit_FuncDefNode(node, context);
+        } else if (node instanceof CallNode) {
+            return this.visit_CallNode(node, context);
         } else {
             throw new Error("No visit method defined for the node '" + node.constructor.name + "'");
         }
@@ -1791,6 +2236,54 @@ class Interpreter {
         }
 
         return res.success(null);
+    }
+
+    /**
+     * Visits the definition of a function. We'll create an instance of CustomFunction.
+     * @param {FuncDefNode} node The node that corresponds to the declaration of a variable.
+     * @param {Context} context The context used for that function.
+     */
+    visit_FuncDefNode(node, context) {
+        let res = new RTResult();
+        let func_name = node.var_name_tok ? node.var_name_tok.value : null;
+        let body_node = node.body_node;
+        let arg_names = [];
+
+        for (let arg_name of node.arg_name_toks) arg_names.push(arg_name.value);
+
+        let func_value = new CustomFunction(func_name, body_node, arg_names).set_context(context).set_pos(node.pos_start, node.pos_end);
+
+        // we want to invoke the function with its name
+        // so we use it as a variable in our symbol table.
+        if (node.var_name_tok) {
+            context.symbol_table.set(func_name, func_value);
+        }
+
+        return res.success(func_value);
+    }
+
+    /**
+     * Visits a call to a function in order to get its return value.
+     * @param {CallNode} node The node that corresponds to the call to a function.
+     * @param {Context} context The context.
+     */
+    visit_CallNode(node, context) {
+        let res = new RTResult();
+        let args = [];
+
+        let value_to_call = res.register(this.visit(node.node_to_call, context));
+        if (res.error) return res;
+        value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
+
+        for (let arg_node of node.arg_nodes) {
+            args.push(res.register(this.visit(arg_node, context)));
+            if (res.error) return res;
+        }
+
+        let return_value = res.register(value_to_call.execute(args));
+        if (res.error) return res;
+
+        return res.success(return_value);
     }
 
     // ----------------
