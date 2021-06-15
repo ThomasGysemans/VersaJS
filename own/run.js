@@ -48,6 +48,9 @@ function string_with_arrows(text, pos_start, pos_end) {
 const DIGITS = '0123456789';
 const LETTERS = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const LETTERS_DIGITS = LETTERS + DIGITS;
+const ESCAPE_CHARACTERS = new Map();
+ESCAPE_CHARACTERS.set('n', '\n');
+ESCAPE_CHARACTERS.set('t', '\t');
 
 /*
 *
@@ -191,6 +194,7 @@ const TOKENS = {
     GTE: 'GREATER THAN OR EQUALS',
     COMMA: 'COMMA',
     ARROW: 'ARROW',
+    STRING: 'STRING',
     EOF: 'EOF',
 };
 
@@ -369,6 +373,8 @@ class Lexer {
                 tokens.push(this.make_greater_than()); // greater than / greater than or equals
             } else if (this.current_char === "-") {
                 tokens.push(this.make_minus_or_arrow()); // minus / arrow of a function
+            } else if (this.current_char === '"') {
+                tokens.push(this.make_string());
             } else {
                 let found = false;
                 const keywords = [{
@@ -527,6 +533,35 @@ class Lexer {
         }
 
         return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_string() {
+        let string = '';
+        let pos_start = this.pos.copy();
+        let escape_character = false; // do we have to escape the following character ?
+        this.advance();
+
+        // if we have to escape a character,
+        // even if we have a '"',
+        // we don't stop the loop
+        while (this.current_char !== null && (this.current_char != '"' || escape_character)) {
+            if (escape_character) {
+                string += ESCAPE_CHARACTERS.has(this.current_char) ? ESCAPE_CHARACTERS.get(this.current_char) : this.current_char;
+            } else {
+                if (this.current_char === '\\') {
+                    escape_character = true;
+                } else {
+                    string += this.current_char;
+                }
+            }
+            this.advance();
+            escape_character = false;
+        }
+
+        // end of the string
+        this.advance();
+
+        return new Token(TOKENS.STRING, string, pos_start, this.pos);
     }
 }
 
@@ -759,6 +794,26 @@ class CallNode extends CustomNode {
         } else {
             this.pos_end = this.node_to_call.pos_end;
         }
+    }
+}
+
+/**
+ * @classdesc This node represents a string while reading the tokens.
+ */
+class StringNode extends CustomNode {
+    /**
+     * @constructs StringNode
+     * @param {Token} tok The token that represents a string.
+     */
+    constructor(tok) {
+        super();
+        this.tok = tok;
+        this.pos_start = this.tok.pos_start;
+        this.pos_end = this.tok.pos_end;
+    }
+
+    toString() {
+        return `${this.tok.toString()}`;
     }
 }
 
@@ -1030,6 +1085,10 @@ class Parser {
             res.register_advancement();
             this.advance();
             return res.success(new NumberNode(tok));
+        } else if ([TOKENS.STRING].includes(tok.type)) {
+            res.register_advancement();
+            this.advance();
+            return res.success(new StringNode(tok));
         } else if (tok.type === TOKENS.IDENTIFIER) {
             res.register_advancement();
             this.advance();
@@ -1879,6 +1938,65 @@ class CustomFunction extends Value {
     }
 }
 
+/**
+ * @classdesc A string in the program.
+ */
+class CustomString extends Value {
+    /**
+     * @constructs CustomString
+     * @param {string} value The string itself.
+     */
+    constructor(value) {
+        super();
+        this.value = value;
+    }
+
+    /**
+     * Concatenates the string to a another value.
+     * @param {CustomNode} other A node to concatenate to the string.
+     * @return {{result: CustomString, error: RTError|null}} The new string (result) and a potential error.
+     */
+    added_to(other) {
+        if (other instanceof CustomString) {
+            return { result: new CustomString(this.value + other.value).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other) };
+        }
+    }
+
+    /**
+     * Repeats a string.
+     * @param {CustomNode} other How many times the string has to be repeated? `other` must be an instance of CustomNumber.
+     * @return {{result: CustomString, error: RTError|null}} The new string (result) and a potential error.
+     */
+    multed_by(other) {
+        if (other instanceof CustomNumber) {
+            return { result: new CustomString(this.value.repeat(other.value)).set_context(this.context), error: null };
+        } else {
+            return { result: null, error: new Value().illegal_operation(this, other) };
+        }
+    }
+
+    /**
+     * Checks if the string is not empty.
+     * @returns {boolean} `true` if the string is not empty, false otherwise.
+     */
+    is_true() {
+        return this.value.length > 0;
+    }
+
+    copy() {
+        let copy = new CustomString(this.value);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `"${this.value}"`;
+    }
+}
+
 /*
 *
 * CONTEXT
@@ -1992,6 +2110,8 @@ class Interpreter {
             return this.visit_FuncDefNode(node, context);
         } else if (node instanceof CallNode) {
             return this.visit_CallNode(node, context);
+        } else if (node instanceof StringNode) {
+            return this.visit_StringNode(node, context);
         } else {
             throw new Error("No visit method defined for the node '" + node.constructor.name + "'");
         }
@@ -2284,6 +2404,17 @@ class Interpreter {
         if (res.error) return res;
 
         return res.success(return_value);
+    }
+
+    /**
+     * Visits a string in order to get its return value.
+     * @param {StringNode} node The node that corresponds to a string.
+     * @param {Context} context The context.
+     */
+    visit_StringNode(node, context) {
+        return new RTResult().success(
+            new CustomString(node.tok.value).set_context(context).set_pos(node.pos_start, node.pos_end)
+        );
     }
 
     // ----------------
