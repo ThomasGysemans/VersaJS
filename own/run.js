@@ -1,5 +1,13 @@
 /*
 *
+* IMPORTS
+*
+*/
+
+import prompt from 'prompt-sync';
+
+/*
+*
 * MISCELLANEOUS
 *
 */
@@ -1947,10 +1955,103 @@ class CustomNumber extends Value {
     }
 }
 
+// Contants
+CustomNumber.null = new CustomNumber(0);
+CustomNumber.false = new CustomNumber(0);
+CustomNumber.true = new CustomNumber(1);
+CustomNumber.math_pi = new CustomNumber(Math.PI);
+
+/**
+ * @classdesc A class shared between CustomFunction & BuiltInFunction.
+ */
+class BaseFunction extends Value {
+    /**
+     * @constructs BaseFunction
+     * @param {string} name The name of the function.
+     */
+    constructor(name) {
+        super();
+        this.name = name || "<anonymous>";
+    }
+
+    /**
+     * Generates a new context.
+     * @returns {Context}
+     */
+    generate_new_context() {
+        let new_context = new Context(this.name, this.context, this.pos_start);
+        new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
+        return new_context;
+    }
+
+    /**
+     * Checks if the number of arguments correspond.
+     * @param {Array<string>} arg_names The names of the arguments.
+     * @param {Array} args The values of the arguments.
+     */
+    check_args(arg_names, args) {
+        let res = new RTResult();
+
+        // too many arguments
+        if (args.length > arg_names.length) {
+            return res.failure(new RTError(
+                this.pos_start, this.pos_end,
+                `${args.length - arg_names.length} too many args passed into '${this.name}'`,
+                this.context
+            ));
+        }
+
+        // too few arguments
+        if (args.length < arg_names.length) {
+            return res.failure(new RTError(
+                this.pos_start, this.pos_end,
+                `${arg_names.length - args.length} too few args passed into '${this.name}'`,
+                this.context
+            ));
+        }
+
+        return res.success(null);
+    }
+
+    /**
+     * Puts the arguments in the symbol table (gives the values to their identifier).
+     * @param {Array<string>} arg_names The names of the arguments.
+     * @param {Array} args The values of the arguments.
+     * @param {Context} exec_ctx The context.
+     */
+    populate_args(arg_names, args, exec_ctx) {
+        // we have the names of the arguments,
+        // we get the values of our arguments
+
+        for (let i = 0; i < args.length; i++) {
+            let arg_name = arg_names[i];
+            let arg_value = args[i];
+            arg_value.set_context(exec_ctx);
+            // we set the context
+            exec_ctx.symbol_table.set(arg_name, arg_value);
+        }
+    }
+
+    /**
+     * Checks the arguments & puts them in the symbol table (gives the values to their identifier).
+     * @param {Array<string>} arg_names The names of the arguments.
+     * @param {Array} args The values of the arguments.
+     * @param {Context} exec_ctx The context.
+     */
+    check_and_populate_args(arg_names, args, exec_ctx) {
+        let res = new RTResult();
+        res.register(this.check_args(arg_names, args));
+        if (res.error) return res;
+
+        this.populate_args(arg_names, args, exec_ctx);
+        return res.success(null);
+    }
+}
+
 /**
  * @classdesc A function of the program.
  */
-class CustomFunction extends Value {
+class CustomFunction extends BaseFunction {
     /**
      * @constructs CustomFunction 
      * @param {string} name The name of the variable.
@@ -1958,8 +2059,7 @@ class CustomFunction extends Value {
      * @param {Array<string>} arg_names The list of arguments.
      */
     constructor(name, body_node, arg_names) {
-        super();
-        this.name = name || "<anonymous>";
+        super(name);
         this.body_node = body_node;
         this.arg_names = arg_names;
     }
@@ -1972,39 +2072,12 @@ class CustomFunction extends Value {
     execute(args) {
         let res = new RTResult();
         let interpreter = new Interpreter();
-        let new_context = new Context(this.name, this.context, this.pos_start);
-        new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
+        let exec_ctx = this.generate_new_context();
 
-        // too many arguments
-        if (args.length > this.arg_names.length) {
-            return res.failure(new RTError(
-                this.pos_start, this.pos_end,
-                `${args.length - this.arg_names.length} too many args passed into '${this.name}'`,
-                this.context
-            ));
-        }
+        res.register(this.check_and_populate_args(this.arg_names, args, exec_ctx));
+        if (res.error) return res;
 
-        // too few arguments
-        if (args.length < this.arg_names.length) {
-            return res.failure(new RTError(
-                this.pos_start, this.pos_end,
-                `${this.arg_names.length - args.length} too few args passed into '${this.name}'`,
-                this.context
-            ));
-        }
-
-        // we have the names of the arguments,
-        // we get the values of our arguments now
-
-        for (let i = 0; i < args.length; i++) {
-            let arg_name = this.arg_names[i];
-            let arg_value = args[i];
-            arg_value.set_context(new_context);
-            // we set the context
-            new_context.symbol_table.set(arg_name, arg_value);
-        }
-
-        let value = res.register(interpreter.visit(this.body_node, new_context));
+        let value = res.register(interpreter.visit(this.body_node, exec_ctx));
         if (res.error) return res;
         return res.success(value);
     }
@@ -2024,6 +2097,100 @@ class CustomFunction extends Value {
         return `<function ${this.name}>`;
     }
 }
+
+/**
+ * @classdesc Built-in functions.
+ */
+class BuiltInFunction extends BaseFunction {
+    /**
+     * @constructs BuiltInFunction
+     * @param {string} name The name of the built-in function.
+     */
+    constructor(name) {
+        super(name);
+    }
+
+    // This static property will have all the arguments of every built-in functions.
+    // This allows us to declare the functions with their arguments at the same time.
+    static ARGS = {};
+
+    /**
+     * Executes a built-in function.
+     * @param {Array} args The arguments
+     * @override
+     */
+    execute(args) {
+        let res = new RTResult();
+        let exec_ctx = this.generate_new_context();
+        let method_name = `execute_${this.name}`;
+        let method = BuiltInFunction.prototype[method_name];
+        
+        if (!method) {
+            throw new Error(`No execute_${this.name} method defined.`);
+        }
+
+        res.register(this.check_and_populate_args(BuiltInFunction.ARGS[this.name], args, exec_ctx));
+        if (res.error) return res;
+
+        let return_value = res.register(method(exec_ctx));
+        if (res.error) return res;
+
+        return res.success(return_value);
+    }
+
+    /**
+     * @override
+     * @return {BuiltInFunction} A copy of that instance.
+     */
+    copy() {
+        let copy = new BuiltInFunction(this.name);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `<built-in function ${this.name}>`;
+    }
+
+    /*
+    *
+    * THE BUILT-IN FUNCTIONS
+    *
+    */
+
+    /**
+     * console.log
+     * @param {Context} exec_ctx The context.
+     * @return {RTResult}
+     */
+    execute_log(exec_ctx) {
+        let value = exec_ctx.symbol_table.get('value');
+        if (value instanceof CustomString) {
+            value = value.repr();
+        }
+        console.log(value); // normal
+        return new RTResult().success(CustomNumber.null);
+    }
+
+    /**
+     * prompt
+     * @param {Context} exec_ctx The context.
+     * @return {RTResult}
+     */
+    execute_input(exec_ctx) {
+        let ask = exec_ctx.symbol_table.get('text');
+        let text = prompt()(ask);
+        return new RTResult().success(new CustomString(text));
+    }
+}
+
+// Constants
+BuiltInFunction.ARGS.log = ["value"];
+BuiltInFunction.log = new BuiltInFunction("log");
+BuiltInFunction.ARGS.input = ["text"];
+BuiltInFunction.input = new BuiltInFunction("input");
+// don't forget to add these in the global_symbol_table
 
 /**
  * @classdesc A string in the program.
@@ -2081,6 +2248,12 @@ class CustomString extends Value {
 
     toString() {
         return `"${this.value}"`;
+    }
+
+    // We don't want the quotes when we console.log a string
+    // So we need another function instead of toString()
+    repr() {
+        return `${this.value}`;
     }
 }
 
@@ -2337,7 +2510,7 @@ class Interpreter {
             ));
         }
 
-        value = value.copy().set_pos(node.pos_start, node.pos_end);
+        value = value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
         return res.success(value);
     }
 
@@ -2596,6 +2769,8 @@ class Interpreter {
         let return_value = res.register(value_to_call.execute(args));
         if (res.error) return res;
 
+        return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
+
         return res.success(return_value);
     }
 
@@ -2637,9 +2812,13 @@ class Interpreter {
 */
 
 const global_symbol_table = new SymbolTable();
-global_symbol_table.set("NULL", new CustomNumber(0));
-global_symbol_table.set("YES", new CustomNumber(1));
-global_symbol_table.set("NO", new CustomNumber(1));
+global_symbol_table.set("NULL", CustomNumber.null);
+global_symbol_table.set("YES", CustomNumber.true);
+global_symbol_table.set("NO", CustomNumber.false);
+global_symbol_table.set("MATH_PI", CustomNumber.math_pi);
+// built-in functions
+global_symbol_table.set("log", BuiltInFunction.log);
+global_symbol_table.set("input", BuiltInFunction.input);
 
 /**
  * Executes the program.
