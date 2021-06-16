@@ -205,6 +205,7 @@ const TOKENS = {
     STRING: 'STRING',
     LSQUARE: 'LSQUARE', // [
     RSQUARE :'RSQUARE', // ]
+    QMARK: 'QUESTION_MARK',
     EOF: 'EOF',
 };
 
@@ -414,6 +415,9 @@ class Lexer {
                 }, {
                     symbol: "]",
                     token: TOKENS.RSQUARE
+                }, {
+                    symbol: "?",
+                    token: TOKENS.QMARK
                 }];
 
                 for (let keyword of keywords) {
@@ -769,12 +773,18 @@ class FuncDefNode extends CustomNode {
      * @constructs FuncDefNode
      * @param {Token|null} var_name_tok The identifier that corresponds to the name of the function.
      * @param {Array<Token>} arg_name_toks The arguments.
+     * @param {Array<Token>} mandatory_arg_name_toks The mandatory arguments.
+     * @param {Array<Token>} optional_arg_name_toks The optional arguments.
+     * @param {Array<CustomNode>} default_values_nodes The values of the optional arguments.
      * @param {CustomNode} body_node The body of the function.
      */
-    constructor(var_name_tok, arg_name_toks, body_node) { // in the future, we'll update body_node into a list of body nodes
+    constructor(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node) { // in the future, we'll update body_node into a list of body nodes
         super();
         this.var_name_tok = var_name_tok;
         this.arg_name_toks = arg_name_toks;
+        this.mandatory_arg_name_toks = mandatory_arg_name_toks;
+        this.optional_arg_name_toks = optional_arg_name_toks;
+        this.default_values_nodes = default_values_nodes;
         this.body_node = body_node;
 
         if (this.var_name_tok) {
@@ -1427,11 +1437,71 @@ class Parser {
         res.register_advancement();
         this.advance();
 
-        let arg_name_toks = [];
+        let is_optional = false; // once there is an optional argument, this goes to true
+        // indeed, we cannot have a mandatory argument after an optional one.
+
+        let arg_name_toks = []; // all the args
+        let mandatory_arg_name_toks = []; // the mandatory args
+        let optional_name_toks = []; // the optional args
+        let default_values_nodes = []; // the tokens for the default values
         if (this.current_tok.type === TOKENS.IDENTIFIER) {
-            arg_name_toks.push(this.current_tok);
-            res.register_advancement();
-            this.advance();
+
+            // there is an identifier
+            // advance
+            // check if there is a question mark
+            // if there is a question mark, check if there is an equal sign
+            // if there is an equal sign, advance and get the default value (an expr)
+            const check_for_optional_args = () => {
+                let identifier_token = this.current_tok;
+                arg_name_toks.push(identifier_token);
+                res.register_advancement();
+                this.advance();
+
+                // there might be a question mark
+                // optional
+                if (this.current_tok.type === TOKENS.QMARK) {
+                    is_optional = true;
+                    let question_mark_tok = this.current_tok;
+                    optional_name_toks.push(identifier_token);
+                    res.register_advancement();
+                    this.advance();
+
+                    // there might be an equal sign
+                    // to customize the default value
+                    // which is null by default
+                    if (this.current_tok.type === TOKENS.EQ) {
+                        res.register_advancement();
+                        this.advance();
+
+                        let node_default_value = res.register(this.expr());
+                        if (res.error) {
+                            return res.failure(new InvalidSyntaxError(
+                                this.current_tok.pos_start, this.current_tok.pos_end,
+                                "Expected default value for the argument."
+                            ));
+                        }
+
+                        default_values_nodes.push(node_default_value);
+                    } else {
+                        let df = new NumberNode(new Token(TOKENS.INT, CustomNumber.null.value, question_mark_tok.pos_start, question_mark_tok.pos_end));
+                        default_values_nodes.push(df);
+                    }
+                } else { // mandatory with no default value
+                    // there was an optional argument already
+                    // so there is a mandatory argument after an optional one
+                    // that's not good
+                    if (is_optional) {
+                        return res.failure(new InvalidSyntaxError(
+                            identifier_token.pos_start, identifier_token.pos_end,
+                            "Expected an optional argument."
+                        ));
+                    } else {
+                        mandatory_arg_name_toks.push(identifier_token);
+                    }
+                }
+            };
+
+            check_for_optional_args();
 
             // there are arguments, how many ?
             // we want them all
@@ -1447,9 +1517,7 @@ class Parser {
                     ));
                 }
 
-                arg_name_toks.push(this.current_tok);
-                res.register_advancement();
-                this.advance();
+                check_for_optional_args();
             }
 
             // we have all the args,
@@ -1496,9 +1564,12 @@ class Parser {
         if (res.error) return res;
 
         return res.success(new FuncDefNode(
-            var_name_tok,
-            arg_name_toks,
-            node_to_return
+            var_name_tok, // the name
+            arg_name_toks, // all the arguments
+            mandatory_arg_name_toks, // the mandatory arguments
+            optional_name_toks, // the optional arguments
+            default_values_nodes, // their default values
+            node_to_return // the body
         ));
     }
 
@@ -1743,7 +1814,7 @@ class Value {
  */
 class CustomNumber extends Value {
     /**
-     * @constructs CustomNumebr
+     * @constructs CustomNumber
      * @param {number} value The value of a NumberNode.
      */
     constructor(value) {
@@ -1987,25 +2058,27 @@ class BaseFunction extends Value {
     /**
      * Checks if the number of arguments correspond.
      * @param {Array<string>} arg_names The names of the arguments.
-     * @param {Array} args The values of the arguments.
+     * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
+     * @param {Array} given_args The values of the given arguments (the function has been called by the user).
+     * @return {RTResult}
      */
-    check_args(arg_names, args) {
+    check_args(arg_names, mandatory_arg_names, given_args) {
         let res = new RTResult();
 
         // too many arguments
-        if (args.length > arg_names.length) {
+        if (given_args.length > arg_names.length) {
             return res.failure(new RTError(
                 this.pos_start, this.pos_end,
-                `${args.length - arg_names.length} too many args passed into '${this.name}'`,
+                `${given_args.length - arg_names.length} too many args passed into '${this.name}'`,
                 this.context
             ));
         }
 
         // too few arguments
-        if (args.length < arg_names.length) {
+        if (given_args.length < mandatory_arg_names.length) {
             return res.failure(new RTError(
                 this.pos_start, this.pos_end,
-                `${arg_names.length - args.length} too few args passed into '${this.name}'`,
+                `${mandatory_arg_names.length - given_args.length} too few args passed into '${this.name}'`,
                 this.context
             ));
         }
@@ -2016,34 +2089,53 @@ class BaseFunction extends Value {
     /**
      * Puts the arguments in the symbol table (gives the values to their identifier).
      * @param {Array<string>} arg_names The names of the arguments.
-     * @param {Array} args The values of the arguments.
+     * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
+     * @param {Array<string>} optional_arg_names The names of the optional arguments.
+     * @param {Array} default_values The default values of the optional arguments.
+     * @param {Array} given_args The values of the arguments.
      * @param {Context} exec_ctx The context.
      */
-    populate_args(arg_names, args, exec_ctx) {
+    populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx) {
         // we have the names of the arguments,
         // we get the values of our arguments
 
-        for (let i = 0; i < args.length; i++) {
+        for (let i = 0; i < given_args.length; i++) {
             let arg_name = arg_names[i];
-            let arg_value = args[i];
+            let arg_value = given_args[i];
             arg_value.set_context(exec_ctx);
-            // we set the context
-            exec_ctx.symbol_table.set(arg_name, arg_value);
+            exec_ctx.symbol_table.set(arg_name, arg_value); // create the variables (= args)
+        }
+
+        // there cannot be any optional arguments after mandatory arguments
+        let total_of_possible_arguments = optional_arg_names.length + mandatory_arg_names.length;
+        if (given_args.length < total_of_possible_arguments) {
+            // optional_arg_names.length === default_values.length
+            // Avoid replacing default values because both arrays (mandatory args & optional args) don't start at the same index
+            let index_start = given_args.length - mandatory_arg_names.length;
+            for (let i = index_start; i < optional_arg_names.length; i++) {
+                let arg_name = optional_arg_names[i];
+                let arg_value = default_values[i];
+                arg_value.set_context(exec_ctx);
+                exec_ctx.symbol_table.set(arg_name, arg_value);
+            }
         }
     }
 
     /**
      * Checks the arguments & puts them in the symbol table (gives the values to their identifier).
      * @param {Array<string>} arg_names The names of the arguments.
-     * @param {Array} args The values of the arguments.
+     * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
+     * @param {Array<string>} optional_arg_names The names of the optional arguments.
+     * @param {Array} default_values The values of the optional arguments.
+     * @param {Array} given_args The values of the arguments.
      * @param {Context} exec_ctx The context.
      */
-    check_and_populate_args(arg_names, args, exec_ctx) {
+    check_and_populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx) {
         let res = new RTResult();
-        res.register(this.check_args(arg_names, args));
+        res.register(this.check_args(arg_names, mandatory_arg_names, given_args));
         if (res.error) return res;
 
-        this.populate_args(arg_names, args, exec_ctx);
+        this.populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx);
         return res.success(null);
     }
 }
@@ -2057,24 +2149,30 @@ class CustomFunction extends BaseFunction {
      * @param {string} name The name of the variable.
      * @param {CustomNode} body_node The body.
      * @param {Array<string>} arg_names The list of arguments.
+     * @param {Array<string>} mandatory_arg_name_toks The list of mandatory arguments.
+     * @param {Array<string>} optional_args The list of optional args.
+     * @param {Array} default_values The values of the optional args.
      */
-    constructor(name, body_node, arg_names) {
+    constructor(name, body_node, arg_names, mandatory_arg_name_toks, optional_args, default_values) {
         super(name);
         this.body_node = body_node;
         this.arg_names = arg_names;
+        this.mandatory_arg_name_toks = mandatory_arg_name_toks;
+        this.optional_args = optional_args;
+        this.default_values = default_values;
     }
 
     /**
-     * Executes a custom function.
-     * @param {Array} args The arguments
-     * @override
+     * Executes a custom function (this function has been called by the user).
+     * @param {Array} args The given arguments.
+     * @return {RTResult}
      */
     execute(args) {
         let res = new RTResult();
         let interpreter = new Interpreter();
         let exec_ctx = this.generate_new_context();
 
-        res.register(this.check_and_populate_args(this.arg_names, args, exec_ctx));
+        res.register(this.check_and_populate_args(this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values, args, exec_ctx));
         if (res.error) return res;
 
         let value = res.register(interpreter.visit(this.body_node, exec_ctx));
@@ -2087,7 +2185,7 @@ class CustomFunction extends BaseFunction {
      * @return {CustomFunction} A copy of that instance.
      */
     copy() {
-        let copy = new CustomFunction(this.name, this.body_node, this.arg_names);
+        let copy = new CustomFunction(this.name, this.body_node, this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values);
         copy.set_context(this.context);
         copy.set_pos(this.pos_start, this.pos_end);
         return copy;
@@ -2129,7 +2227,8 @@ class BuiltInFunction extends BaseFunction {
             throw new Error(`No execute_${this.name} method defined.`);
         }
 
-        res.register(this.check_and_populate_args(BuiltInFunction.ARGS[this.name], args, exec_ctx));
+        let registered_args = BuiltInFunction.ARGS[this.name];
+        res.register(this.check_and_populate_args(registered_args.names, registered_args.mandatories, registered_args.optional, registered_args.default_values, args, exec_ctx));
         if (res.error) return res;
 
         let return_value = res.register(method(exec_ctx));
@@ -2185,12 +2284,7 @@ class BuiltInFunction extends BaseFunction {
     }
 }
 
-// Constants
-BuiltInFunction.ARGS.log = ["value"];
-BuiltInFunction.log = new BuiltInFunction("log");
-BuiltInFunction.ARGS.input = ["text"];
-BuiltInFunction.input = new BuiltInFunction("input");
-// don't forget to add these in the global_symbol_table
+// the built-in functions are defined at the end of this file
 
 /**
  * @classdesc A string in the program.
@@ -2206,7 +2300,7 @@ class CustomString extends Value {
     }
 
     /**
-     * Concatenates the string to a another value.
+     * Concatenates the string to another value.
      * @param {CustomNode} other A node to concatenate to the string.
      * @return {{result: CustomString, error: RTError|null}} The new string (result) and a potential error.
      */
@@ -2734,10 +2828,20 @@ class Interpreter {
         let func_name = node.var_name_tok ? node.var_name_tok.value : null;
         let body_node = node.body_node;
         let arg_names = [];
+        let optional_arg_names = [];
+        let mandatory_arg_names = [];
+        let default_values = [];
 
         for (let arg_name of node.arg_name_toks) arg_names.push(arg_name.value);
+        for (let optional_arg of node.optional_arg_name_toks) optional_arg_names.push(optional_arg.value);
+        for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg.value);
+        for (let df of node.default_values_nodes) {
+            let value = res.register(this.visit(df, context));
+            if (res.error) return res;
+            default_values.push(value);
+        }
 
-        let func_value = new CustomFunction(func_name, body_node, arg_names).set_context(context).set_pos(node.pos_start, node.pos_end);
+        let func_value = new CustomFunction(func_name, body_node, arg_names, mandatory_arg_names, optional_arg_names, default_values).set_context(context).set_pos(node.pos_start, node.pos_end);
 
         // we want to invoke the function with its name
         // so we use it as a variable in our symbol table.
@@ -2810,6 +2914,23 @@ class Interpreter {
 * GLOBAL VARIABLES
 *
 */
+
+// Constants
+BuiltInFunction.ARGS.log = {
+    names: ["value"],
+    mandatories: ["value"],
+    optional: [],
+    default_values: [],
+};
+BuiltInFunction.log = new BuiltInFunction("log");
+
+BuiltInFunction.ARGS.input = {
+    names: ["text"],
+    mandatories: [],
+    optional: ["text"],
+    default_values: [new CustomString('')]
+};
+BuiltInFunction.input = new BuiltInFunction("input");
 
 const global_symbol_table = new SymbolTable();
 global_symbol_table.set("NULL", CustomNumber.null);
