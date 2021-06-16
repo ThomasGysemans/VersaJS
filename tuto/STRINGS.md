@@ -27,3 +27,20 @@ atom    : INT|FLOAT|STRING|IDENTIFIER
 ## Interpreter
 
 On crée un noeud, il faut bien sûr le visiter lors de l'évaluation du code.
+
+## Aller plus loin
+
+On va essayer de faire la chose suivante :
+
+```
+VAR age = 17
+VAR str = "j'ai {age} ans"
+```
+
+Ceci ne fonctionne que pour des double quotes. De plus, on ne peut pas faire ceci :
+
+```
+VAR str = "j'ai \{age} ans"
+```
+
+On fera attention si l'on concatène une liste comportant des strings. Il faut se débarasser des guillements.

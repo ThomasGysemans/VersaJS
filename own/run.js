@@ -332,12 +332,14 @@ class Lexer {
      * @constructs Lexer
      * @param {string} filename The name of the file to be read.
      * @param {string} text The source code.
+     * @param {Context} context The context (needed if there is "{var}" in a string) 
      */
-    constructor(filename, text) {
+    constructor(filename, text, context) {
         this.filename = filename;
         this.text = text.trim();
         this.pos = new Position(-1, 0, -1, filename, text);
         this.current_char = null;
+        this.context = context;
         this.advance();
     }
 
@@ -574,7 +576,54 @@ class Lexer {
             } else {
                 if (this.current_char === '\\') {
                     escape_character = true;
-                    // we don't add '\' to our string
+                } else if (opening_quote === '"' && this.current_char === "{") {
+                    let pos_start = this.pos.copy();
+                    let code = "";
+                    while (true) {
+                        this.advance();
+                        // @ts-ignore
+                        if (this.current_char === "}") break;
+                        code += this.current_char;
+                    }
+                    if (code.trim()) {
+                        // Generate tokens
+                        const lexer = new Lexer(this.filename, code, this.context);
+                        const { tokens, error } = lexer.make_tokens();
+                        if (error) {
+                            return { tok: [], error: new InvalidSyntaxError(
+                                pos_start, this.pos,
+                                error.details
+                            )};
+                        }
+
+                        // Generate abstract syntax tree
+                        const parser = new Parser(tokens);
+                        const ast = parser.parse(); // the ast will contain a node, that node is the entire list of parsed tokens as an expression.
+                        if (ast.error) {
+                            return { tok: [], error: new InvalidSyntaxError(
+                                pos_start, this.pos,
+                                ast.error.details
+                            )}
+                        }
+
+                        // Run the program
+                        const interpreter = new Interpreter();
+                        const result = interpreter.visit(ast.node, this.context);
+                        if (result.error) {
+                            return { tok: [], error: new InvalidSyntaxError(
+                                pos_start, this.pos,
+                                result.error.details
+                            )};
+                        }
+
+                        if (result.value.repr !== undefined) {
+                            string += result.value.repr();
+                        } else {
+                            string += result.value;
+                        }
+                    } else {
+                        string += "{" + code + "}"; // the code is empty
+                    }
                 } else {
                     string += this.current_char;
                 }
@@ -2451,6 +2500,20 @@ class CustomList extends Value {
     toString() {
         return `[${this.elements.join(', ')}]`;
     }
+
+    /**
+     * Converts an array into a one dimensional array.
+     * @returns {Array}
+     */
+    merge_into_1d_arr(arr) {
+        return arr.reduce((acc, val) => acc.concat(val instanceof CustomList ? this.merge_into_1d_arr(val.elements) : (val.repr !== undefined ? val.repr() : val)), []);
+    }
+
+    repr() {
+        // we want a one dimensional array
+        let new_table = this.merge_into_1d_arr(this.elements);
+        return `${new_table.join(', ')}`;
+    }
 }
 
 /*
@@ -2952,8 +3015,16 @@ global_symbol_table.set("input", BuiltInFunction.input);
  * @return {{result: any, error: CustomError}}
  */
 export default function run(filename, text) {
+    // We generate the context here
+    // because we might need it inside strings
+    // Indeed, if there is "{var}", then we need to interpret that code
+    // before the creation of the variable.
+    // However, we want the same context everywhere
+    const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
+    context.symbol_table = global_symbol_table;
+
     // Generate tokens
-    const lexer = new Lexer(filename, text);
+    const lexer = new Lexer(filename, text, context);
     const { tokens, error } = lexer.make_tokens();
     if (error) return { result: null, error };
 
@@ -2964,8 +3035,6 @@ export default function run(filename, text) {
 
     // Run the program
     const interpreter = new Interpreter();
-    const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
-    context.symbol_table = global_symbol_table;
     const result = interpreter.visit(ast.node, context);
 
     return { result: result.value, error: result.error };
