@@ -204,7 +204,7 @@ const TOKENS = {
     ARROW: 'ARROW',
     STRING: 'STRING',
     LSQUARE: 'LSQUARE', // [
-    RSQUARE :'RSQUARE', // ]
+    RSQUARE: 'RSQUARE', // ]
     QMARK: 'QUESTION_MARK',
     EOF: 'EOF',
 };
@@ -386,6 +386,8 @@ class Lexer {
                 tokens.push(this.make_minus_or_arrow()); // minus / arrow of a function
             } else if (this.current_char === '"') {
                 tokens.push(this.make_string());
+            } else if (this.current_char === "'") {
+                tokens.push(this.make_string());
             } else {
                 let found = false;
                 const keywords = [{
@@ -556,26 +558,28 @@ class Lexer {
     }
 
     make_string() {
-        let string = '';
+        let string = "";
         let pos_start = this.pos.copy();
-        let escape_character = false; // do we have to escape the following character ?
+        let escape_character = false; // do we have to escape the following character?
+        let opening_quote = this.current_char; // ' or "
         this.advance();
 
         // if we have to escape a character,
         // even if we have a '"',
         // we don't stop the loop
-        while (this.current_char !== null && (this.current_char != '"' || escape_character)) {
+        while (this.current_char !== null && (this.current_char !== opening_quote || escape_character)) {
             if (escape_character) {
                 string += ESCAPE_CHARACTERS.has(this.current_char) ? ESCAPE_CHARACTERS.get(this.current_char) : this.current_char;
+                escape_character = false;
             } else {
                 if (this.current_char === '\\') {
                     escape_character = true;
+                    // we don't add '\' to our string
                 } else {
                     string += this.current_char;
                 }
             }
             this.advance();
-            escape_character = false;
         }
 
         // end of the string
