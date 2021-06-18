@@ -91,3 +91,21 @@ Pour cela, il faut modifier la grammaire :
 func-def    : KEYWORD:FUNC IDENTIFIER?
                 LPAREN (IDENTIFIER (QMARK (EQ expr))? (COMMA IDENTIFIER)*)? RPAREN
                 ARROW expr
+
+# Return
+
+Pour préparer la lecture de fichiers, on doit préparer d'abord:
+
+```
+FUNC add(a, b)
+    RETURN a + b
+END
+
+FUNC example()
+    # do stuff
+    IF ... THEN
+        RETURN
+    END
+    # do more stuff
+END
+```

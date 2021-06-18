@@ -5,12 +5,19 @@
 */
 
 import prompt from 'prompt-sync';
+import process from 'process';
 
 /*
 *
 * MISCELLANEOUS
 *
 */
+
+function getArrayDepth(value) {
+  return Array.isArray(value) ? 
+    1 + Math.max(...value.map(getArrayDepth)) :
+    0;
+}
 
 /**
  * Draws a line of arrows below an error in the shell.
@@ -206,6 +213,7 @@ const TOKENS = {
     LSQUARE: 'LSQUARE', // [
     RSQUARE: 'RSQUARE', // ]
     QMARK: 'QUESTION_MARK',
+    NEWLINE: "NEWLINE",
     EOF: 'EOF',
 };
 
@@ -222,7 +230,11 @@ const KEYWORDS = [
     "TO",
     "STEP",
     "WHILE",
-    "FUNC"
+    "FUNC",
+    "END",
+    "RETURN",
+    "CONTINUE",
+    "BREAK"
 ];
 
 /***
@@ -390,6 +402,9 @@ class Lexer {
                 tokens.push(this.make_string());
             } else if (this.current_char === "'") {
                 tokens.push(this.make_string());
+            } else if (this.current_char === "\n" || this.current_char === ";") {
+                tokens.push(new Token(TOKENS.NEWLINE, null, this.pos));
+                this.advance();
             } else {
                 let found = false;
                 const keywords = [{
@@ -761,16 +776,22 @@ class UnaryOpNode extends CustomNode {
 class IfNode extends CustomNode {
     /**
      * @constructs IfNode
-     * @param {Array<Array<CustomNode>>} cases The cases [[condition, expr]].
-     * @param {CustomNode} else_case The else case.
+     * @param {Array} cases The cases [[condition, expr, should_return_null]].
+     * @param {{code: any, should_return_null: boolean}} else_case The else case.
      */
     constructor(cases, else_case) {
         super();
         this.cases = cases;
         this.else_case = else_case;
 
+        // console.log(`cases = (${cases[cases.length - 1]})`);
+
         this.pos_start = this.cases[0][0].pos_start;
-        this.pos_end = (this.else_case || this.cases[this.cases.length - 1][0]).pos_end;
+        if (this.else_case.code) {
+            this.pos_end = this.else_case.code.pos_end;
+        } else {
+            this.pos_end = this.cases[this.cases.length - 1][0].pos_end;
+        }
     }
 }
 
@@ -785,14 +806,16 @@ class ForNode extends CustomNode {
      * @param {CustomNode} end_value_node The value it will go up to.
      * @param {CustomNode} step_value_node The step between each iteration.
      * @param {CustomNode} body_node What gets evaluated on every iteration.
+     * @param {boolean} should_return_null Should return null? False for inline loops.
      */
-    constructor(var_name_tok, start_value_node, end_value_node, step_value_node, body_node) {
+    constructor(var_name_tok, start_value_node, end_value_node, step_value_node, body_node, should_return_null) {
         super();
         this.var_name_tok = var_name_tok;
         this.start_value_node = start_value_node;
         this.end_value_node = end_value_node;
         this.step_value_node = step_value_node;
         this.body_node = body_node;
+        this.should_return_null = should_return_null;
 
         this.pos_start = this.var_name_tok.pos_start;
         this.pos_end = this.body_node.pos_end;
@@ -807,11 +830,13 @@ class WhileNode extends CustomNode {
      * @constructs WhileNode
      * @param {CustomNode} condition_node The condition needed to evaluate the body.
      * @param {CustomNode} body_node What gets evaluated on every iteration.
+     * @param {boolean} should_return_null Should return null? False for inline loops.
      */
-    constructor(condition_node, body_node) {
+    constructor(condition_node, body_node, should_return_null) {
         super();
         this.condition_node = condition_node;
         this.body_node = body_node;
+        this.should_return_null = should_return_null;
         
         this.pos_start = this.condition_node.pos_start;
         this.pos_end = this.body_node.pos_end;
@@ -830,8 +855,9 @@ class FuncDefNode extends CustomNode {
      * @param {Array<Token>} optional_arg_name_toks The optional arguments.
      * @param {Array<CustomNode>} default_values_nodes The values of the optional arguments.
      * @param {CustomNode} body_node The body of the function.
+     * @param {boolean} should_auto_return Should auto return? True if the function is an arrow function.
      */
-    constructor(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node) { // in the future, we'll update body_node into a list of body nodes
+    constructor(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node, should_auto_return) {
         super();
         this.var_name_tok = var_name_tok;
         this.arg_name_toks = arg_name_toks;
@@ -839,6 +865,7 @@ class FuncDefNode extends CustomNode {
         this.optional_arg_name_toks = optional_arg_name_toks;
         this.default_values_nodes = default_values_nodes;
         this.body_node = body_node;
+        this.should_auto_return = should_auto_return;
 
         if (this.var_name_tok) {
             this.pos_start = this.var_name_tok.pos_start;
@@ -914,6 +941,56 @@ class ListNode extends CustomNode {
     }
 }
 
+/**
+ * @classdesc A return keyword.
+ */
+class ReturnNode extends CustomNode {
+    /**
+     * @constructs ReturnNode
+     * @param {CustomNode} node_to_return The value that we must return.
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(node_to_return, pos_start, pos_end) {
+        super();
+        this.node_to_return = node_to_return;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+}
+
+/**
+ * @classdesc A return keyword.
+ */
+class ContinueNode extends CustomNode {
+    /**
+     * @constructs ContinueNode
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(pos_start, pos_end) {
+        super();
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+}
+
+/**
+ * @classdesc A return keyword.
+ */
+class BreakNode extends CustomNode {
+    /**
+     * @constructs BreakNode
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(pos_start, pos_end) {
+        super();
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+}
+
 /*
 *
 * PARSE RESULT
@@ -932,27 +1009,44 @@ class ParseResult {
         this.error = null;
         /** @var {CustomNode|null} */
         this.node = null;
+        this.last_registered_advance_count = 0;
         this.advance_count = 0;
+        this.to_reverse_count = 0;
     }
 
     register_advancement() {
+        this.last_registered_advance_count = 1;
         this.advance_count += 1; // we want to known the exact amount to advancements.
     }
 
     /**
      * Registers a new node in order to verify if there is an error.
      * @param {any} res The result of an executed function.
-     * @return {CustomNode|null} res.node.
+     * @return {CustomNode|any|null} res.node.
      */
     register(res) {
+        this.last_registered_advance_count = res.advance_count;
         this.advance_count += res.advance_count;
         if (res.error) this.error = res.error;
         return res.node;
     }
 
     /**
+     * Tries to register for optional expressions.
+     * @param {ParseResult} res 
+     * @return {CustomNode|null}
+     */
+    try_register(res) {
+        if (res.error) {
+            this.to_reverse_count = res.advance_count;
+            return null;
+        }
+        return this.register(res);
+    }
+
+    /**
      * A new node is correct.
-     * @param {CustomNode|null} node The errorless node.
+     * @param {CustomNode|any|null} node The errorless node.
      * @return {ParseResult} this.
      */
     success(node) {
@@ -995,10 +1089,20 @@ class Parser {
 
     advance() {
         this.tok_idx += 1;
-        if (this.tok_idx < this.tokens.length) {
+        this.update_current_tok();
+        return this.current_tok;
+    }
+
+    reverse(amount=1) {
+        this.tok_idx -= amount;
+        this.update_current_tok();
+        return this.current_tok;
+    }
+
+    update_current_tok() {
+        if (this.tok_idx >= 0 && this.tok_idx < this.tokens.length) {
             this.current_tok = this.tokens[this.tok_idx];
         }
-        return this.current_tok;
     }
 
     /**
@@ -1006,11 +1110,11 @@ class Parser {
      * @returns {ParseResult}
      */
     parse() {
-        let res = this.expr();
+        let res = this.statements();
         if (!res.error && this.current_tok.type !== TOKENS.EOF) {
             return res.failure(new InvalidSyntaxError(
                 this.current_tok.pos_start, this.current_tok.pos_end,
-                "Expected '+', '-', '*', '/' or '^'"
+                "Expected '+', '-', '*', '/', '^', '==', '!=', '<', '>', '<=', '>=', 'AND' or 'OR'"
             ));
         }
         return res;
@@ -1018,10 +1122,94 @@ class Parser {
 
     // -------------
 
+    statements() {
+        let res = new ParseResult();
+        let statements = [];
+        let pos_start = this.current_tok.pos_start.copy();
+
+        while (this.current_tok.type === TOKENS.NEWLINE) {
+            res.register_advancement();
+            this.advance();
+        }
+
+        let statement = res.register(this.statement());
+        if (res.error) return res;
+        statements.push(statement);
+
+        let more_statements = true;
+
+        while (true) {
+            let newline_count = 0;
+            while (this.current_tok.type === TOKENS.NEWLINE) {
+                res.register_advancement();
+                this.advance();
+                newline_count += 1;
+            }
+
+            // there are no more lines
+            if (newline_count === 0) {
+                more_statements = false;
+            }
+
+            if (!more_statements) break;
+            statement = res.try_register(this.statement());
+            if (!statement) {
+                this.reverse(res.to_reverse_count);
+                more_statements = false;
+                continue;
+            }
+
+            statements.push(statement);
+        }
+
+        return res.success(new ListNode(
+            statements,
+            pos_start,
+            this.current_tok.pos_end.copy()
+        ));
+    }
+
+    statement() {
+        let res = new ParseResult();
+        let pos_start = this.current_tok.pos_start.copy();
+
+        if (this.current_tok.matches(TOKENS.KEYWORD, "RETURN")) {
+            res.register_advancement();
+            this.advance();
+
+            let expr = res.try_register(this.expr());
+            if (!expr) this.reverse(res.to_reverse_count);
+            
+            return res.success(new ReturnNode(expr, pos_start, this.current_tok.pos_start.copy()));
+        }
+
+        if (this.current_tok.matches(TOKENS.KEYWORD, "CONTINUE")) {
+            res.register_advancement();
+            this.advance();
+            return res.success(new ContinueNode(pos_start, this.current_tok.pos_start.copy()));
+        }
+
+        if (this.current_tok.matches(TOKENS.KEYWORD, "BREAK")) {
+            res.register_advancement();
+            this.advance();
+            return res.success(new BreakNode(pos_start, this.current_tok.pos_start.copy()));
+        }
+
+        let expr = res.register(this.expr());
+        if (res.error) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'RETURN', 'CONTINUE', 'BREAK' 'VAR', 'IF', 'FOR', 'WHILE', 'FUNC', int, float, identifier, '+', '-', '(', '[' or 'NOT'"
+            ));
+        }
+        return res.success(expr);
+    }
+
     // an expression is looking for terms.
     expr() {
-        // first of all, we need to check if this is a variable declaration
         let res = new ParseResult();
+
+        // first of all, we need to check if this is a variable declaration
         if (this.current_tok.matches(TOKENS.KEYWORD, 'VAR')) {
             res.register_advancement();
             this.advance();
@@ -1233,17 +1421,22 @@ class Parser {
         ));
     }
 
-    if_expr() {
+    /**
+     * Evaluates a `IF` statement or an `ELIF` statement.
+     * @param {string} case_keyword The word of the statement.
+     * @return {ParseResult}
+     */
+    if_expr_cases(case_keyword) {
         let res = new ParseResult();
         let cases = [];
-        let else_case = null;
+        let else_case = { code: null, should_return_null: false };
 
-        // we must have a "IF" keyword
+        // we must have a "IF" (or "ELIF" since multi-lines support) keyword
 
-        if (!this.current_tok.matches(TOKENS.KEYWORD, "IF")) {
+        if (!this.current_tok.matches(TOKENS.KEYWORD, case_keyword)) {
             return res.failure(new InvalidSyntaxError(
                 this.current_tok.pos_start, this.current_tok.pos_end,
-                "Expected 'IF'"
+                `Expected '${case_keyword}'`
             ));
         }
 
@@ -1267,50 +1460,152 @@ class Parser {
         res.register_advancement();
         this.advance();
 
-        // followed by an expression
-
-        let expr = res.register(this.expr());
-        if (res.error) return res;
-        cases.push([condition, expr]);
-
-        // now we check for ELIFs
-
-        while (this.current_tok.matches(TOKENS.KEYWORD, "ELIF")) {
+        if (this.current_tok.type === TOKENS.NEWLINE) {
             res.register_advancement();
             this.advance();
 
-            // after an ELIF, there must be a condition
-
-            condition = res.register(this.expr());
+            let statements = res.register(this.statements());
             if (res.error) return res;
 
-            // then a "THEN"
-            
-            if (!this.current_tok.matches(TOKENS.KEYWORD, "THEN")) {
-                return res.failure(new InvalidSyntaxError(
-                    this.current_tok.pos_start, this.current_tok.pos_end,
-                    "Expected 'THEN'"
-                ));
+            // true = should return null ?
+            // before we returned the evaluated expr
+            // now if we are on several lines, we don't want to return anything
+            cases.push([condition, statements, true]);
+
+            if (this.current_tok.matches(TOKENS.KEYWORD, 'END')) {
+                res.register_advancement();
+                this.advance();
+            } else {
+                const all_cases = res.register(this.if_expr_elif_or_else());
+                if (res.error) return res;
+                let new_cases = all_cases.cases;
+                else_case = all_cases.else_case;
+                
+                // if (new_cases.length > 0) {
+                //     cases[cases.length] = new_cases[0];
+                //     cases[cases.length] = new_cases[1];
+                //     cases[cases.length] = new_cases[2];
+                // }
+                if (new_cases.length > 0) {
+                    // cases.push(new_cases);
+                    cases = [...cases, ...new_cases];
+                }
+                // console.log('---');
+                // console.log(`new_cases = ${new_cases} (typeof ${cases.constructor.name})`);
+                // console.log(`cases = ${cases} (typeof ${cases.constructor.name})`);
+                // console.log('---');
             }
-
-            // we need now another expression
-
-            res.register_advancement();
-            this.advance();
-
-            expr = res.register(this.expr());
+        } else {
+            let expr = res.register(this.statement());
             if (res.error) return res;
-            cases.push([condition, expr]);
+
+            // console.log(`condition = ${condition}`);
+            // console.log(`expr = ${expr} (instanceof continuenode ${expr instanceof ContinueNode})`);
+
+            cases.push([condition, expr, false]); // we want the return value of a if statement (that's why false)
+
+            // console.log(`inside if_expr_cases, cases = ${cases.join(', ')}`);
+
+            const all_cases = res.register(this.if_expr_elif_or_else());
+            if (res.error) return res;
+            let new_cases = all_cases.cases;
+            // console.log(`new_cases = [${new_cases.join(',')}] (type ${new_cases.constructor.name}) (total length = ${new_cases.length})`);
+            // console.log(`new_cases[0] = [${new_cases[0]}] (type = ${typeof new_cases[0]})`);
+            else_case = all_cases.else_case;
+            // if (new_cases[0] && new_cases[1] && (new_cases[2] === true || new_cases[2] === false)) {
+            //     cases[cases.length] = new_cases[0];
+            //     cases[cases.length] = new_cases[1];
+            //     cases[cases.length] = new_cases[2];
+            //     console.log('ADDED');
+            // }
+            // if (new_cases.length > 0) {
+            //     for (let i = 0; i < new_cases.length; i++) {
+            //         cases[cases.length] = new_cases[i][0];
+            //         cases[cases.length] = new_cases[i][1];
+            //         cases[cases.length] = new_cases[i][2];
+            //     }
+            // }
+            // console.log(`cases = [${cases.join(',')}]`);
+            if (new_cases.length > 0) {
+                // cases.concat(new_cases);
+                cases = [...cases, ...new_cases];
+                // console.log(`after concatenation : cases = [${cases.join(', ')}]`);
+            }
         }
+
+        // console.log(`at the end of if_expr_cases, cases = ${cases.join(', ')}`);
+
+        // console.log(`depth of the cases = ${getArrayDepth(cases)}`);
+
+        return res.success({ cases: cases, else_case: else_case });
+    }
+
+    if_expr_elif() {
+        return this.if_expr_cases('ELIF');
+    }
+
+    if_expr_else() {
+        let res = new ParseResult();
+        let else_case = { code: null, should_return_null: false };
 
         if (this.current_tok.matches(TOKENS.KEYWORD, "ELSE")) {
             res.register_advancement();
             this.advance();
 
-            else_case = res.register(this.expr());
+            if (this.current_tok.type === TOKENS.NEWLINE) {
+                res.register_advancement();
+                this.advance();
+
+                let statements = res.register(this.statements());
+                if (res.error) return res;
+                else_case = { code: statements, should_return_null: true };
+
+                if (this.current_tok.matches(TOKENS.KEYWORD, "END")) {
+                    res.register_advancement();
+                    this.advance();
+                } else {
+                    return res.failure(new InvalidSyntaxError(
+                        this.current_tok.pos_start, this.current_tok.pos_end,
+                        "Expected 'END'"
+                    ));
+                }
+            } else {
+                let expr = res.register(this.statement());
+                if (res.error) return res;
+                else_case = { code: expr, should_return_null: false };
+            }
+        }
+
+        return res.success(else_case);
+    }
+
+    if_expr_elif_or_else() {
+        let res = new ParseResult();
+        let cases = [];
+        let else_case = { code: null, should_return_null: false };
+
+        if (this.current_tok.matches(TOKENS.KEYWORD, "ELIF")) {
+            const all_cases = res.register(this.if_expr_elif());
+            // console.log(`all_cases = ${all_cases.cases.join(', ')}`);
+            if (res.error) return res;
+            cases = all_cases.cases;
+            else_case = all_cases.else_case;
+        } else {
+            else_case = res.register(this.if_expr_else());
             if (res.error) return res;
         }
 
+        return res.success({ cases, else_case });
+    }
+
+    if_expr() {
+        let res = new ParseResult();
+        const all_cases = res.register(this.if_expr_cases("IF"));
+        if (res.error) return res;
+        /** @type {Array} */
+        const cases = all_cases.cases;
+        // console.log(`if_expr() final cases = [${cases.join(', ')}] (total length = ${cases.length})`);
+        const else_case = all_cases.else_case;
         return res.success(new IfNode(cases, else_case));
     }
 
@@ -1396,13 +1691,41 @@ class Parser {
 
         res.register_advancement();
         this.advance();
+
+        // there might be a new line
+        if (this.current_tok.type === TOKENS.NEWLINE) {
+            res.register_advancement();
+            this.advance();
+
+            let extended_body = res.register(this.statements());
+            if (res.error) return res;
+
+            if (!this.current_tok.matches(TOKENS.KEYWORD, "END")) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected 'END'"
+                ));
+            }
+
+            res.register_advancement();
+            this.advance();
+
+            return res.success(new ForNode(
+                var_name_tok,
+                start_value,
+                end_value,
+                step_value,
+                extended_body,
+                true // should return null
+            ));
+        }
         
         // now there is the body of the statement
 
-        let body = res.register(this.expr());
+        let body = res.register(this.statement());
         if (res.error) return res;
 
-        return res.success(new ForNode(var_name_tok, start_value, end_value, step_value, body));
+        return res.success(new ForNode(var_name_tok, start_value, end_value, step_value, body, false));
     }
 
     while_expr() {
@@ -1437,10 +1760,34 @@ class Parser {
         res.register_advancement();
         this.advance();
 
-        let body = res.register(this.expr());
+        if (this.current_tok.type === TOKENS.NEWLINE) {
+            res.register_advancement();
+            this.advance();
+
+            let extended_body = res.register(this.statements());
+            if (res.error) return res;
+
+            if (!this.current_tok.matches(TOKENS.KEYWORD, "END")) {
+                return res.failure(new InvalidSyntaxError(
+                    this.current_tok.pos_start, this.current_tok.pos_end,
+                    "Expected 'END'"
+                ));
+            }
+
+            res.register_advancement();
+            this.advance();
+
+            return res.success(new WhileNode(
+                condition,
+                extended_body,
+                true // should return null? True
+            ));
+        }
+
+        let body = res.register(this.statement());
         if (res.error) return res;
 
-        return res.success(new WhileNode(condition, body));
+        return res.success(new WhileNode(condition, body, false)); // should return null? False
     }
 
     func_def() {
@@ -1599,30 +1946,61 @@ class Parser {
         this.advance();
 
         // we should have an arrow now
+        // if we have an inline function
+        if (this.current_tok.type === TOKENS.ARROW) {
+            // great, enter the body now
 
-        if (this.current_tok.type !== TOKENS.ARROW) {
-            return res.failure(new InvalidSyntaxError(
-                this.current_tok.pos_start, this.current_tok.pos_end,
-                "Expected '->'"
+            res.register_advancement();
+            this.advance();
+
+            // what's our body ?
+            let node_to_return = res.register(this.expr());
+            if (res.error) return res;
+
+            return res.success(new FuncDefNode(
+                var_name_tok, // the name
+                arg_name_toks, // all the arguments
+                mandatory_arg_name_toks, // the mandatory arguments
+                optional_name_toks, // the optional arguments
+                default_values_nodes, // their default values
+                node_to_return, // the body,
+                true // should auto return? True because the arrow behaves like the `return` keyword.
             ));
         }
 
-        // great, enter the body now
+        // now there might be a new line
+
+        if (this.current_tok.type !== TOKENS.NEWLINE) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected '->' or a new line"
+            )); 
+        }
 
         res.register_advancement();
         this.advance();
 
-        // what's our body ?
-        let node_to_return = res.register(this.expr());
+        let body = res.register(this.statements());
         if (res.error) return res;
 
+        if (!this.current_tok.matches(TOKENS.KEYWORD, "END")) {
+            return res.failure(new InvalidSyntaxError(
+                this.current_tok.pos_start, this.current_tok.pos_end,
+                "Expected 'END'"
+            ));
+        }
+
+        res.register_advancement();
+        this.advance();
+
         return res.success(new FuncDefNode(
-            var_name_tok, // the name
-            arg_name_toks, // all the arguments
-            mandatory_arg_name_toks, // the mandatory arguments
-            optional_name_toks, // the optional arguments
-            default_values_nodes, // their default values
-            node_to_return // the body
+            var_name_tok,
+            arg_name_toks,
+            mandatory_arg_name_toks,
+            optional_name_toks,
+            default_values_nodes,
+            body,
+            false // should auto return? False because we need a `return` keyword for a several-line function
         ));
     }
 
@@ -1742,10 +2120,22 @@ class RTResult {
      * @constructs RTResult
      */
     constructor() {
+        this.reset();
+    }
+
+    reset() {
         /** @var {any} */
         this.value = null;
         /** @var {null|CustomError} */
         this.error = null;
+
+        // we want the following behavior
+        // VAR a = RETURN 5
+        // this allows us to return with the value 5 AND assign a variable
+
+        this.func_return_value = null;
+        this.loop_should_continue = false;
+        this.loop_should_break = false;
     }
 
     /**
@@ -1754,28 +2144,75 @@ class RTResult {
      * @return {any} The value.
      */
     register(res) {
-        if (res.error) this.error = res.error;
+        this.error = res.error;
+        this.func_return_value = res.func_return_value;
+        this.loop_should_continue = res.loop_should_continue;
+        this.loop_should_break = res.loop_should_break;
         return res.value;
     }
 
     /**
      * Registers a successful action during runtime.
      * @param {any} value The correct value.
-     * @return {RTResult} this.
+     * @return {this}
      */
     success(value) {
+        this.reset();
         this.value = value;
+        return this;
+    }
+
+    /**
+     * Registers a successful action when returning a value (through a function).
+     * @param {any} value The value we are returning.
+     * @return {this}
+     */
+    success_return(value) {
+        this.reset();
+        this.func_return_value = value;
+        return this;
+    }
+
+    /**
+     * Registers a successful action when continueing a loop.
+     * @returns {this}
+     */
+    success_continue() {
+        this.reset();
+        this.loop_should_continue = true;
+        return this;
+    }
+
+    /**
+     * Registers a successful action when breaking a loop.
+     * @returns {this}
+     */
+    success_break() {
+        this.reset();
+        this.loop_should_break = true;
         return this;
     }
 
     /**
      * Registers an unsuccessful action during runtime.
      * @param {CustomError} error The error.
-     * @return {RTResult} this.
+     * @return {this}
      */
     failure(error) {
+        this.reset();
         this.error = error;
         return this;
+    }
+
+    /**
+     * Stops the program if there is an error, or if we should return, continue or break.
+     * @returns {boolean}
+     */
+    should_return() {
+        return this.error
+                || this.func_return_value
+                || this.loop_should_continue
+                || this.loop_should_break
     }
 }
 
@@ -2186,7 +2623,7 @@ class BaseFunction extends Value {
     check_and_populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx) {
         let res = new RTResult();
         res.register(this.check_args(arg_names, mandatory_arg_names, given_args));
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         this.populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx);
         return res.success(null);
@@ -2205,14 +2642,16 @@ class CustomFunction extends BaseFunction {
      * @param {Array<string>} mandatory_arg_name_toks The list of mandatory arguments.
      * @param {Array<string>} optional_args The list of optional args.
      * @param {Array} default_values The values of the optional args.
+     * @param {boolean} should_auto_return Should auto return? Yes for inline functions because the `return` keyword is the arrow.
      */
-    constructor(name, body_node, arg_names, mandatory_arg_name_toks, optional_args, default_values) {
+    constructor(name, body_node, arg_names, mandatory_arg_name_toks, optional_args, default_values, should_auto_return) {
         super(name);
         this.body_node = body_node;
         this.arg_names = arg_names;
         this.mandatory_arg_name_toks = mandatory_arg_name_toks;
         this.optional_args = optional_args;
         this.default_values = default_values;
+        this.should_auto_return = should_auto_return;
     }
 
     /**
@@ -2226,11 +2665,13 @@ class CustomFunction extends BaseFunction {
         let exec_ctx = this.generate_new_context();
 
         res.register(this.check_and_populate_args(this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values, args, exec_ctx));
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         let value = res.register(interpreter.visit(this.body_node, exec_ctx));
-        if (res.error) return res;
-        return res.success(value);
+        if (res.should_return() && res.func_return_value == null) return res;
+
+        let ret_value = (this.should_auto_return ? value : null) || res.func_return_value || CustomNumber.null;
+        return res.success(ret_value);
     }
 
     /**
@@ -2238,7 +2679,7 @@ class CustomFunction extends BaseFunction {
      * @return {CustomFunction} A copy of that instance.
      */
     copy() {
-        let copy = new CustomFunction(this.name, this.body_node, this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values);
+        let copy = new CustomFunction(this.name, this.body_node, this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values, this.should_auto_return);
         copy.set_context(this.context);
         copy.set_pos(this.pos_start, this.pos_end);
         return copy;
@@ -2281,11 +2722,15 @@ class BuiltInFunction extends BaseFunction {
         }
 
         let registered_args = BuiltInFunction.ARGS[this.name];
-        res.register(this.check_and_populate_args(registered_args.names, registered_args.mandatories, registered_args.optional, registered_args.default_values, args, exec_ctx));
-        if (res.error) return res;
+        if (registered_args) {
+            res.register(this.check_and_populate_args(registered_args.names || [], registered_args.mandatories || [], registered_args.optional || [], registered_args.default_values || [], args, exec_ctx));
+        } else {
+            res.register(this.check_and_populate_args([], [], [], [], args, exec_ctx));
+        }
+        if (res.should_return()) return res;
 
         let return_value = res.register(method(exec_ctx));
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         return res.success(return_value);
     }
@@ -2321,7 +2766,7 @@ class BuiltInFunction extends BaseFunction {
         if (value instanceof CustomString) {
             value = value.repr();
         }
-        console.log(value); // normal
+        console.log(value.toString()); // normal
         return new RTResult().success(CustomNumber.null);
     }
 
@@ -2334,6 +2779,14 @@ class BuiltInFunction extends BaseFunction {
         let ask = exec_ctx.symbol_table.get('text');
         let text = prompt()(ask);
         return new RTResult().success(new CustomString(text));
+    }
+
+    /**
+     * Exists the program.
+     * @param {Context} exec_ctx The context.
+     */
+    execute_exit(exec_ctx) {
+        process.exit();
     }
 }
 
@@ -2511,8 +2964,10 @@ class CustomList extends Value {
 
     repr() {
         // we want a one dimensional array
-        let new_table = this.merge_into_1d_arr(this.elements);
-        return `${new_table.join(', ')}`;
+        // let new_table = this.merge_into_1d_arr(this.elements);
+        // return `${new_table.join(', ')}`;
+        return `[${this.elements.join(', ')}]`;
+        // TODO !
     }
 }
 
@@ -2633,6 +3088,12 @@ class Interpreter {
             return this.visit_StringNode(node, context);
         } else if (node instanceof ListNode) {
             return this.visit_ListNode(node, context);
+        } else if (node instanceof ReturnNode) {
+            return this.visit_ReturnNode(node, context);
+        } else if (node instanceof ContinueNode) {
+            return this.visit_ContinueNode(node, context);
+        } else if (node instanceof BreakNode) {
+            return this.visit_BreakNode(node, context);
         } else {
             throw new Error("No visit method defined for the node '" + node.constructor.name + "'");
         }
@@ -2685,7 +3146,7 @@ class Interpreter {
         let res = new RTResult();
         let var_name = node.var_name_tok.value;
         let value = res.register(this.visit(node.value_node, context));
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         context.symbol_table.set(var_name, value);
         return res.success(value);
@@ -2704,11 +3165,11 @@ class Interpreter {
 
         /** @type {CustomNumber} */
         let left = res.register(this.visit(node.left_node, context)); // this line will create an instance of CustomNumber
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         /** @type {CustomNumber} */
         let right = res.register(this.visit(node.right_node, context)); // this line will create an instance of CustomNumber
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         
         let operation = null;
@@ -2764,7 +3225,7 @@ class Interpreter {
 
         /** @type {CustomNumber} */
         let number = res.register(this.visit(node.node, context));
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         let error = null;
         let operation = null;
@@ -2794,26 +3255,45 @@ class Interpreter {
      */
     visit_IfNode(node, context) {
         let res = new RTResult();
+
+        // console.log(`node.cases = ${node.cases.join(', ')}`);
         
-        for (let [condition, expr] of node.cases) {
+        for (let [condition, expr, should_return_null] of node.cases) {
+        // for (let node_case of node.cases) {
+        // for (let i = 0; i < node.cases.length; i++) {
+            // let condition = node.cases[i][0];
+            // let expr = node.cases[i][1];
+            // let should_return_null = node.cases[i][2];
+
+            // console.log("-- visit_IfNode --");
+            // console.log(`condition = ${condition}`);
+            // console.log(`expr = ${expr}`);
+            // console.log(`should_return_null = ${should_return_null}`);
+
             /** @type {CustomNumber} */
             let condition_value = res.register(this.visit(condition, context));
-            if (res.error) return res;
+            if (res.should_return()) return res;
+
+            // console.log(`condition_value = ${condition_value}`);
 
             if (condition_value.is_true()) {
+                // console.log(`expr = ${expr}`);
                 let expr_value = res.register(this.visit(expr, context));
-                if (res.error) return res;
-                return res.success(expr_value);
+                if (res.should_return()) return res;
+                return res.success(should_return_null ? CustomNumber.null : expr_value);
             }
         }
 
-        if (node.else_case) {
-            let else_value = res.register(this.visit(node.else_case, context));
-            if (res.error) return res;
-            return res.success(else_value);
+        if (node.else_case.code) {
+            // console.log("HERE");
+            let code = node.else_case.code;
+            let should_return_null = node.else_case.should_return_null;
+            let else_value = res.register(this.visit(code, context));
+            if (res.should_return()) return res;
+            return res.success(should_return_null ? CustomNumber.null : else_value);
         }
 
-        return res.success(null);
+        return res.success(CustomNumber.null);
     }
 
     /**
@@ -2827,15 +3307,15 @@ class Interpreter {
         let elements = []; // we want a loop to return by default a CustomList.
 
         let start_value = res.register(this.visit(node.start_value_node, context));
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         let end_value = res.register(this.visit(node.end_value_node, context));
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         let step_value = new CustomNumber(1);
         if (node.step_value_node) {
             step_value = res.register(this.visit(node.step_value_node, context));
-            if (res.error) return res;
+            if (res.should_return()) return res;
         }
 
         let condition = () => false;
@@ -2851,12 +3331,27 @@ class Interpreter {
             context.symbol_table.set(node.var_name_tok.value, new CustomNumber(i));
             i += step_value.value;
 
-            elements.push(res.register(this.visit(node.body_node, context)));
-            if (res.error) return res;
+            let value = res.register(this.visit(node.body_node, context));
+
+            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) {
+                return res;
+            }
+            
+            if (res.loop_should_continue) {
+                continue;
+            }
+
+            if (res.loop_should_break) {
+                break;
+            }
+
+            elements.push(value);
         }
 
         return res.success(
-            new CustomList(elements).set_context(context).set_pos(node.pos_start, node.pos_end),
+            node.should_return_null
+                ? CustomNumber.null
+                : new CustomList(elements).set_context(context).set_pos(node.pos_start, node.pos_end),
         );
     }
 
@@ -2872,16 +3367,30 @@ class Interpreter {
 
         while (true) {
             let condition = res.register(this.visit(node.condition_node, context));
-            if (res.error) return res;
+            if (res.should_return()) return res;
 
             if (!condition.is_true()) break;
 
-            elements.push(res.register(this.visit(node.body_node, context)));
-            if (res.error) return res;
+            let value = res.register(this.visit(node.body_node, context));
+            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) {
+                return res;
+            }
+
+            if (res.loop_should_continue) {
+                continue;
+            }
+
+            if (res.loop_should_break) {
+                break;
+            }
+
+            elements.push(value);
         }
 
         return res.success(
-            new CustomList(elements).set_context(context).set_pos(node.pos_start, node.pos_end),
+            node.should_return_null
+                ? CustomNumber.null
+                : new CustomList(elements).set_context(context).set_pos(node.pos_start, node.pos_end),
         );
     }
 
@@ -2904,11 +3413,11 @@ class Interpreter {
         for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg.value);
         for (let df of node.default_values_nodes) {
             let value = res.register(this.visit(df, context));
-            if (res.error) return res;
+            if (res.should_return()) return res;
             default_values.push(value);
         }
 
-        let func_value = new CustomFunction(func_name, body_node, arg_names, mandatory_arg_names, optional_arg_names, default_values).set_context(context).set_pos(node.pos_start, node.pos_end);
+        let func_value = new CustomFunction(func_name, body_node, arg_names, mandatory_arg_names, optional_arg_names, default_values, node.should_auto_return).set_context(context).set_pos(node.pos_start, node.pos_end);
 
         // we want to invoke the function with its name
         // so we use it as a variable in our symbol table.
@@ -2929,16 +3438,16 @@ class Interpreter {
         let args = [];
 
         let value_to_call = res.register(this.visit(node.node_to_call, context));
-        if (res.error) return res;
+        if (res.should_return()) return res;
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
 
         for (let arg_node of node.arg_nodes) {
             args.push(res.register(this.visit(arg_node, context)));
-            if (res.error) return res;
+            if (res.should_return()) return res;
         }
 
         let return_value = res.register(value_to_call.execute(args));
-        if (res.error) return res;
+        if (res.should_return()) return res;
 
         return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
 
@@ -2967,10 +3476,47 @@ class Interpreter {
 
         for (let element_node of node.element_nodes) {
             elements.push(res.register(this.visit(element_node, context)));
-            if (res.error) return res;
+            if (res.should_return()) return res;
         }
 
         return res.success(new CustomList(elements).set_context(context).set_pos(node.pos_start, node.pos_end));
+    }
+
+    /**
+     * Visits a `return` keyword.
+     * @param {ReturnNode} node The node that corresponds to a `return` keyword.
+     * @param {Context} context The context.
+     */
+    visit_ReturnNode(node, context) {
+        let res = new RTResult();
+        let value = null;
+
+        if (node.node_to_return) {
+            value = res.register(this.visit(node.node_to_return, context));
+            if (res.should_return()) return res;
+        } else {
+            value = CustomNumber.null;
+        }
+
+        return res.success_return(value);
+    }
+
+    /**
+     * Visits a `continue` keyword.
+     * @param {ContinueNode} node The node that corresponds to a `continue` keyword.
+     * @param {Context} context The context.
+     */
+    visit_ContinueNode(node, context) {
+        return new RTResult().success_continue();
+    }
+
+    /**
+     * Visits a `break` keyword.
+     * @param {BreakNode} node The node that corresponds to a `break` keyword.
+     * @param {Context} context The context.
+     */
+    visit_BreakNode(node, context) {
+        return new RTResult().success_break();
     }
 
     // ----------------
@@ -2999,6 +3545,8 @@ BuiltInFunction.ARGS.input = {
 };
 BuiltInFunction.input = new BuiltInFunction("input");
 
+BuiltInFunction.exit = new BuiltInFunction("exit");
+
 const global_symbol_table = new SymbolTable();
 global_symbol_table.set("NULL", CustomNumber.null);
 global_symbol_table.set("YES", CustomNumber.true);
@@ -3007,6 +3555,7 @@ global_symbol_table.set("MATH_PI", CustomNumber.math_pi);
 // built-in functions
 global_symbol_table.set("log", BuiltInFunction.log);
 global_symbol_table.set("input", BuiltInFunction.input);
+global_symbol_table.set("exit", BuiltInFunction.exit);
 
 /**
  * Executes the program.
