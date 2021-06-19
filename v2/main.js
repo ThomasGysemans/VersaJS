@@ -1,6 +1,7 @@
 import prompt from 'prompt-sync';
 import { Lexer } from './lexer.js';
 import { Parser } from './parser.js';
+import { Interpreter } from './interpreter.js';
 
 while (true) {
     const text = prompt()("run > ");
@@ -21,11 +22,24 @@ while (true) {
         // console.log(Array.from(tokens).map((v) => v.toString()));
 
         if (text.trim()) {
-            const lexer = new Lexer(text);
-            const tokens = lexer.generate_tokens();
-            const parser = new Parser(tokens);
-            const tree = parser.parse();
-            console.log(tree.toString());
+            try {
+                const lexer = new Lexer(text);
+                const tokens = lexer.generate_tokens();
+
+                const parser = new Parser(tokens);
+                const tree = parser.parse();
+
+                if (!tree) {
+                    continue;
+                }
+
+                const interpreter = new Interpreter();
+                const result = interpreter.visit(tree);
+
+                console.log(result.toString());
+            } catch(e) {
+                console.log(e);
+            }
         } else {
             continue;
         }
