@@ -28,6 +28,11 @@ export class Value {
         this.context = context;
         return this;
     }
+
+    // meant to be overwritten
+    copy() {
+        throw new Error("No copy method defined.");
+    }
 }
 
 /**
@@ -46,4 +51,19 @@ export class NumberValue extends Value {
     toString() {
         return `${this.value}`;
     }
+
+    /**
+     * @override
+     * @return {NumberValue}
+     */
+    copy() {
+        let copy = new NumberValue(this.value);
+        copy.set_pos(this.pos_start, this.pos_end);
+        copy.set_context(this.context);
+        return copy;
+    }
 }
+
+NumberValue.none = new NumberValue(0);
+NumberValue.yes = new NumberValue(1);
+NumberValue.no = new NumberValue(0);

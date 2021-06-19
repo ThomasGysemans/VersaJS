@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, DivideNode, ModuloNode, MultiplyNode, NumberNode, PowerNode, SubtractNode } from '../nodes.js';
+import { AddNode, DivideNode, ModuloNode, MultiplyNode, NumberNode, PowerNode, SubtractNode, VarAssignNode } from '../nodes.js';
 
 // npm run test
 
@@ -94,5 +94,11 @@ describe('Parser tests', () => {
             )
         )
         */
+    });
+
+    it('should return a variable declaration', () => {
+        const tokens = new Lexer("var abc = 18").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof VarAssignNode);
     });
 });

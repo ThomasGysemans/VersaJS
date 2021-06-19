@@ -1,7 +1,8 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
+import { CONSTANTS } from "./symbol_table.js";
 
 /**
  * @classdesc Reads the sequence of tokens in order to create the nodes.
@@ -47,6 +48,33 @@ export class Parser {
     }
 
     expr() {
+        if (this.current_token.matches(TokenType.KEYWORD, "var")) {
+            let pos_start = this.current_token.pos_start;
+            this.advance();
+            
+            if (this.current_token.type !== TokenType.IDENTIFIER) {
+                throw new InvalidSyntaxError(
+                    pos_start, this.current_token.pos_end,
+                    "Expected identifier"
+                );
+            }
+            
+            const var_name_tok = this.current_token;
+            this.advance();
+
+            if (this.current_token.type !== TokenType.EQUALS) {
+                throw new InvalidSyntaxError(
+                    pos_start, this.current_token.pos_end,
+                    "Expected equals"
+                );
+            }
+
+            this.advance();
+            const value_node = this.expr();
+
+            return new VarAssignNode(var_name_tok, value_node);
+        }
+
         let result = this.term();
 
         while (this.current_token !== null && is_in(this.current_token.type, [TokenType.PLUS, TokenType.MINUS])) {
@@ -113,9 +141,26 @@ export class Parser {
         } else if (token.type === TokenType.MINUS) {
             this.advance();
             return new MinusNode(this.factor());
+        } else if (token.type === TokenType.IDENTIFIER) {
+            const var_name_tok = token;
+            this.advance();
+            if (this.current_token.type === TokenType.EQUALS) {
+                if (is_in(var_name_tok.value, Object.keys(CONSTANTS))) {
+                    throw new InvalidSyntaxError(
+                        pos_start, this.current_token.pos_end,
+                        "Invalid variable name for assigment."
+                    );
+                }
+
+                this.advance();
+                const value_node = this.expr();
+                return new VarModifyNode(var_name_tok, value_node);
+            } else {
+                return new VarAccessNode(token);
+            }
         } else {
             this.advance();
-            throw new InvalidSyntaxError(pos_start, this.current_token.pos_end, "Unexpected node");
+            throw new InvalidSyntaxError(pos_start, token.pos_end, "Unexpected node");
         }
     }
 }

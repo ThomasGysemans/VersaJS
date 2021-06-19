@@ -192,3 +192,55 @@ export class ModuloNode extends CustomNode {
         return `(${this.node_a}^${this.node_b})`;
     }
 }
+
+/**
+ * @classdesc Creates a variable by saving its name and its value.
+ */
+export class VarAssignNode extends CustomNode {
+    /**
+     * @constructs VarAssignNode
+     * @param {Token} var_name_tok The name of the variable.
+     * @param {CustomNode} value_node The value of the variable.
+     */
+    constructor(var_name_tok, value_node) {
+        super();
+        this.var_name_tok = var_name_tok;
+        this.value_node = value_node;
+        this.pos_start = this.var_name_tok.pos_start;
+        this.pos_end = this.value_node.pos_end;
+    }
+}
+
+/**
+ * @classdesc Allows our program to access existing variables.
+ */
+export class VarAccessNode extends CustomNode {
+    /**
+     * @constructs VarAccessNode
+     * @param {Token} var_name_tok The token that represents a variable.
+     */
+    constructor(var_name_tok) {
+        super();
+        this.var_name_tok = var_name_tok;
+        this.pos_start = var_name_tok.pos_start;
+        this.pos_end = var_name_tok.pos_end;
+    }
+}
+
+/**
+ * @classdesc Allows our program to access existing variables.
+ */
+export class VarModifyNode extends CustomNode {
+    /**
+     * @constructs VarModifyNode
+     * @param {Token} var_name_tok The token that represents a variable.
+     * @param {CustomNode} value_node The value of the variable.
+     */
+    constructor(var_name_tok, value_node) {
+        super();
+        this.var_name_tok = var_name_tok;
+        this.value_node = value_node;
+        this.pos_start = var_name_tok.pos_start;
+        this.pos_end = var_name_tok.pos_end;
+    }
+}

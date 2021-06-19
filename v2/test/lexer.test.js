@@ -4,6 +4,17 @@ import { Lexer } from '../lexer.js';
 
 // npm run test
 
+/**
+ * @param {Token[]} values
+ * @param {Token[]} expected
+ */
+const check_tokens = (values, expected) => {
+    for (let i = 0; i < expected.length; i++) {
+        assert.strictEqual(values[i].type, expected[i].type);
+        assert.strictEqual(values[i].value, expected[i].value);
+    }
+};
+
 describe('Lexer tests', () => {
     it('should return empty list', () => {
         const tokens = Array.from(new Lexer("").generate_tokens());
@@ -24,10 +35,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.NUMBER, 0.456),
             new Token(TokenType.NUMBER, 0),
         ];
-        for (let i = 0; i < expected_tokens.length; i++) {
-            assert.strictEqual(tokens[i].type, expected_tokens[i].type);
-            assert.strictEqual(tokens[i].value, expected_tokens[i].value);
-        }
+        check_tokens(tokens, expected_tokens);
     });
 
     it('should work with aerated numbers', () => {
@@ -35,10 +43,7 @@ describe('Lexer tests', () => {
         const expected_tokens = [
             new Token(TokenType.NUMBER, 100_000.567_123)
         ];
-        for (let i = 0; i < expected_tokens.length; i++) {
-            assert.strictEqual(tokens[i].type, expected_tokens[i].type);
-            assert.strictEqual(tokens[i].value, expected_tokens[i].value);
-        }
+        check_tokens(tokens, expected_tokens);
     });
 
     it('should return all operators', () => {
@@ -49,10 +54,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.MULTIPLY),
             new Token(TokenType.DIVIDE),
         ];
-        for (let i = 0; i < expected_tokens.length; i++) {
-            assert.strictEqual(tokens[i].type, expected_tokens[i].type);
-            assert.strictEqual(tokens[i].value, expected_tokens[i].value);
-        }
+        check_tokens(tokens, expected_tokens);
     });
 
     it('should work with power operations', () => {
@@ -62,10 +64,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.POWER),
             new Token(TokenType.NUMBER, 2)
         ];
-        for (let i = 0; i < expected_tokens.length; i++) {
-            assert.strictEqual(tokens[i].type, expected_tokens[i].type);
-            assert.strictEqual(tokens[i].value, expected_tokens[i].value);
-        }
+        check_tokens(tokens, expected_tokens);
     });
 
     it('should return parenthesis', () => {
@@ -74,10 +73,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.LPAREN),
             new Token(TokenType.RPAREN),
         ];
-        for (let i = 0; i < expected_tokens.length; i++) {
-            assert.strictEqual(tokens[i].type, expected_tokens[i].type);
-            assert.strictEqual(tokens[i].value, expected_tokens[i].value);
-        }
+        check_tokens(tokens, expected_tokens);
     });
 
     it('should work with modulo', () => {
@@ -95,10 +91,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.NUMBER, 1),
             new Token(TokenType.RPAREN),
         ];
-        for (let i = 0; i < expected_tokens.length; i++) {
-            assert.strictEqual(tokens[i].type, expected_tokens[i].type);
-            assert.strictEqual(tokens[i].value, expected_tokens[i].value);
-        }
+        check_tokens(tokens, expected_tokens);
     });
 
     it('should work with random operations', () => {
@@ -116,9 +109,25 @@ describe('Lexer tests', () => {
             new Token(TokenType.MULTIPLY),
             new Token(TokenType.NUMBER, 51),
         ];
-        for (let i = 0; i < expected_tokens.length; i++) {
-            assert.strictEqual(tokens[i].type, expected_tokens[i].type);
-            assert.strictEqual(tokens[i].value, expected_tokens[i].value);
-        }
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should return variable declaration', () => {
+        const tokens = Array.from(new Lexer("var _Vari234_able = 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "var"),
+            new Token(TokenType.IDENTIFIER, "_Vari234_able"),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.NUMBER, 1)
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
+
+    it('should return variable call', () => {
+        const tokens = Array.from(new Lexer("_Vari234_able").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "_Vari234_able"),
+        ];
+        check_tokens(tokens, expected_tokens)
     });
 });

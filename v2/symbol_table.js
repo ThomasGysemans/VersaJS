@@ -1,3 +1,5 @@
+import { NumberValue } from "./values.js";
+
 /**
  * @classdesc Keeps track of all the declared variables in our program.
  */
@@ -11,6 +13,14 @@ export class SymbolTable {
         // a parent symbol table (for a function for example)
         // we'll be able to remove all the variables after the execution of a function
         this.parent = parent;
+    }
+
+    /**
+     * Checks if a variable already exists.
+     * @param {string} var_name The variable name.
+     */
+    doesExist(var_name) {
+        return this.symbols.has(var_name);
     }
 
     /**
@@ -45,4 +55,20 @@ export class SymbolTable {
 }
 
 const global_symbol_table = new SymbolTable();
+
+export const CONSTANTS = {
+    none: NumberValue.none,
+    null: NumberValue.none,
+    yes: NumberValue.yes,
+    true: NumberValue.yes,
+    no: NumberValue.no,
+    false: NumberValue.no
+};
+
+for (let i = 0; i < Object.keys(CONSTANTS).length; i++) {
+    let name = Object.keys(CONSTANTS)[i];
+    let value = Object.values(CONSTANTS)[i];
+    global_symbol_table.set(name, value);
+}
+
 export default global_symbol_table;

@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode } from './nodes.js';
 import { NumberValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -32,6 +32,12 @@ export class Interpreter {
             return this.visit_PowerNode(node, context).value;
         } else if (node instanceof ModuloNode) {
             return this.visit_ModuloNode(node, context).value;
+        } else if (node instanceof VarAssignNode) {
+            return this.visit_VarAssignNode(node, context).value;
+        } else if (node instanceof VarAccessNode) {
+            return this.visit_VarAccessNode(node, context).value;
+        } else if (node instanceof VarModifyNode) {
+            return this.visit_VarModifyNode(node, context).value;
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -159,5 +165,76 @@ export class Interpreter {
         return new RuntimeResult().success(
             new NumberValue(-1 * this.visit(node.node, context).value).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
+    }
+
+    /**
+     * Interprets a variable declaration.
+     * @param {VarAssignNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_VarAssignNode(node, context) {
+        let res = new RuntimeResult();
+        let var_name = node.var_name_tok.value;
+        let value = this.visit(node.value_node, context);
+        
+        if (context.symbol_table.doesExist(var_name)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Variable "${var_name}" already exists`,
+                context
+            );
+        }
+
+        context.symbol_table.set(var_name, value);
+
+        return new RuntimeResult().success(value);
+    }
+
+    /**
+     * Interprets a variable call.
+     * @param {VarAccessNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_VarAccessNode(node, context) {
+        let res = new RuntimeResult();
+        let var_name = node.var_name_tok.value;
+        let value = context.symbol_table.get(var_name);
+
+        if (!context.symbol_table.doesExist(var_name)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Variable '${var_name}' is not defined.`,
+                context
+            );
+        }
+
+        value = value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
+        return res.success(value);
+    }
+
+    /**
+     * Interprets a variable declaration.
+     * @param {VarModifyNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_VarModifyNode(node, context) {
+        let res = new RuntimeResult();
+        let var_name = node.var_name_tok.value;
+        let value = this.visit(node.value_node, context);
+        
+        if (!context.symbol_table.doesExist(var_name)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Variable "${var_name}" doesn't exist`,
+                context
+            );
+        }
+
+        context.symbol_table.set(var_name, value);
+
+        return new RuntimeResult().success(value);
     }
 }
