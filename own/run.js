@@ -6,6 +6,7 @@
 
 import prompt from 'prompt-sync';
 import process from 'process';
+import fs from 'fs';
 
 /*
 *
@@ -348,7 +349,7 @@ class Lexer {
      */
     constructor(filename, text, context) {
         this.filename = filename;
-        this.text = text.trim();
+        this.text = text;
         this.pos = new Position(-1, 0, -1, filename, text);
         this.current_char = null;
         this.context = context;
@@ -402,9 +403,14 @@ class Lexer {
                 tokens.push(this.make_string());
             } else if (this.current_char === "'") {
                 tokens.push(this.make_string());
-            } else if (this.current_char === "\n" || this.current_char === ";") {
+            } else if (this.current_char === "\n" || this.current_char === "\r" || this.current_char === ";") {
                 tokens.push(new Token(TOKENS.NEWLINE, null, this.pos));
+                if (this.current_char === "\r") {
+                    this.advance(); // a newline can be sometimes : '\r\n'
+                }
                 this.advance();
+            } else if (this.current_char === "#") {
+                this.skip_comment();
             } else {
                 let found = false;
                 const keywords = [{
@@ -651,6 +657,14 @@ class Lexer {
 
         return new Token(TOKENS.STRING, string, pos_start, this.pos);
     }
+
+    skip_comment() {
+        this.advance();
+        while (this.current_char !== "\n")
+            this.advance();
+        
+        this.advance();
+    }
 }
 
 /*
@@ -783,8 +797,6 @@ class IfNode extends CustomNode {
         super();
         this.cases = cases;
         this.else_case = else_case;
-
-        // console.log(`cases = (${cases[cases.length - 1]})`);
 
         this.pos_start = this.cases[0][0].pos_start;
         if (this.else_case.code) {
@@ -1481,61 +1493,24 @@ class Parser {
                 let new_cases = all_cases.cases;
                 else_case = all_cases.else_case;
                 
-                // if (new_cases.length > 0) {
-                //     cases[cases.length] = new_cases[0];
-                //     cases[cases.length] = new_cases[1];
-                //     cases[cases.length] = new_cases[2];
-                // }
                 if (new_cases.length > 0) {
-                    // cases.push(new_cases);
                     cases = [...cases, ...new_cases];
                 }
-                // console.log('---');
-                // console.log(`new_cases = ${new_cases} (typeof ${cases.constructor.name})`);
-                // console.log(`cases = ${cases} (typeof ${cases.constructor.name})`);
-                // console.log('---');
             }
         } else {
             let expr = res.register(this.statement());
             if (res.error) return res;
 
-            // console.log(`condition = ${condition}`);
-            // console.log(`expr = ${expr} (instanceof continuenode ${expr instanceof ContinueNode})`);
-
             cases.push([condition, expr, false]); // we want the return value of a if statement (that's why false)
-
-            // console.log(`inside if_expr_cases, cases = ${cases.join(', ')}`);
 
             const all_cases = res.register(this.if_expr_elif_or_else());
             if (res.error) return res;
             let new_cases = all_cases.cases;
-            // console.log(`new_cases = [${new_cases.join(',')}] (type ${new_cases.constructor.name}) (total length = ${new_cases.length})`);
-            // console.log(`new_cases[0] = [${new_cases[0]}] (type = ${typeof new_cases[0]})`);
             else_case = all_cases.else_case;
-            // if (new_cases[0] && new_cases[1] && (new_cases[2] === true || new_cases[2] === false)) {
-            //     cases[cases.length] = new_cases[0];
-            //     cases[cases.length] = new_cases[1];
-            //     cases[cases.length] = new_cases[2];
-            //     console.log('ADDED');
-            // }
-            // if (new_cases.length > 0) {
-            //     for (let i = 0; i < new_cases.length; i++) {
-            //         cases[cases.length] = new_cases[i][0];
-            //         cases[cases.length] = new_cases[i][1];
-            //         cases[cases.length] = new_cases[i][2];
-            //     }
-            // }
-            // console.log(`cases = [${cases.join(',')}]`);
             if (new_cases.length > 0) {
-                // cases.concat(new_cases);
                 cases = [...cases, ...new_cases];
-                // console.log(`after concatenation : cases = [${cases.join(', ')}]`);
             }
         }
-
-        // console.log(`at the end of if_expr_cases, cases = ${cases.join(', ')}`);
-
-        // console.log(`depth of the cases = ${getArrayDepth(cases)}`);
 
         return res.success({ cases: cases, else_case: else_case });
     }
@@ -1586,7 +1561,6 @@ class Parser {
 
         if (this.current_tok.matches(TOKENS.KEYWORD, "ELIF")) {
             const all_cases = res.register(this.if_expr_elif());
-            // console.log(`all_cases = ${all_cases.cases.join(', ')}`);
             if (res.error) return res;
             cases = all_cases.cases;
             else_case = all_cases.else_case;
@@ -1604,7 +1578,6 @@ class Parser {
         if (res.error) return res;
         /** @type {Array} */
         const cases = all_cases.cases;
-        // console.log(`if_expr() final cases = [${cases.join(', ')}] (total length = ${cases.length})`);
         const else_case = all_cases.else_case;
         return res.success(new IfNode(cases, else_case));
     }
@@ -2272,7 +2245,7 @@ class Value {
     // ----------------
 
     // meant to be overwritten
-    execute(args) {
+    execute(args, pos_start, pos_end) {
         return new RTResult().failure(this.illegal_operation());
     }
 
@@ -2657,9 +2630,11 @@ class CustomFunction extends BaseFunction {
     /**
      * Executes a custom function (this function has been called by the user).
      * @param {Array} args The given arguments.
+     * @param {Position} pos_start The starting position of the call node.
+     * @param {Position} pos_end The end position of the call node.
      * @return {RTResult}
      */
-    execute(args) {
+    execute(args, pos_start, pos_end) {
         let res = new RTResult();
         let interpreter = new Interpreter();
         let exec_ctx = this.generate_new_context();
@@ -2709,9 +2684,12 @@ class BuiltInFunction extends BaseFunction {
     /**
      * Executes a built-in function.
      * @param {Array} args The arguments
+     * @param {Position} pos_start The starting position of the call node.
+     * @param {Position} pos_end The end position of the call node.
+     * @return {RTResult}
      * @override
      */
-    execute(args) {
+    execute(args, pos_start, pos_end) {
         let res = new RTResult();
         let exec_ctx = this.generate_new_context();
         let method_name = `execute_${this.name}`;
@@ -2729,7 +2707,7 @@ class BuiltInFunction extends BaseFunction {
         }
         if (res.should_return()) return res;
 
-        let return_value = res.register(method(exec_ctx));
+        let return_value = res.register(method(exec_ctx, pos_start, pos_end));
         if (res.should_return()) return res;
 
         return res.success(return_value);
@@ -2782,11 +2760,95 @@ class BuiltInFunction extends BaseFunction {
     }
 
     /**
-     * Exists the program.
+     * Gives the length of a list.
      * @param {Context} exec_ctx The context.
+     * @param {Position} pos_start The starting position of the call node.
+     * @param {Position} pos_end The end position of the call node.
      */
-    execute_exit(exec_ctx) {
+    execute_append(exec_ctx, pos_start, pos_end) {
+        let list = exec_ctx.symbol_table.get("list");
+        let value = exec_ctx.symbol_table.get("value");
+
+        if (!(list instanceof CustomList)) {
+            return new RTResult().failure(new RTError(
+                pos_start, pos_end,
+                "First argument must be a list",
+                exec_ctx
+            ));
+        }
+
+        list.elements.push(value);
+        return new RTResult().success(CustomNumber.null);
+    }
+
+    /**
+     * Exists the program.
+     * @param {Context} _exec_ctx The context.
+     */
+    execute_exit(_exec_ctx) {
         process.exit();
+    }
+
+    /**
+     * Gives the length of a list.
+     * @param {Context} exec_ctx The context.
+     * @param {Position} pos_start The starting position of the call node.
+     * @param {Position} pos_end The end position of the call node.
+     */
+    execute_len(exec_ctx, pos_start, pos_end) {
+        let list = exec_ctx.symbol_table.get("list");
+        if (!(list instanceof CustomList)) {
+            return new RTResult().failure(new RTError(
+                pos_start, pos_end,
+                "Argument must be a list",
+                exec_ctx
+            ));
+        }
+
+        return new RTResult().success(new CustomNumber(list.elements.length));
+    }
+
+    /**
+     * Runs a file.
+     * @param {Context} exec_ctx The context.
+     * @param {Position} pos_start The starting position of the call node.
+     * @param {Position} pos_end The end position of the call node.
+     */
+    execute_run(exec_ctx, pos_start, pos_end) {
+        let fn = exec_ctx.symbol_table.get("fn");
+        if (!(fn instanceof CustomString)) {
+            return new RTResult().failure(new RTError(
+                pos_start, pos_end,
+                "Argument must be string",
+                exec_ctx
+            ));
+        }
+
+        /** @type {string} */
+        fn = fn.value; // js string now
+        let script = ``;
+
+        try {
+            script = fs.readFileSync(fn, 'utf8');
+        } catch(e) {
+            return new RTResult().failure(new RTError(
+                pos_start, pos_end,
+                `Failed to load script "${fn}"\n` + e.toString(),
+                exec_ctx
+            ));
+        }
+
+        const { result, error } = run(fn, script);
+
+        if (error) {
+            return new RTResult().failure(new RTError(
+                pos_start, pos_end,
+                `Failed to finish executing script "${fn}"\n` + error.toString(),
+                exec_ctx
+            ));
+        }
+
+        return new RTResult().success(CustomNumber.null);
     }
 }
 
@@ -3256,28 +3318,12 @@ class Interpreter {
     visit_IfNode(node, context) {
         let res = new RTResult();
 
-        // console.log(`node.cases = ${node.cases.join(', ')}`);
-        
         for (let [condition, expr, should_return_null] of node.cases) {
-        // for (let node_case of node.cases) {
-        // for (let i = 0; i < node.cases.length; i++) {
-            // let condition = node.cases[i][0];
-            // let expr = node.cases[i][1];
-            // let should_return_null = node.cases[i][2];
-
-            // console.log("-- visit_IfNode --");
-            // console.log(`condition = ${condition}`);
-            // console.log(`expr = ${expr}`);
-            // console.log(`should_return_null = ${should_return_null}`);
-
             /** @type {CustomNumber} */
             let condition_value = res.register(this.visit(condition, context));
             if (res.should_return()) return res;
 
-            // console.log(`condition_value = ${condition_value}`);
-
             if (condition_value.is_true()) {
-                // console.log(`expr = ${expr}`);
                 let expr_value = res.register(this.visit(expr, context));
                 if (res.should_return()) return res;
                 return res.success(should_return_null ? CustomNumber.null : expr_value);
@@ -3285,7 +3331,6 @@ class Interpreter {
         }
 
         if (node.else_case.code) {
-            // console.log("HERE");
             let code = node.else_case.code;
             let should_return_null = node.else_case.should_return_null;
             let else_value = res.register(this.visit(code, context));
@@ -3437,6 +3482,9 @@ class Interpreter {
         let res = new RTResult();
         let args = [];
 
+        let pos_start = node.pos_start;
+        let pos_end = node.pos_end;
+
         let value_to_call = res.register(this.visit(node.node_to_call, context));
         if (res.should_return()) return res;
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
@@ -3446,7 +3494,7 @@ class Interpreter {
             if (res.should_return()) return res;
         }
 
-        let return_value = res.register(value_to_call.execute(args));
+        let return_value = res.register(value_to_call.execute(args, pos_start, pos_end));
         if (res.should_return()) return res;
 
         return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
@@ -3545,7 +3593,31 @@ BuiltInFunction.ARGS.input = {
 };
 BuiltInFunction.input = new BuiltInFunction("input");
 
+BuiltInFunction.ARGS.append = {
+    names: ["list", "value"],
+    mandatories: ["list", "value"],
+    optional: [],
+    default_values: []
+};
+BuiltInFunction.append = new BuiltInFunction("append");
+
 BuiltInFunction.exit = new BuiltInFunction("exit");
+
+BuiltInFunction.ARGS.run = {
+    names: ["fn"],
+    mandatories: ["fn"],
+    optional: [],
+    default_values: []
+};
+BuiltInFunction.run = new BuiltInFunction("run");
+
+BuiltInFunction.ARGS.len = {
+    names: ["list"],
+    mandatories: ["list"],
+    optional: [],
+    default_values: []
+};
+BuiltInFunction.len = new BuiltInFunction("len");
 
 const global_symbol_table = new SymbolTable();
 global_symbol_table.set("NULL", CustomNumber.null);
@@ -3556,6 +3628,9 @@ global_symbol_table.set("MATH_PI", CustomNumber.math_pi);
 global_symbol_table.set("log", BuiltInFunction.log);
 global_symbol_table.set("input", BuiltInFunction.input);
 global_symbol_table.set("exit", BuiltInFunction.exit);
+global_symbol_table.set("run", BuiltInFunction.run);
+global_symbol_table.set("len", BuiltInFunction.len);
+global_symbol_table.set("append", BuiltInFunction.append);
 
 /**
  * Executes the program.
