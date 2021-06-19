@@ -1,13 +1,40 @@
-export class CustomNode {}
+import { Position } from "./position.js";
+import { Token } from "./tokens.js";
+
+/**
+ * @classdesc A node in the program.
+ */
+export class CustomNode {
+    /**
+     * @constructs CustomNode
+     */
+    constructor() {
+        this.set_pos();
+    }
+
+    /**
+     * Sets the position of the node in the code.
+     * @param {Position} pos_start The starting position of the node.
+     * @param {Position} pos_end The end position of the node.
+     * @returns {this}
+     */
+    set_pos(pos_start=null, pos_end=null) {
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+        return this;
+    }
+}
 
 export class NumberNode extends CustomNode {
     /**
      * @constructs NumberNode
-     * @param {number} value The value of that node.
+     * @param {Token} token The value of that node.
      */
-    constructor(value) {
+    constructor(token) {
         super();
-        this.value = value;
+        this.value = token.value;
+
+        this.set_pos(token.pos_start, token.pos_end);
     }
 
     toString() {
@@ -25,6 +52,8 @@ export class AddNode extends CustomNode {
         super();
         this.node_a = node_a;
         this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
     }
 
     toString() {
@@ -42,6 +71,8 @@ export class SubtractNode extends CustomNode {
         super();
         this.node_a = node_a;
         this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
     }
 
     toString() {
@@ -59,6 +90,8 @@ export class MultiplyNode extends CustomNode {
         super();
         this.node_a = node_a;
         this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
     }
 
     toString() {
@@ -72,10 +105,12 @@ export class DivideNode extends CustomNode {
      * @param {CustomNode} node_a The left node.
      * @param {CustomNode} node_b The right node.
      */
-    constructor(node_a, node_b) {
+    constructor(node_a, node_b, ) {
         super();
         this.node_a = node_a;
         this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
     }
 
     toString() {
@@ -94,6 +129,8 @@ export class PlusNode extends CustomNode {
     constructor(node) {
         super();
         this.node = node;
+
+        this.set_pos(node.pos_start, node.pos_end);
     }
 
     toString() {
@@ -109,6 +146,8 @@ export class MinusNode extends CustomNode {
     constructor(node) {
         super();
         this.node = node;
+
+        this.set_pos(node.pos_start, node.pos_end);
     }
 
     toString() {
@@ -126,6 +165,8 @@ export class PowerNode extends CustomNode {
         super();
         this.node_a = node_a;
         this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
     }
 
     toString() {
@@ -143,6 +184,8 @@ export class ModuloNode extends CustomNode {
         super();
         this.node_a = node_a;
         this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
     }
 
     toString() {

@@ -1,5 +1,7 @@
 import { Token, TokenType } from './tokens.js';
+import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
+import { IllegalCharError } from './Exceptions.js';
 
 const WHITESPACE = " \r\n\t";
 const DIGITS     = "0123456789_"; // we want to allow 100_000 === 100000
@@ -11,9 +13,11 @@ export class Lexer {
     /**
      * @constructs Lexer
      * @param {string} text The source code.
+     * @param {string} filename The filename.
      */
-    constructor(text) {
+    constructor(text, filename="<stdin>") {
         this.text = text[Symbol.iterator]();
+        this.pos = new Position(-1, 0, -1, filename, text);
         this.advance();
     }
 
@@ -21,6 +25,7 @@ export class Lexer {
         let iterator = this.text.next();
         /** @type {string|null} */
         this.current_char = iterator.done ? null : iterator.value;
+        this.pos.advance(this.current_char);
     }
 
     /**
@@ -31,42 +36,48 @@ export class Lexer {
             if (is_in(this.current_char, WHITESPACE)) {
                 this.advance();
             } else if (this.current_char === "." || is_in(this.current_char, DIGITS)) {
-                yield this.generate_number();
+                yield this.make_number();
             } else if (this.current_char === "+") {
                 this.advance();
-                yield new Token(TokenType.PLUS);
+                yield new Token(TokenType.PLUS, null, this.pos);
             } else if (this.current_char === "-") {
                 this.advance();
-                yield new Token(TokenType.MINUS);
+                yield new Token(TokenType.MINUS, null, this.pos);
             } else if (this.current_char === "*") {
                 this.advance();
-                yield new Token(TokenType.MULTIPLY);
+                yield new Token(TokenType.MULTIPLY, null, this.pos);
             } else if (this.current_char === "/") {
                 this.advance();
-                yield new Token(TokenType.DIVIDE);
+                yield new Token(TokenType.DIVIDE, null, this.pos);
             } else if (this.current_char === "^") {
                 this.advance();
-                yield new Token(TokenType.POWER);
+                yield new Token(TokenType.POWER, null, this.pos);
             } else if (this.current_char === "%") {
                 this.advance();
-                yield new Token(TokenType.MODULO);
+                yield new Token(TokenType.MODULO, null, this.pos);
             } else if (this.current_char === "(") {
                 this.advance();
-                yield new Token(TokenType.LPAREN);
+                yield new Token(TokenType.LPAREN, null, this.pos);
             } else if (this.current_char === ")") {
                 this.advance();
-                yield new Token(TokenType.RPAREN);
+                yield new Token(TokenType.RPAREN, null, this.pos);
             } else {
-                throw new Error(`Illegal Character '${this.current_char}'`);
+                let char = this.current_char;
+                let pos_start = this.pos.copy();
+                this.advance();
+                throw new IllegalCharError(pos_start, this.pos, `'${char}'`);
             }
         }
+
+        yield new Token(TokenType.EOF, null, this.pos);
     }
 
     /**
-     * Generates a number when the `generate_tokens` method has found a digit or a decimal point.
+     * Builds a number when the `generate_tokens` method has found a digit or a decimal point.
      * @returns {Token}
      */
-    generate_number() {
+    make_number() {
+        let pos_start = this.pos.copy();
         let number_str = this.current_char;
         let decimal_point_count = 0;
         this.advance();
@@ -91,6 +102,6 @@ export class Lexer {
 
         number_str = number_str.replace(/_/g, "");
         let is_int = number_str.indexOf('.') === -1;
-        return new Token(TokenType.NUMBER, is_int ? parseInt(number_str, 10) : parseFloat(number_str));
+        return new Token(TokenType.NUMBER, is_int ? parseInt(number_str, 10) : parseFloat(number_str), pos_start, this.pos);
     }
 }

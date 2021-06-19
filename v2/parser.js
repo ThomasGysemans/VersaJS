@@ -1,6 +1,7 @@
 import { TokenType, Token } from "./tokens.js";
-import { AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
+import { InvalidSyntaxError } from "./Exceptions.js";
 
 /**
  * @classdesc Reads the sequence of tokens in order to create the nodes.
@@ -21,10 +22,6 @@ export class Parser {
         this.current_token = next.done ? null : next.value;
     }
 
-    raise_error() {
-        throw new Error("Invalid Syntax");
-    }
-
     parse() {
         if (this.current_token === null) {
             return null;
@@ -33,8 +30,17 @@ export class Parser {
         let result = this.expr();
 
         // not normal
-        if (this.current_token !== null) {
-            this.raise_error();
+        if (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
+            let pos_start = this.current_token.pos_start.copy();
+            this.advance();
+            let pos_end = this.current_token ? this.current_token.pos_end : pos_start.copy();
+            if (this.current_token) {
+                pos_end = this.current_token.pos_end;
+            } else {
+                pos_end = pos_start.copy();
+                pos_end.advance(null);
+            }
+            throw new InvalidSyntaxError(pos_start, pos_end, "Unexpected end of interpretation.");
         }
 
         return result;
@@ -56,6 +62,9 @@ export class Parser {
         return result;
     }
 
+    /**
+     * @returns {CustomNode}
+     */
     term() {
         let node_a = this.factor();
         let result;
@@ -79,29 +88,34 @@ export class Parser {
         return result ? result : node_a;
     }
 
+    /**
+     * @returns {CustomNode}
+     */
     factor() {
+        let pos_start = this.current_token.pos_start.copy();
         let token = this.current_token;
 
         if (token.type === TokenType.LPAREN) {
             this.advance();
             let result = this.expr();
             if (this.current_token.type !== TokenType.RPAREN) {
-                this.raise_error();
+                throw new InvalidSyntaxError(pos_start, this.current_token.pos_end, "Expected ')'");
             }
 
             this.advance();
             return result;
         } else if (token.type === TokenType.NUMBER) {
             this.advance();
-            return new NumberNode(token.value);
+            return new NumberNode(token);
         } else if (token.type === TokenType.PLUS) {
             this.advance();
             return new PlusNode(this.factor());
         } else if (token.type === TokenType.MINUS) {
             this.advance();
             return new MinusNode(this.factor());
+        } else {
+            this.advance();
+            throw new InvalidSyntaxError(pos_start, this.current_token.pos_end, "Unexpected node");
         }
-
-        this.raise_error();
     }
 }
