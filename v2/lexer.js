@@ -1,4 +1,5 @@
 import { Token, TokenType } from './tokens.js';
+import { is_in } from './miscellaneous.js';
 
 const WHITESPACE = " \r\n\t";
 const DIGITS     = "0123456789";
@@ -23,32 +24,13 @@ export class Lexer {
     }
 
     /**
-     * Checks if the value is in the list.
-     * @param {string} value The value.
-     * @param {Array|string} list The list.
-     */
-    is_in(value, list) {
-        if (typeof list === "string") {
-            list = Array.from(list);
-        }
-
-        for (let list_value of list) {
-            if (list_value == value) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * Generates the tokens.
      */
     * generate_tokens() {
         while (this.current_char !== null) {
-            if (this.is_in(this.current_char, WHITESPACE)) {
+            if (is_in(this.current_char, WHITESPACE)) {
                 this.advance();
-            } else if (this.current_char === "." || this.is_in(this.current_char, DIGITS)) {
+            } else if (this.current_char === "." || is_in(this.current_char, DIGITS)) {
                 yield this.generate_number();
             } else if (this.current_char === "+") {
                 this.advance();
@@ -83,7 +65,7 @@ export class Lexer {
         let decimal_point_count = 0;
         this.advance();
         
-        while (this.current_char !== null && this.is_in(this.current_char, DIGITS + ".")) {
+        while (this.current_char !== null && is_in(this.current_char, DIGITS + ".")) {
             if (this.current_char === ".") {
                 decimal_point_count += 1;
                 if (decimal_point_count > 1) {

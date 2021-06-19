@@ -14,7 +14,7 @@ export class TokenType {
 export class Token {
     /**
      * @constructs Token
-     * @param {TokenType} type The type of token.
+     * @param {string} type The type of token.
      * @param {any} value The value of the token.
      */
     constructor(type, value=null) {

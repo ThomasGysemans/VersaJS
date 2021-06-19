@@ -1,5 +1,6 @@
 import prompt from 'prompt-sync';
 import { Lexer } from './lexer.js';
+import { Parser } from './parser.js';
 
 while (true) {
     const text = prompt()("run > ");
@@ -17,10 +18,14 @@ while (true) {
             break;
         }
     } else {
+        // console.log(Array.from(tokens).map((v) => v.toString()));
+
         if (text.trim()) {
             const lexer = new Lexer(text);
             const tokens = lexer.generate_tokens();
-            console.log(Array.from(tokens).map((v) => v.toString()));
+            const parser = new Parser(tokens);
+            const tree = parser.parse();
+            console.log(tree.toString());
         } else {
             continue;
         }
