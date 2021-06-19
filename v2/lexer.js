@@ -2,7 +2,7 @@ import { Token, TokenType } from './tokens.js';
 import { is_in } from './miscellaneous.js';
 
 const WHITESPACE = " \r\n\t";
-const DIGITS     = "0123456789";
+const DIGITS     = "0123456789_"; // we want to allow 100_000 === 100000
 
 /**
  * @classdesc Reads the code and creates the tokens.
@@ -86,6 +86,7 @@ export class Lexer {
             number_str += '0';
         }
 
+        number_str = number_str.replace(/_/g, "");
         let is_int = number_str.indexOf('.') === -1;
         return new Token(TokenType.NUMBER, is_int ? parseInt(number_str, 10) : parseFloat(number_str));
     }

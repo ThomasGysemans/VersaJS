@@ -27,6 +27,14 @@ describe('Lexer tests', () => {
         assert.deepStrictEqual(tokens, expected_tokens);
     });
 
+    it('should work with aerated numbers', () => {
+        const tokens = Array.from(new Lexer("100_000.567_123").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 100_000.567_123)
+        ];
+        assert.deepStrictEqual(tokens, expected_tokens);
+    });
+
     it('should return all operators', () => {
         const tokens = Array.from(new Lexer("+-*/").generate_tokens());
         const expected_tokens = [

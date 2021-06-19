@@ -1,5 +1,4 @@
 import assert from 'assert';
-import { Token, TokenType } from '../tokens.js';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
 import { AddNode, DivideNode, MultiplyNode, NumberNode, PowerNode, SubtractNode } from '../nodes.js';
@@ -14,9 +13,9 @@ describe('Parser tests', () => {
     });
 
     it('should return numbers', () => {
-        const tokens = new Lexer("51.2").generate_tokens();
+        const tokens = new Lexer("100_000.2").generate_tokens();
         const node = new Parser(tokens).parse();
-        assert.deepStrictEqual(node, new NumberNode(51.2));
+        assert.deepStrictEqual(node, new NumberNode(100_000.2));
     });
 
     it('should work with an addition', () => {

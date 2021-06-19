@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode } from '../nodes.js';
 import { NumberValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 
