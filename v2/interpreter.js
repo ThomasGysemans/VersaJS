@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode } from './nodes.js';
 import { NumberValue } from './values.js';
 
 /**
@@ -26,6 +26,8 @@ export class Interpreter {
             return this.visit_MinusNode(node);
         } else if (node instanceof PowerNode) {
             return this.visit_PowerNode(node);
+        } else if (node instanceof ModuloNode) {
+            return this.visit_ModuloNode(node);
         } else {
             throw new Error(`There is no visit method for node ${node.constructor.name}`);
         }
@@ -70,6 +72,18 @@ export class Interpreter {
     visit_DivideNode(node) {
         try {
             return new NumberValue(this.visit(node.node_a).value / this.visit(node.node_b).value);
+        } catch (e) {
+            throw new Error("Runtime math error");
+        }
+    }
+
+    /**
+     * Interprets a division.
+     * @param {ModuloNode} node The node.
+     */
+    visit_ModuloNode(node) {
+        try {
+            return new NumberValue(this.visit(node.node_a).value % this.visit(node.node_b).value);
         } catch (e) {
             throw new Error("Runtime math error");
         }

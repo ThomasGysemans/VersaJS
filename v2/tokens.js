@@ -5,6 +5,7 @@ export class TokenType {
     static MULTIPLY = 'MULTIPLY'
     static DIVIDE   = 'DIVIDE'
     static POWER    = 'POWER'
+    static MODULO   = 'MODULO'
     static LPAREN   = 'LPAREN'
     static RPAREN   = 'RPAREN'
 }

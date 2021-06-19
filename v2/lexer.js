@@ -47,6 +47,9 @@ export class Lexer {
             } else if (this.current_char === "^") {
                 this.advance();
                 yield new Token(TokenType.POWER);
+            } else if (this.current_char === "%") {
+                this.advance();
+                yield new Token(TokenType.MODULO);
             } else if (this.current_char === "(") {
                 this.advance();
                 yield new Token(TokenType.LPAREN);

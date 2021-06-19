@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode } from '../nodes.js';
 import { NumberValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 
@@ -32,6 +32,11 @@ describe('Interpreter', () => {
     it('should work with a divison', () => {
         const value = new Interpreter().visit(new DivideNode(new NumberNode(10), new NumberNode(5)));
         assert.deepStrictEqual(value, new NumberValue(2));
+    });
+
+    it('should work with a modulo', () => {
+        const value = new Interpreter().visit(new ModuloNode(new NumberNode(9), new NumberNode(2)));
+        assert.deepStrictEqual(value, new NumberValue(1));
     });
     
     it('should raise an exception with division by 0', () => {

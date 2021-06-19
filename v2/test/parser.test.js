@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, DivideNode, MultiplyNode, NumberNode, PowerNode, SubtractNode } from '../nodes.js';
+import { AddNode, DivideNode, ModuloNode, MultiplyNode, NumberNode, PowerNode, SubtractNode } from '../nodes.js';
 
 // npm run test
 
@@ -40,6 +40,12 @@ describe('Parser tests', () => {
         const tokens = new Lexer("27 / 14").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(node, new DivideNode(new NumberNode(27), new NumberNode(14)));
+    });
+
+    it('should work with a modulo', () => {
+        const tokens = new Lexer("27 % 14").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node, new ModuloNode(new NumberNode(27), new NumberNode(14)));
     });
 
     it('should work with a power', () => {

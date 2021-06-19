@@ -62,9 +62,25 @@ describe('Lexer tests', () => {
             new Token(TokenType.LPAREN),
             new Token(TokenType.RPAREN),
         ];
-        for (let i = 0; i < tokens.length; i++) {
-            assert.strictEqual(tokens[i].type, expected_tokens[i].type);
-        }
+        assert.deepStrictEqual(tokens, expected_tokens);
+    });
+
+    it('should work with modulo', () => {
+        const tokens = Array.from(new Lexer("(1+2) % (1+1)").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.LPAREN),
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.PLUS),
+            new Token(TokenType.NUMBER, 2),
+            new Token(TokenType.RPAREN),
+            new Token(TokenType.MODULO),
+            new Token(TokenType.LPAREN),
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.PLUS),
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.RPAREN),
+        ];
+        assert.deepStrictEqual(tokens, expected_tokens);
     });
 
     it('should work with random operations', () => {
