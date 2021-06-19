@@ -70,11 +70,11 @@ export class Interpreter {
      * @param {DivideNode} node The node.
      */
     visit_DivideNode(node) {
-        try {
-            return new NumberValue(this.visit(node.node_a).value / this.visit(node.node_b).value);
-        } catch (e) {
-            throw new Error("Runtime math error");
+        let left_node = this.visit(node.node_b).value;
+        if (left_node === 0) {
+            throw new Error("Division by zero");
         }
+        return new NumberValue(this.visit(node.node_a).value / left_node);
     }
 
     /**
@@ -82,11 +82,11 @@ export class Interpreter {
      * @param {ModuloNode} node The node.
      */
     visit_ModuloNode(node) {
-        try {
-            return new NumberValue(this.visit(node.node_a).value % this.visit(node.node_b).value);
-        } catch (e) {
-            throw new Error("Runtime math error");
+        let left_node = this.visit(node.node_b).value;
+        if (left_node === 0) {
+            throw new Error("Division by zero");
         }
+        return new NumberValue(this.visit(node.node_a).value % left_node);
     }
 
     /**
