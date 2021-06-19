@@ -4,6 +4,7 @@ export class TokenType {
     static MINUS    = 'MINUS'
     static MULTIPLY = 'MULTIPLY'
     static DIVIDE   = 'DIVIDE'
+    static POWER    = 'POWER'
     static LPAREN   = 'LPAREN'
     static RPAREN   = 'RPAREN'
 }

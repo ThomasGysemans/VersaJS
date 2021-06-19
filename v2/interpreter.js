@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode } from './nodes.js';
 import { NumberValue } from './values.js';
 
 /**
@@ -24,6 +24,10 @@ export class Interpreter {
             return this.visit_PlusNode(node);
         } else if (node instanceof MinusNode) {
             return this.visit_MinusNode(node);
+        } else if (node instanceof PowerNode) {
+            return this.visit_PowerNode(node);
+        } else {
+            throw new Error(`There is no visit method for node ${node.constructor.name}`);
         }
     }
 
@@ -60,7 +64,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets a multiplication.
+     * Interprets a division.
      * @param {DivideNode} node The node.
      */
     visit_DivideNode(node) {
@@ -72,7 +76,15 @@ export class Interpreter {
     }
 
     /**
-     * Interprets a multiplication.
+     * Interprets a power node.
+     * @param {PowerNode} node The node.
+     */
+    visit_PowerNode(node) {
+        return new NumberValue(this.visit(node.node_a).value ** this.visit(node.node_b).value);
+    }
+
+    /**
+     * Interprets a number with a plus before.
      * @param {PlusNode} node The node.
      */
     visit_PlusNode(node) {
@@ -80,7 +92,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets a multiplication.
+     * Interprets a negative number.
      * @param {MinusNode} node The node.
      */
     visit_MinusNode(node) {

@@ -4,12 +4,15 @@
   "description": "My own programming language",
   "main": "main.js",
   "scripts": {
-    "test": "run test"
+    "test": "mocha"
   },
   "type": "module",
   "author": "CodoPixel",
   "license": "MIT",
   "dependencies": {
     "prompt-sync": "^4.2.0"
+  },
+  "devDependencies": {
+    "mocha": "^9.0.1"
   }
 }

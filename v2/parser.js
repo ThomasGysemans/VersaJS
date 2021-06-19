@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { AddNode, DivideNode, MinusNode, MultiplyNode, NumberNode, PlusNode, SubtractNode } from "./nodes.js";
+import { AddNode, DivideNode, MinusNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 
 /**
@@ -60,13 +60,16 @@ export class Parser {
         let node_a = this.factor();
         let result;
 
-        while (this.current_token !== null && is_in(this.current_token.type, [TokenType.MULTIPLY, TokenType.DIVIDE])) {
+        while (this.current_token !== null && is_in(this.current_token.type, [TokenType.MULTIPLY, TokenType.DIVIDE, TokenType.POWER])) {
             if (this.current_token.type === TokenType.MULTIPLY) {
                 this.advance();
                 result = new MultiplyNode(node_a, this.factor());
             } else if (this.current_token.type === TokenType.DIVIDE) {
                 this.advance();
                 result = new DivideNode(node_a, this.factor());
+            } else if (this.current_token.type === TokenType.POWER) {
+                this.advance();
+                result = new PowerNode(node_a, this.factor());
             }
         }
 

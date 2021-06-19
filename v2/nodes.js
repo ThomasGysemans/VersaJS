@@ -115,3 +115,20 @@ export class MinusNode extends CustomNode {
         return `(-${this.node})`;
     }
 }
+
+export class PowerNode extends CustomNode {
+    /**
+     * @constructs PowerNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+    }
+
+    toString() {
+        return `(${this.node_a}^${this.node_b})`;
+    }
+}
