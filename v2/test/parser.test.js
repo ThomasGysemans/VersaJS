@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, DivideNode, ModuloNode, MultiplyNode, NumberNode, PowerNode, SubtractNode, VarAssignNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode } from '../nodes.js';
 
 // npm run test
 
@@ -100,5 +100,23 @@ describe('Parser tests', () => {
         const tokens = new Lexer("var abc = 18").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node instanceof VarAssignNode);
+    });
+
+    it('should return an and node', () => {
+        const tokens = new Lexer("(1+2) and 3").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof AndNode);
+    });
+
+    it('should return an or node', () => {
+        const tokens = new Lexer("(1+2) or 3").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof OrNode);
+    });
+
+    it('should return an not node', () => {
+        const tokens = new Lexer("not 1").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof NotNode);
     });
 });

@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode } from './nodes.js';
 import { NumberValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -38,6 +38,12 @@ export class Interpreter {
             return this.visit_VarAccessNode(node, context).value;
         } else if (node instanceof VarModifyNode) {
             return this.visit_VarModifyNode(node, context).value;
+        } else if (node instanceof AndNode) {
+            return this.visit_AndNode(node, context).value;
+        } else if (node instanceof OrNode) {
+            return this.visit_OrNode(node, context).value;
+        } else if (node instanceof NotNode) {
+            return this.visit_NotNode(node, context).value;
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -236,5 +242,76 @@ export class Interpreter {
         context.symbol_table.set(var_name, value);
 
         return new RuntimeResult().success(value);
+    }
+
+    /**
+     * Interprets an and node.
+     * @param {AndNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_AndNode(node, context) {
+        let res = new RuntimeResult();
+        let left = this.visit(node.node_a, context);
+        let right = this.visit(node.node_b, context);
+
+        if (left instanceof NumberValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value && right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
+    }
+
+    /**
+     * Interprets an or node.
+     * @param {OrNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_OrNode(node, context) {
+        let res = new RuntimeResult();
+        let left = this.visit(node.node_a, context);
+        let right = this.visit(node.node_b, context);
+
+        if (left instanceof NumberValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value || right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
+    }
+
+    /**
+     * Interprets an or node.
+     * @param {NotNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_NotNode(node, context) {
+        let res = new RuntimeResult();
+        let number = this.visit(node.node, context);
+
+        if (number instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(number.value == 0 ? 1 : 0).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
     }
 }

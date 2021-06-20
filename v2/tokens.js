@@ -17,7 +17,10 @@ export class TokenType {
 }
 
 const KEYWORDS = [
-    "var"
+    "var",
+    "and",
+    "or",
+    "not"
 ];
 
 export default KEYWORDS;

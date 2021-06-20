@@ -31,6 +31,8 @@ const run = (text, filename) => {
             return;
         }
 
+        console.log(`tree = ${tree}`);
+
         const interpreter = new Interpreter();
         const result = interpreter.visit(tree, context);
 

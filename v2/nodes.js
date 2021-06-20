@@ -244,3 +244,58 @@ export class VarModifyNode extends CustomNode {
         this.pos_end = var_name_tok.pos_end;
     }
 }
+
+export class AndNode extends CustomNode {
+    /**
+     * @constructs AndNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} and ${this.node_b})`;
+    }
+}
+
+export class OrNode extends CustomNode {
+    /**
+     * @constructs OrNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} or ${this.node_b})`;
+    }
+}
+
+export class NotNode extends CustomNode {
+    /**
+     * @constructs NotNode
+     * @param {CustomNode} node The node.
+     */
+    constructor(node) {
+        super();
+        this.node = node;
+
+        this.set_pos(node.pos_start, node.pos_end);
+    }
+
+    toString() {
+        return `(not ${this.node})`;
+    }
+}

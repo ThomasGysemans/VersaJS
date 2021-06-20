@@ -130,4 +130,14 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens)
     });
+
+    it('should return variable keywords', () => {
+        const tokens = Array.from(new Lexer("not or and").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "not"),
+            new Token(TokenType.KEYWORD, "or"),
+            new Token(TokenType.KEYWORD, "and"),
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
 });

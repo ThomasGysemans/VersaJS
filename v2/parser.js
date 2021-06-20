@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -75,6 +75,35 @@ export class Parser {
             return new VarAssignNode(var_name_tok, value_node);
         }
 
+        let result = this.comp_expr();
+        // this.advance();
+
+        if (this.current_token !== null) {
+            if (this.current_token.matches(TokenType.KEYWORD, "and")) {
+                this.advance();
+                let node = this.comp_expr();
+                return new AndNode(result, node);
+            } else if (this.current_token.matches(TokenType.KEYWORD, "or")) {
+                this.advance();
+                let node = this.comp_expr();
+                return new OrNode(result, node);
+            }
+        }
+
+        return result;
+    }
+
+    comp_expr() {
+        if (this.current_token.matches(TokenType.KEYWORD, "not")) {
+            this.advance();
+            let node = this.comp_expr();
+            return new NotNode(node);
+        } else {
+            return this.arith_expr();
+        }
+    }
+
+    arith_expr() {
         let result = this.term();
 
         while (this.current_token !== null && is_in(this.current_token.type, [TokenType.PLUS, TokenType.MINUS])) {
