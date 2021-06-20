@@ -299,3 +299,117 @@ export class NotNode extends CustomNode {
         return `(not ${this.node})`;
     }
 }
+
+export class NotEqualsNode extends CustomNode {
+    /**
+     * @constructs NotEqualsNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} == ${this.node_b})`;
+    }
+}
+
+export class EqualsNode extends CustomNode {
+    /**
+     * @constructs EqualsNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} == ${this.node_b})`;
+    }
+}
+
+export class LessThanNode extends CustomNode {
+    /**
+     * @constructs LessThanNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} < ${this.node_b})`;
+    }
+}
+
+export class LessThanOrEqualNode extends CustomNode {
+    /**
+     * @constructs LessThanOrEqualNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} <= ${this.node_b})`;
+    }
+}
+
+export class GreaterThanNode extends CustomNode {
+    /**
+     * @constructs GreaterThanNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} > ${this.node_b})`;
+    }
+}
+
+export class GreaterThanOrEqualNode extends CustomNode {
+    /**
+     * @constructs LessThanOrEqualNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} >= ${this.node_b})`;
+    }
+}

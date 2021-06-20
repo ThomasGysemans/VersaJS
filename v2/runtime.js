@@ -28,7 +28,7 @@ export class RuntimeResult {
         this.func_return_value = res.func_return_value;
         this.loop_should_continue = res.loop_should_continue;
         this.loop_should_break = res.loop_should_break;
-        return res.value;
+        return res;
     }
 
     /**

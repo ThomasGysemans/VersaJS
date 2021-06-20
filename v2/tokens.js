@@ -1,19 +1,25 @@
 import { Position } from "./position.js";
 
 export class TokenType {
-    static NUMBER      = 'NUMBER'
-    static PLUS        = 'PLUS'
-    static MINUS       = 'MINUS'
-    static MULTIPLY    = 'MULTIPLY'
-    static DIVIDE      = 'DIVIDE'
-    static POWER       = 'POWER'
-    static MODULO      = 'MODULO'
-    static LPAREN      = 'LPAREN'
-    static RPAREN      = 'RPAREN'
-    static IDENTIFIER  = 'IDENTIFIER'
-    static KEYWORD     = 'KEYWORD'
-    static EQUALS      = 'EQUALS'
-    static EOF         = 'EOF'
+    static NUMBER         = 'NUMBER'
+    static PLUS           = 'PLUS'
+    static MINUS          = 'MINUS'
+    static MULTIPLY       = 'MULTIPLY'
+    static DIVIDE         = 'DIVIDE'
+    static POWER          = 'POWER'
+    static MODULO         = 'MODULO'
+    static LPAREN         = 'LPAREN'
+    static RPAREN         = 'RPAREN'
+    static IDENTIFIER     = 'IDENTIFIER'
+    static KEYWORD        = 'KEYWORD'
+    static EQUALS         = 'EQUALS'
+    static DOUBLE_EQUALS  = 'DOUBLE_EQUALS'
+    static NOT_EQUAL      = 'NOT_EQUAL'
+    static LT             = 'LESS_THAN'
+    static GT             = 'GREATER_THAN'
+    static LTE            = 'LESS_THAN_OR_EQUAL'
+    static GTE            = 'GREATER_THAN_OR_EQUAL'
+    static EOF            = 'EOF'
 }
 
 const KEYWORDS = [

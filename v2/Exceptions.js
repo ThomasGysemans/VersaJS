@@ -44,6 +44,21 @@ export class IllegalCharError extends CustomError {
 }
 
 /**
+ * @classdesc Error thrown when there is an illegal or unexpected character.
+ */
+export class ExpectedCharError extends CustomError {
+    /**
+     * @constructs ExpectedCharError
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     * @param {string} details Details about the error.
+     */
+    constructor(pos_start, pos_end, details='') {
+        super(pos_start, pos_end, "Expected Character", details);
+    }
+}
+
+/**
  * @classdesc Error thrown when there is an invalid syntax.
  */
 export class InvalidSyntaxError extends CustomError {

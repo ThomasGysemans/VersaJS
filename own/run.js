@@ -513,7 +513,7 @@ class Lexer {
 
         if (this.current_char === '=') {
             this.advance();
-            return { tok: new Token(TOKENS.NE, null, pos_start=pos_start, this.pos), error: null };
+            return { tok: new Token(TOKENS.NE, null, pos_start, this.pos), error: null };
         }
 
         this.advance();
@@ -542,7 +542,6 @@ class Lexer {
         let pos_start = this.pos.copy();
         this.advance();
 
-        // do we have "==" ?
         if (this.current_char === '=') {
             this.advance();
             tok_type = TOKENS.LTE;
@@ -556,7 +555,6 @@ class Lexer {
         let pos_start = this.pos.copy();
         this.advance();
 
-        // do we have "==" ?
         if (this.current_char === '=') {
             this.advance();
             tok_type = TOKENS.GTE;

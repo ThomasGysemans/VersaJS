@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode } from './nodes.js';
 import { NumberValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -44,6 +44,18 @@ export class Interpreter {
             return this.visit_OrNode(node, context).value;
         } else if (node instanceof NotNode) {
             return this.visit_NotNode(node, context).value;
+        } else if (node instanceof EqualsNode) {
+            return this.visit_EqualsNode(node, context).value;
+        } else if (node instanceof LessThanNode) {
+            return this.visit_LessThanNode(node, context).value;
+        } else if (node instanceof GreaterThanNode) {
+            return this.visit_GreaterThanNode(node, context).value;
+        } else if (node instanceof LessThanOrEqualNode) {
+            return this.visit_LessThanOrEqualNode(node, context).value;
+        } else if (node instanceof GreaterThanOrEqualNode) {
+            return this.visit_GreaterThanOrEqualNode(node, context).value;
+        } else if (node instanceof NotEqualsNode) {
+            return this.visit_NotEqualsNode(node, context).value;
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -182,7 +194,8 @@ export class Interpreter {
     visit_VarAssignNode(node, context) {
         let res = new RuntimeResult();
         let var_name = node.var_name_tok.value;
-        let value = this.visit(node.value_node, context);
+        let value = res.register(this.visit(node.value_node, context));
+        if (res.should_return()) return res;
         
         if (context.symbol_table.doesExist(var_name)) {
             throw new RuntimeError(
@@ -229,7 +242,8 @@ export class Interpreter {
     visit_VarModifyNode(node, context) {
         let res = new RuntimeResult();
         let var_name = node.var_name_tok.value;
-        let value = this.visit(node.value_node, context);
+        let value = res.register(this.visit(node.value_node, context));
+        if (res.should_return()) return res;
         
         if (!context.symbol_table.doesExist(var_name)) {
             throw new RuntimeError(
@@ -252,8 +266,10 @@ export class Interpreter {
      */
     visit_AndNode(node, context) {
         let res = new RuntimeResult();
-        let left = this.visit(node.node_a, context);
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
         let right = this.visit(node.node_b, context);
+        if (res.should_return()) return res;
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
@@ -276,8 +292,10 @@ export class Interpreter {
      */
     visit_OrNode(node, context) {
         let res = new RuntimeResult();
-        let left = this.visit(node.node_a, context);
-        let right = this.visit(node.node_b, context);
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
@@ -300,11 +318,168 @@ export class Interpreter {
      */
     visit_NotNode(node, context) {
         let res = new RuntimeResult();
-        let number = this.visit(node.node, context);
+        let number = res.register(this.visit(node.node, context));
+        if (res.should_return()) return res;
 
         if (number instanceof NumberValue) {
             return new RuntimeResult().success(
                 new NumberValue(number.value == 0 ? 1 : 0).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
+    }
+
+    /**
+     * Interprets an or node.
+     * @param {EqualsNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_EqualsNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        if (left instanceof NumberValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
+    }
+
+    /**
+     * Interprets an or node.
+     * @param {LessThanNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_LessThanNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        if (left instanceof NumberValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value < right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
+    }
+
+    /**
+     * Interprets an or node.
+     * @param {GreaterThanNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_GreaterThanNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        if (left instanceof NumberValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value > right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
+    }
+
+    /**
+     * Interprets an or node.
+     * @param {LessThanOrEqualNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_LessThanOrEqualNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        if (left instanceof NumberValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value <= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
+    }
+
+    /**
+     * Interprets an or node.
+     * @param {GreaterThanOrEqualNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_GreaterThanOrEqualNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        if (left instanceof NumberValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value >= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
+    }
+
+    /**
+     * Interprets an or node.
+     * @param {NotEqualsNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_NotEqualsNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        if (left instanceof NumberValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value !== right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             throw new RuntimeError(

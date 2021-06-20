@@ -1,7 +1,7 @@
 import KEYWORDS, { Token, TokenType } from './tokens.js';
 import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
-import { IllegalCharError } from './Exceptions.js';
+import { ExpectedCharError, IllegalCharError } from './Exceptions.js';
 
 const WHITESPACE     = " \r\n\t";
 const DIGITS         = "0123456789_"; // we want to allow 100_000 === 100000
@@ -66,8 +66,13 @@ export class Lexer {
                 this.advance();
                 yield new Token(TokenType.RPAREN, null, this.pos);
             } else if (this.current_char === "=") {
-                this.advance();
-                yield new Token(TokenType.EQUALS, null, this.pos);
+                yield this.make_equal();
+            } else if (this.current_char === "!") {
+                yield this.make_not_equal();
+            } else if (this.current_char === "<") {
+                yield this.make_less_than_or_equal();
+            } else if (this.current_char === ">") {
+                yield this.make_greater_than_or_equal();
             } else {
                 let char = this.current_char;
                 let pos_start = this.pos.copy();
@@ -125,5 +130,60 @@ export class Lexer {
         var is_keyword = is_in(identifier, KEYWORDS);
         var token_type = is_keyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
         return new Token(token_type, identifier, pos_start, this.pos);
+    }
+
+    make_equal() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.EQUALS;
+        this.advance();
+
+        if (this.current_char === "=") {
+            tok_type = TokenType.DOUBLE_EQUALS;
+            this.advance();
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_not_equal() {
+        let pos_start = this.pos.copy();
+        this.advance();
+
+        if (this.current_char === "=") {
+            this.advance();
+            return new Token(TokenType.NOT_EQUAL, null, pos_start, this.pos);
+        }
+
+        this.advance();
+        throw new ExpectedCharError(
+            pos_start, this.pos,
+            "'=' after '!'"
+        );
+    }
+
+    make_less_than_or_equal() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.LT;
+        this.advance();
+
+        if (this.current_char === "=") {
+            this.advance();
+            tok_type = TokenType.LTE;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_greater_than_or_equal() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.GT;
+        this.advance();
+
+        if (this.current_char === "=") {
+            this.advance();
+            tok_type = TokenType.GTE;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
     }
 }

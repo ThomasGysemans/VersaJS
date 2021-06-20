@@ -140,4 +140,64 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens)
     });
+
+    it('should return double equals', () => {
+        const tokens = Array.from(new Lexer("1 == 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.DOUBLE_EQUALS),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
+
+    it('should return not equals', () => {
+        const tokens = Array.from(new Lexer("1 != 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.NOT_EQUAL),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
+
+    it('should return less than', () => {
+        const tokens = Array.from(new Lexer("1 < 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.LT),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
+
+    it('should return greater than', () => {
+        const tokens = Array.from(new Lexer("1 > 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.GT),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
+
+    it('should return less than or equal', () => {
+        const tokens = Array.from(new Lexer("1 <= 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.LTE),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
+
+    it('should return greater than or equal', () => {
+        const tokens = Array.from(new Lexer("1 >= 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.GTE),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
 });

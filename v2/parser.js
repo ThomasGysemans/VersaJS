@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -76,7 +76,6 @@ export class Parser {
         }
 
         let result = this.comp_expr();
-        // this.advance();
 
         if (this.current_token !== null) {
             if (this.current_token.matches(TokenType.KEYWORD, "and")) {
@@ -98,9 +97,31 @@ export class Parser {
             this.advance();
             let node = this.comp_expr();
             return new NotNode(node);
-        } else {
-            return this.arith_expr();
         }
+
+        let node_a = this.arith_expr();
+
+        if (this.current_token.type === TokenType.DOUBLE_EQUALS) {
+            this.advance();
+            return new EqualsNode(node_a, this.arith_expr());
+        } else if (this.current_token.type === TokenType.LT) {
+            this.advance();
+            return new LessThanNode(node_a, this.arith_expr());
+        } else if (this.current_token.type === TokenType.GT) {
+            this.advance();
+            return new GreaterThanNode(node_a, this.arith_expr());
+        } else if (this.current_token.type === TokenType.LTE) {
+            this.advance();
+            return new LessThanOrEqualNode(node_a, this.arith_expr());
+        } else if (this.current_token.type === TokenType.GTE) {
+            this.advance();
+            return new GreaterThanOrEqualNode(node_a, this.arith_expr());
+        } else if (this.current_token.type === TokenType.NOT_EQUAL) {
+            this.advance();
+            return new NotEqualsNode(node_a, this.arith_expr());
+        }
+
+        return node_a;
     }
 
     arith_expr() {

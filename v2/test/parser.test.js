@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode } from '../nodes.js';
 
 // npm run test
 
@@ -118,5 +118,41 @@ describe('Parser tests', () => {
         const tokens = new Lexer("not 1").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node instanceof NotNode);
+    });
+
+    it('should work with ==', () => {
+        const tokens = new Lexer("1 == 1").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof EqualsNode);
+    });
+
+    it('should work with !=', () => {
+        const tokens = new Lexer("1 != 1").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof NotEqualsNode);
+    });
+
+    it('should work with <', () => {
+        const tokens = new Lexer("1 < 1").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof LessThanNode);
+    });
+
+    it('should work with >', () => {
+        const tokens = new Lexer("1 > 1").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof GreaterThanNode);
+    });
+
+    it('should work with <=', () => {
+        const tokens = new Lexer("1 <= 1").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof LessThanOrEqualNode);
+    });
+
+    it('should work with >=', () => {
+        const tokens = new Lexer("1 >= 1").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof GreaterThanOrEqualNode);
     });
 });
