@@ -200,7 +200,7 @@ export class VarAssignNode extends CustomNode {
     /**
      * @constructs VarAssignNode
      * @param {Token} var_name_tok The name of the variable.
-     * @param {CustomNode} value_node The value of the variable.
+     * @param {CustomNode} value_node The value of the variable. It might be an ElseAssignmentNode.
      */
     constructor(var_name_tok, value_node) {
         super();
@@ -208,6 +208,32 @@ export class VarAssignNode extends CustomNode {
         this.value_node = value_node;
         this.pos_start = this.var_name_tok.pos_start;
         this.pos_end = this.value_node.pos_end;
+    }
+
+    toString() {
+        return `(var ${this.var_name_tok.value} = ${this.value_node})`;
+    }
+}
+
+/**
+ * @classdesc Creates a variable by saving its name and its value.
+ */
+export class ElseAssignmentNode extends CustomNode {
+    /**
+     * @constructs ElseAssignmentNode
+     * @param {CustomNode} node_a The value of the wanted value.
+     * @param {CustomNode} node_b The value of the default value.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+        this.pos_start = this.node_a.pos_start;
+        this.pos_end = this.node_b.pos_end;
+    }
+    
+    toString() {
+        return `(${this.node_a} ?? ${this.node_b})`;
     }
 }
 
@@ -224,6 +250,10 @@ export class VarAccessNode extends CustomNode {
         this.var_name_tok = var_name_tok;
         this.pos_start = var_name_tok.pos_start;
         this.pos_end = var_name_tok.pos_end;
+    }
+
+    toString() {
+        return `(${this.var_name_tok.value})`;
     }
 }
 
@@ -242,6 +272,10 @@ export class VarModifyNode extends CustomNode {
         this.value_node = value_node;
         this.pos_start = var_name_tok.pos_start;
         this.pos_end = var_name_tok.pos_end;
+    }
+
+    toString() {
+        return `(${this.var_name_tok.value} = ${this.value_node})`;
     }
 }
 

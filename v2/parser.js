@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -13,14 +13,24 @@ export class Parser {
      * @param {Generator} tokens The list of tokens.
      */
     constructor(tokens) {
-        this.tokens = tokens[Symbol.iterator]();
+        this.tokens = Array.from(tokens);
+        this.idx = -1;
         this.advance();
     }
 
+    backwards(steps=1) {
+        this.idx -= steps;
+        this.set_token();
+    }
+
     advance() {
-        let next = this.tokens.next();
+        this.idx += 1;
+        this.set_token();
+    }
+
+    set_token() {
         /** @type {Token|null} */
-        this.current_token = next.done ? null : next.value;
+        this.current_token = this.idx < this.tokens.length ? this.tokens[this.idx] : null;
     }
 
     parse() {
@@ -119,6 +129,9 @@ export class Parser {
         } else if (this.current_token.type === TokenType.NOT_EQUAL) {
             this.advance();
             return new NotEqualsNode(node_a, this.arith_expr());
+        } else if (this.current_token.type === TokenType.ELSE_ASSIGN) {
+            this.advance();
+            return new ElseAssignmentNode(node_a, this.arith_expr());
         }
 
         return node_a;

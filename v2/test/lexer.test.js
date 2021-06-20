@@ -200,4 +200,17 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens)
     });
+
+    it('should work with an else assignment', () => {
+        const tokens = Array.from(new Lexer("var a = 0 ?? 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "var"),
+            new Token(TokenType.IDENTIFIER, "a"),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.NUMBER, 0),
+            new Token(TokenType.ELSE_ASSIGN),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens)
+    });
 });

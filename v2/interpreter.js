@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode } from './nodes.js';
 import { NumberValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -56,6 +56,8 @@ export class Interpreter {
             return this.visit_GreaterThanOrEqualNode(node, context).value;
         } else if (node instanceof NotEqualsNode) {
             return this.visit_NotEqualsNode(node, context).value;
+        } else if (node instanceof ElseAssignmentNode) {
+            return this.visit_ElseAssignmentNode(node, context).value;
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -311,7 +313,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an or node.
+     * Interprets a not node.
      * @param {NotNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -335,7 +337,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an or node.
+     * Interprets an equal node.
      * @param {EqualsNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -361,7 +363,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an or node.
+     * Interprets a less than node.
      * @param {LessThanNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -387,7 +389,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an or node.
+     * Interprets a greater than node.
      * @param {GreaterThanNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -413,7 +415,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an or node.
+     * Interprets a less than or equal node.
      * @param {LessThanOrEqualNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -439,7 +441,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an or node.
+     * Interprets a greater than or equal node.
      * @param {GreaterThanOrEqualNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -465,7 +467,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an or node.
+     * Interprets a not equals node.
      * @param {NotEqualsNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -487,6 +489,32 @@ export class Interpreter {
                 "Illegal operation",
                 context
             );
+        }
+    }
+
+    /**
+     * Interprets an else assignment node.
+     * @param {ElseAssignmentNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ElseAssignmentNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        
+        // might be null or false if it's a number
+        if (left instanceof NumberValue) {
+            var is_left_node_null = left.value === NumberValue.none.value;
+            if (is_left_node_null) {
+                let right = res.register(this.visit(node.node_b, context));
+                if (res.should_return()) return res;
+                return new RuntimeResult().success(right);
+            } else {
+                return new RuntimeResult().success(left);
+            }
+        } else {
+            return new RuntimeResult().success(left);
         }
     }
 }

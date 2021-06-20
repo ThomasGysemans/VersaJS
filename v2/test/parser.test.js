@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode } from '../nodes.js';
 
 // npm run test
 
@@ -154,5 +154,11 @@ describe('Parser tests', () => {
         const tokens = new Lexer("1 >= 1").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node instanceof GreaterThanOrEqualNode);
+    });
+
+    it('should work with ??', () => {
+        const tokens = new Lexer("1 ?? 0").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node instanceof ElseAssignmentNode);
     });
 });

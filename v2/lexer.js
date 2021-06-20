@@ -73,6 +73,8 @@ export class Lexer {
                 yield this.make_less_than_or_equal();
             } else if (this.current_char === ">") {
                 yield this.make_greater_than_or_equal();
+            } else if (this.current_char === "?") {
+                yield this.make_else_assign();
             } else {
                 let char = this.current_char;
                 let pos_start = this.pos.copy();
@@ -185,5 +187,22 @@ export class Lexer {
         }
 
         return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_else_assign() {
+        let pos_start = this.pos.copy();
+        this.advance();
+
+        // we want "??"
+        if (this.current_char === "?") {
+            this.advance();
+            return new Token(TokenType.ELSE_ASSIGN, null, pos_start, this.pos);
+        }
+
+        this.advance();
+        throw new ExpectedCharError(
+            pos_start, this.pos,
+            "'=' after '!'"
+        );
     }
 }

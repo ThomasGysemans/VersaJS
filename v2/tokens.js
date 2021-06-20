@@ -19,6 +19,7 @@ export class TokenType {
     static GT             = 'GREATER_THAN'
     static LTE            = 'LESS_THAN_OR_EQUAL'
     static GTE            = 'GREATER_THAN_OR_EQUAL'
+    static ELSE_ASSIGN    = 'ELSE_ASSIGN' // "??"
     static EOF            = 'EOF'
 }
 
