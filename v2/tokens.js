@@ -20,6 +20,11 @@ export class TokenType {
     static LTE            = 'LESS_THAN_OR_EQUAL'
     static GTE            = 'GREATER_THAN_OR_EQUAL'
     static ELSE_ASSIGN    = 'ELSE_ASSIGN' // "??"
+    static SEMICOLON      = 'SEMICOLON'
+    static NEWLINE        = 'NEWLINE'
+    static LSQUARE        = 'LSQUARE'
+    static RSQUARE        = 'RSQUARE'
+    static COMMA          = 'COMMA'
     static EOF            = 'EOF'
 }
 
@@ -27,7 +32,10 @@ const KEYWORDS = [
     "var",
     "and",
     "or",
-    "not"
+    "not",
+    "if",
+    "elif",
+    "else"
 ];
 
 export default KEYWORDS;

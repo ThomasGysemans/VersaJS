@@ -1,10 +1,12 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode } from '../nodes.js';
-import { NumberValue } from '../values.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode } from '../nodes.js';
+import { ListValue, NumberValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
-import { Token, TokenType } from '../tokens.js';
-import { Context } from '../context.js';
-import global_symbol_table from '../symbol_table.js';
+import { Token, TokenType } from '../tokens.js'; // ok
+import { Context } from '../context.js'; // ok
+import global_symbol_table from '../symbol_table.js'; // ok
+import { Lexer } from '../lexer.js';
+import { Parser } from '../parser.js';
 
 const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
 context.symbol_table = global_symbol_table;
@@ -20,7 +22,7 @@ describe('Interpreter', () => {
         assert.deepStrictEqual(value, new NumberValue(41).set_context(context));
     });
 
-    it('should work with an subtract', () => {
+    it('should work with a subtract', () => {
         const value = new Interpreter().visit(new SubtractNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14))), context);
         assert.deepStrictEqual(value, new NumberValue(13).set_context(context));
     });
@@ -69,5 +71,61 @@ describe('Interpreter', () => {
 
         const result = new Interpreter().visit(tree, context);
         assert.deepStrictEqual(result, new NumberValue(-2166).set_context(context));
+    });
+
+    it('should work with an assignment to a variable', () => {
+        const tree = new VarAssignNode(
+            new Token(TokenType.IDENTIFIER, "list"),
+            new NumberNode(new Token(TokenType.NUMBER, 1))
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result, new NumberValue(1).set_context(context));
+    });
+
+    it('should work with a modification of a variable', () => {
+        const tree = new VarModifyNode(
+            new Token(TokenType.IDENTIFIER, "list"),
+            new NumberNode(new Token(TokenType.NUMBER, 1))
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result, new NumberValue(1).set_context(context));
+    });
+
+    it('should work with an else operator (??)', () => {
+        const tree = new ElseAssignmentNode(
+            new NumberNode(new Token(TokenType.NUMBER, 0)),
+            new NumberNode(new Token(TokenType.NUMBER, 1))
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result, new NumberValue(1).set_context(context));
+    });
+
+    it('should work with a list', () => {
+        const tree = new ListNode(
+            [
+                new NumberNode(new Token(TokenType.NUMBER, 0)),
+                new NumberNode(new Token(TokenType.NUMBER, 1))
+            ],
+            null,
+            null,
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [
+            new NumberValue(0),
+            new NumberValue(1)
+        ];
+        var i = 0;
+        if (result instanceof ListValue) {
+            for (let el of result.elements) {
+                if (el instanceof NumberValue) {
+                    assert.strictEqual(el.value, expected[i].value);
+                } else {
+                    assert.strictEqual(NumberValue, false);
+                }
+                i++;
+            }
+        } else {
+            assert.strictEqual(ListValue, false);
+        }
     });
 });

@@ -447,3 +447,101 @@ export class GreaterThanOrEqualNode extends CustomNode {
         return `(${this.node_a} >= ${this.node_b})`;
     }
 }
+
+export class ListNode extends CustomNode {
+    /**
+     * @constructs ListNode
+     * @param {Array<CustomNode>} element_nodes The token that represents a string.
+     * @param {Position} pos_start The starting position of the list (we must have it from the constructor because of empty lists).
+     * @param {Position} pos_end The end position of the list (we must have it from the constructor because of empty lists).
+     */
+    constructor(element_nodes, pos_start, pos_end) {
+        super();
+        this.element_nodes = element_nodes;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `[${this.element_nodes.join(', ')}]`;
+    }
+}
+
+export class ListAccessNode extends CustomNode {
+    /**
+     * @constructs ListAccessNode
+     * @param {Token} var_name_tok The token that represents a variable.
+     * @param {number} depth The depth of the array.
+     * @param {Array<CustomNode>} list_nodes The expressions between the brackets.
+     */
+    constructor(var_name_tok, depth, list_nodes) {
+        super();
+        this.var_name_tok = var_name_tok;
+        this.depth = depth;
+        this.list_nodes = list_nodes;
+        this.pos_start = var_name_tok.pos_start;
+        this.pos_end = var_name_tok.pos_end;
+    }
+
+    toString() {
+        return `(${this.var_name_tok.value}[...])`;
+    }
+}
+
+export class ListAssignmentNode extends CustomNode {
+    /**
+     * @constructs ListAssignmentNode
+     * @param {ListAccessNode} accessor The access node of the list.
+     * @param {CustomNode} new_value_node The new value.
+     */
+    constructor(accessor, new_value_node) {
+        super();
+        this.accessor = accessor;
+        this.new_value_node = new_value_node;
+        this.pos_start = accessor.pos_start;
+        this.pos_end = accessor.pos_end;
+    }
+
+    toString() {
+        return `(${this.accessor.var_name_tok.value}[...] = ${this.new_value_node})`;
+    }
+}
+
+export class ListPushBracketsNode extends CustomNode {
+    /**
+     * @constructs ListPushBracketsNode
+     * @param {Token} var_name_tok The access node of the list.
+     */
+    constructor(var_name_tok) {
+        super();
+        this.var_name_tok = var_name_tok;
+        this.value = 0;
+        this.pos_start = var_name_tok.pos_start;
+        this.pos_end = var_name_tok.pos_end;
+    }
+
+    toString() {
+        return `(${this.var_name_tok.value}[])`;
+    }
+}
+
+export class ListBinarySelector extends CustomNode {
+    /**
+     * @constructs ListBinarySelector
+     * @param {CustomNode|null} node_a The beginning of the getter.
+     * @param {CustomNode|null} node_b The end of the getter.
+     * @param {Position} pos_start The starting position of the binary selector.
+     * @param {Position} pos_end The end position of the binary selector.
+     */
+    constructor(node_a, node_b, pos_start, pos_end) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `([${this.node_a ? this.node_a : ''}:${this.node_b ? this.node_b : ''}])`;
+    }
+}

@@ -21,7 +21,6 @@ export class RuntimeResult {
 
     /**
      * Registers an action during runtime and checks if an error has been thrown.
-     * @param {RuntimeResult} res The value to be registered.
      */
     register(res) {
         this.error = res.error;

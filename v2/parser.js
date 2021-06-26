@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -15,16 +15,28 @@ export class Parser {
     constructor(tokens) {
         this.tokens = Array.from(tokens);
         this.idx = -1;
+        this.advancement_count = 0;
         this.advance();
+    }
+
+    reset_advancement_count() {
+        this.advancement_count = 0;
     }
 
     backwards(steps=1) {
         this.idx -= steps;
+        this.advancement_count -= steps;
         this.set_token();
+    }
+
+    try(val) {
+        this.advancement_count = 0;
+        return val;
     }
 
     advance() {
         this.idx += 1;
+        this.advancement_count += 1;
         this.set_token();
     }
 
@@ -51,10 +63,57 @@ export class Parser {
                 pos_end = pos_start.copy();
                 pos_end.advance(null);
             }
-            throw new InvalidSyntaxError(pos_start, pos_end, "Unexpected end of interpretation.");
+            throw new InvalidSyntaxError(pos_start, pos_end, "Unexpected end of parsing.");
         }
 
         return result;
+    }
+    
+    statements() {
+        return this.statement();
+        // let statements = [];
+        // let pos_start = this.current_token.pos_start.copy();
+
+        // while (this.current_token.type === TokenType.NEWLINE) {
+        //     this.advance();
+        // }
+
+        // let statement = this.statement();
+        // statements.push(statement);
+
+        // let more_statements = true;
+
+        // while (true) {
+        //     let newline_count = 0;
+        //     while (this.current_token.type === TokenType.NEWLINE) {
+        //         this.advance();
+        //         newline_count++;
+        //     }
+
+        //     // there are no more lines
+        //     if (newline_count === 0) {
+        //         more_statements = false;
+        //     }
+
+        //     if (!more_statements) break;
+        //     statement = this.statement();
+        //     if (!statement) {
+        //         more_statements = false;
+        //         continue;
+        //     }
+
+        //     statements.push(statement);
+        // }
+
+        // return new ListNode(
+        //     statements,
+        //     pos_start,
+        //     this.current_token.pos_end.copy()
+        // );
+    }
+
+    statement() {
+        return this.expr();
     }
 
     expr() {
@@ -218,12 +277,146 @@ export class Parser {
                 this.advance();
                 const value_node = this.expr();
                 return new VarModifyNode(var_name_tok, value_node);
+            } else if (this.current_token.type === TokenType.LSQUARE) {
+                // list[(1+1)][index]
+                let depth = -1;
+                let index_nodes = [];
+                let is_depth = false;
+                let is_pushing = false; // is "list[]" ?
+
+                while (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
+                    is_depth = false;
+
+                    if (this.current_token.type === TokenType.LSQUARE) is_depth = true;
+                    if (!is_depth) break;
+
+                    this.advance();
+
+                    // if "list[]"
+                    if (this.current_token.type === TokenType.RSQUARE) {
+                        // if it's already pushing
+                        if (is_pushing) {
+                            throw new InvalidSyntaxError(
+                                this.current_token.pos_start, this.current_token.pos_end,
+                                `Cannot push several times on the same list '${var_name_tok.value}'.`
+                            );
+                        }
+
+                        index_nodes.push(new ListPushBracketsNode(var_name_tok));
+                        is_pushing = true;
+                    } else {
+                        let index_pos_start = this.current_token.pos_start.copy();
+                        let expr;
+                        
+                        // is it "[:3]" ? (is it already a semicolon)
+                        if (this.current_token.type === TokenType.SEMICOLON) {
+                            expr = null;
+                        } else {
+                            try {
+                                expr = this.expr();
+                            } catch(e) {
+                                throw new InvalidSyntaxError(
+                                    pos_start, index_pos_start,
+                                    "Expected expression"
+                                );
+                            }
+                        }
+
+                        if (this.current_token.type === TokenType.SEMICOLON) {
+                            this.advance();
+                            
+                            let right_expr;
+                            if (this.current_token.type === TokenType.RSQUARE) {
+                                right_expr = null;
+                            } else {
+                                try {
+                                    right_expr = this.expr();
+                                } catch(e) {
+                                    throw new InvalidSyntaxError(
+                                        pos_start, index_pos_start,
+                                        "Expected expression or ']'"
+                                    );
+                                }
+                            }
+
+                            index_nodes.push(new ListBinarySelector(expr, right_expr, index_pos_start, this.current_token.pos_end));
+                        } else {
+                            index_nodes.push(expr);
+                        }
+                    }
+
+                    if (this.current_token.type === TokenType.RSQUARE) depth++;
+                    if (this.current_token.type === TokenType.EOF) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected ',', ':' or ']'"
+                        );
+                    }
+
+                    this.advance();
+                }
+
+                const accessor = new ListAccessNode(var_name_tok, depth, index_nodes);
+
+                if (this.current_token.type === TokenType.EQUALS) {
+                    this.advance();
+                    const value_node = this.expr();
+                    return new ListAssignmentNode(accessor, value_node);
+                } else if (is_pushing) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected '='"
+                    );
+                } else {
+                    return accessor;
+                }
             } else {
                 return new VarAccessNode(token);
             }
+        } else if (this.current_token.type === TokenType.LSQUARE) {
+            let list_expr = this.list_expr();
+            return list_expr;
+        } else if (this.current_token.matches(TokenType.KEYWORD, "if")) {
+            this.advance();
+            
         } else {
             this.advance();
-            throw new InvalidSyntaxError(pos_start, token.pos_end, "Unexpected node");
+            throw new InvalidSyntaxError(pos_start, this.current_token.pos_end, "Unexpected node");
         }
+    }
+
+    list_expr() {
+        let element_nodes = [];
+        let pos_start = this.current_token.pos_start.copy();
+        this.advance();
+
+        // if the list is empty ("[]")
+        if (this.current_token.type === TokenType.RSQUARE) {
+            this.advance();
+        } else {
+            // we have values in the list
+            // it's actually the same as getting arguments from the call method
+            element_nodes.push(this.expr());
+
+            while (this.current_token.type === TokenType.COMMA) {
+                this.advance();
+                element_nodes.push(this.expr());
+            }
+
+            if (this.current_token.type !== TokenType.RSQUARE) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected ',', or ']'"
+                );
+            }
+
+            this.advance();
+        }
+
+        return new ListNode(
+            element_nodes,
+            pos_start,
+            this.current_token.pos_end.copy()
+        );
     }
 }

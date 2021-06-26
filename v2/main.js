@@ -3,7 +3,7 @@ import { Lexer } from './lexer.js';
 import { Parser } from './parser.js';
 import { Interpreter } from './interpreter.js';
 import { CustomError } from './Exceptions.js';
-import global_symbol_table, { SymbolTable } from './symbol_table.js';
+import global_symbol_table from './symbol_table.js';
 import { Context } from './context.js';
 
 /**

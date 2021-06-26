@@ -67,3 +67,43 @@ export class NumberValue extends Value {
 NumberValue.none = new NumberValue(0);
 NumberValue.yes = new NumberValue(1);
 NumberValue.no = new NumberValue(0);
+
+export class ListValue extends Value {
+    /**
+     * @constructs ListValue
+     * @param {Array<Value>} elements The elements inside the list.
+     */
+    constructor(elements) {
+        super();
+        this.elements = elements;
+    }
+
+    toString() {
+        return `[${this.elements.join(', ')}]`;
+    }
+
+    /**
+     * @override
+     * @return {ListValue}
+     */
+    copy() {
+        let copy = new ListValue(this.elements);
+        copy.set_pos(this.pos_start, this.pos_end);
+        copy.set_context(this.context);
+        return copy;
+    }
+
+    /**
+     * Converts an array into a one dimensional array.
+     * @returns {Array}
+     */
+    merge_into_1d_arr(arr) {
+        return arr.reduce((acc, val) => acc.concat(val instanceof ListValue ? this.merge_into_1d_arr(val.elements) : (val.repr !== undefined ? val.repr() : val)), []);
+    }
+
+    repr() {
+        // we want a one dimensional array
+        let new_table = this.merge_into_1d_arr(this.elements);
+        return `${new_table.join(', ')}`;
+    }
+}

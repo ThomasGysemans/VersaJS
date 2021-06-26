@@ -22,7 +22,7 @@ describe('Lexer tests', () => {
     });
 
     it('should return empty list', () => {
-        const tokens = Array.from(new Lexer(" \t\n \r\n\n\t\t   ").generate_tokens());
+        const tokens = Array.from(new Lexer(" \t\t").generate_tokens());
         assert.strictEqual(tokens.length, 1); // EOF
     });
 
@@ -61,6 +61,18 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("10 ^ 2").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 10),
+            new Token(TokenType.POWER),
+            new Token(TokenType.NUMBER, 2)
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with power operations (list)', () => {
+        const tokens = Array.from(new Lexer("[2] ^ 2").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.LSQUARE),
+            new Token(TokenType.NUMBER, 2),
+            new Token(TokenType.RSQUARE),
             new Token(TokenType.POWER),
             new Token(TokenType.NUMBER, 2)
         ];
@@ -212,5 +224,71 @@ describe('Lexer tests', () => {
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens)
+    });
+
+    it('should work with newlines', () => {
+        const tokens = Array.from(new Lexer("var a = 1; var b = 2").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "var"),
+            new Token(TokenType.IDENTIFIER, "a"),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.NEWLINE),
+            new Token(TokenType.KEYWORD, "var"),
+            new Token(TokenType.IDENTIFIER, "b"),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.NUMBER, 2),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with a list', () => {
+        const tokens = Array.from(new Lexer("[1, 3]").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.LSQUARE),
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.COMMA),
+            new Token(TokenType.NUMBER, 3),
+            new Token(TokenType.RSQUARE),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with a list (get an element in it)', () => {
+        const tokens = Array.from(new Lexer("list[0]").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "list"),
+            new Token(TokenType.LSQUARE),
+            new Token(TokenType.NUMBER, 0),
+            new Token(TokenType.RSQUARE),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with a list (set an element in it)', () => {
+        const tokens = Array.from(new Lexer("list[] = 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "list"),
+            new Token(TokenType.LSQUARE),
+            new Token(TokenType.RSQUARE),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with a list (binary selector)', () => {
+        const tokens = Array.from(new Lexer("list[0:5] = 1").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "list"),
+            new Token(TokenType.LSQUARE),
+            new Token(TokenType.NUMBER, 0),
+            new Token(TokenType.SEMICOLON),
+            new Token(TokenType.NUMBER, 5),
+            new Token(TokenType.RSQUARE),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.NUMBER, 1),
+        ];
+        check_tokens(tokens, expected_tokens);
     });
 });

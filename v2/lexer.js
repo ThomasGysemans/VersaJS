@@ -3,7 +3,7 @@ import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
 import { ExpectedCharError, IllegalCharError } from './Exceptions.js';
 
-const WHITESPACE     = " \r\n\t";
+const WHITESPACE     = " \t";
 const DIGITS         = "0123456789_"; // we want to allow 100_000 === 100000
 const LETTERS        = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const LETTERS_DIGITS = LETTERS + DIGITS;
@@ -37,6 +37,13 @@ export class Lexer {
         while (this.current_char !== null) {
             if (is_in(this.current_char, WHITESPACE)) {
                 this.advance();
+            } else if (this.current_char === "\n" || this.current_char === "\r" || this.current_char === ";") {
+                let pos_start = this.pos.copy();
+                if (this.current_char === "\r") {
+                    this.advance(); // a newline can be sometimes : '\r\n'
+                }
+                this.advance();
+                yield new Token(TokenType.NEWLINE, null, pos_start);
             } else if (is_in(this.current_char, LETTERS + "_")) { // has to be before digits
                 yield this.make_identifier();
             } else if (this.current_char === "." || is_in(this.current_char, DIGITS)) {
@@ -75,6 +82,18 @@ export class Lexer {
                 yield this.make_greater_than_or_equal();
             } else if (this.current_char === "?") {
                 yield this.make_else_assign();
+            } else if (this.current_char === ":") {
+                this.advance();
+                yield new Token(TokenType.SEMICOLON, null, this.pos);
+            } else if (this.current_char === "[") {
+                this.advance();
+                yield new Token(TokenType.LSQUARE, null, this.pos);
+            } else if (this.current_char === "]") {
+                this.advance();
+                yield new Token(TokenType.RSQUARE, null, this.pos);
+            } else if (this.current_char === ",") {
+                this.advance();
+                yield new Token(TokenType.COMMA, null, this.pos);
             } else {
                 let char = this.current_char;
                 let pos_start = this.pos.copy();
