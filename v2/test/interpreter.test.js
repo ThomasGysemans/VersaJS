@@ -5,8 +5,6 @@ import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
 import { Context } from '../context.js'; // ok
 import global_symbol_table from '../symbol_table.js'; // ok
-import { Lexer } from '../lexer.js';
-import { Parser } from '../parser.js';
 
 const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
 context.symbol_table = global_symbol_table;

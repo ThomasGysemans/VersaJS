@@ -52,6 +52,10 @@ export class NumberValue extends Value {
         return `${this.value}`;
     }
 
+    is_true() {
+        return this.value === 1;
+    }
+
     /**
      * @override
      * @return {NumberValue}
@@ -82,6 +86,10 @@ export class ListValue extends Value {
         return `[${this.elements.join(', ')}]`;
     }
 
+    is_true() {
+        return this.elements.length > 0;
+    }
+
     /**
      * @override
      * @return {ListValue}
@@ -105,5 +113,44 @@ export class ListValue extends Value {
         // we want a one dimensional array
         let new_table = this.merge_into_1d_arr(this.elements);
         return `${new_table.join(', ')}`;
+    }
+}
+
+/**
+ * @classdesc A number in our program.
+ */
+export class StringValue extends Value {
+    /**
+     * @constructs StringValue
+     * @param {string} value The value.
+     */
+    constructor(value) {
+        super();
+        this.value = value;
+    }
+
+    toString() {
+        return `"${this.value}"`;
+    }
+
+    is_true() {
+        return this.value.length > 0;
+    }
+
+    // We don't want the quotes when we console.log a string
+    // So we need another function instead of toString()
+    repr() {
+        return `${this.value}`;
+    }
+
+    /**
+     * @override
+     * @return {StringValue}
+     */
+    copy() {
+        let copy = new StringValue(this.value);
+        copy.set_pos(this.pos_start, this.pos_end);
+        copy.set_context(this.context);
+        return copy;
     }
 }

@@ -1,8 +1,10 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector } from './nodes.js';
-import { ListValue, NumberValue } from './values.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode } from './nodes.js';
+import { ListValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
-import { RuntimeError } from './Exceptions.js';
+import { CustomError, RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
+import { Lexer } from './lexer.js';
+import { Parser } from './parser.js';
 
 class BinarySelectorValues {
     /**
@@ -111,6 +113,8 @@ export class Interpreter {
             return this.visit_ListAccessNode(node, context).value;
         } else if (node instanceof ListAssignmentNode) {
             return this.visit_ListAssignmentNode(node, context).value;
+        } else if (node instanceof StringNode) {
+            return this.visit_StringNode(node, context).value;
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -163,6 +167,26 @@ export class Interpreter {
             new_values.push(...left.elements, ...right.elements);
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new StringValue(left.value + right.value.toString()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new StringValue(left.value.toString() + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new StringValue(left.value + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof ListValue) {
+            return new RuntimeResult().success(
+                new StringValue(left.value + right.repr()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof ListValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new StringValue(left.repr() + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             throw new RuntimeError(
@@ -227,6 +251,14 @@ export class Interpreter {
             for (let i = 0; i < left.value; i++) new_values.push(...right.elements);
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new StringValue(left.value.repeat(right.value)).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new StringValue(right.value.repeat(left.value)).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             throw new RuntimeError(
@@ -498,27 +530,29 @@ export class Interpreter {
         let res = new RuntimeResult();
         let left = res.register(this.visit(node.node_a, context));
         if (res.should_return()) return res;
-        
-        if (left instanceof NumberValue) {
-            if (left.value !== NumberValue.none.value) {
-                let right = this.visit(node.node_b, context);
-                if (res.should_return()) return res;
 
-                return new RuntimeResult().success(
-                    new NumberValue(new Number(left.value && right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
-                );
-            } else {
-                return new RuntimeResult().success(
-                    new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
-                );
-            }
-        } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+        const truthly = () => {
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
+
+        const falsy = () => {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        }
+
+        if (left.is_true()) {
+            let right = res.register(this.visit(node.node_b, context));
+            if (res.should_return()) return res;
+
+            if (right.is_true()) {
+                return truthly();
+            }
+        }
+
+        return falsy();
     }
 
     /**
@@ -534,17 +568,9 @@ export class Interpreter {
         let right = res.register(this.visit(node.node_b, context));
         if (res.should_return()) return res;
 
-        if (left instanceof NumberValue && right instanceof NumberValue) {
-            return new RuntimeResult().success(
-                new NumberValue(new Number(left.value || right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
-            );
-        }
+        return new RuntimeResult().success(
+            new NumberValue(new Number(left.is_true() || right.is_true()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
     }
 
     /**
@@ -601,6 +627,18 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(is_equal ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof StringValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value.length === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(right.value.length === left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
@@ -638,6 +676,14 @@ export class Interpreter {
         } else if (left instanceof ListValue && right instanceof ListValue) {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.elements.length < right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value.length < right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(right.value.length < left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             throw new RuntimeError(
@@ -677,6 +723,14 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.elements.length > right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof StringValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value.length > right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(right.value.length > left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
@@ -714,6 +768,14 @@ export class Interpreter {
         } else if (left instanceof ListValue && right instanceof ListValue) {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.elements.length <= right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value.length <= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(right.value.length <= left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             throw new RuntimeError(
@@ -753,6 +815,14 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.elements.length >= right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof StringValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value.length >= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(right.value.length >= left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
@@ -791,6 +861,14 @@ export class Interpreter {
             let is_equal = array_equals(left.elements, right.elements);
             return new RuntimeResult().success(
                 new NumberValue(is_equal ? 0 : 1).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value.length !== right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(right.value.length !== left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             throw new RuntimeError(
@@ -1285,5 +1363,91 @@ export class Interpreter {
         context.symbol_table.set(var_name, value);
 
         return res.success(new_value);
+    }
+
+    /**
+     * Interprets a string.
+     * @param {StringNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_StringNode(node, context) {
+        /** @type {string} */
+        let interpreted_string = node.token.value;
+        let interpretations = node.interpretations;
+
+        if (interpretations) {
+            let previous_gap = 0;
+            
+            for (let i = 0; i < interpretations.length; i++) {
+                let pos_start = interpretations[i].pos_start;
+                let pos_end = interpretations[i].pos_end;
+                let filename = interpretations[i].filename;
+                let substring_start = interpretations[i].substring_start;
+                let substring_end = interpretations[i].substring_end;
+                let code = interpretations[i].code;
+
+                // Generate tokens
+                const lexer = new Lexer(code, filename, context);
+                let tokens;
+                try {
+                    tokens = lexer.generate_tokens();
+                } catch(e) {
+                    throw new RuntimeError(
+                        pos_start, pos_end,
+                        e instanceof CustomError ? e.details : "",
+                        context
+                    );
+                }
+
+                const parser = new Parser(tokens);
+                let tree;
+                try {
+                    tree = parser.parse();
+                } catch(e) {
+                    throw new RuntimeError(
+                        pos_start, pos_end,
+                        e instanceof CustomError ? e.details : "",
+                        context
+                    );
+                }
+
+                const interpreter = new Interpreter();
+                let result;
+
+                try {
+                    result = interpreter.visit(tree, context);
+                } catch(e) {
+                    throw new RuntimeError(
+                        pos_start, pos_end,
+                        e instanceof CustomError ? e.details : "",
+                        context
+                    );
+                }
+                
+                let new_value;
+                if (result.repr !== undefined) {
+                    new_value = result.repr();
+                } else {
+                    new_value = result.toString();
+                }
+
+                interpreted_string = interpreted_string.substring(0, substring_start) + new_value + interpreted_string.substring(substring_end);
+                
+                try {
+                    // We modify the string gradually, concatenation by concatenation.
+                    // This has the effect of changing the positions by a certain number.
+                    // The difference is equivalent to the length of the code minus the length of the replacing value.
+                    // However, we must save the previous gap each time.
+                    previous_gap = previous_gap + ((code.length + 2) - new_value.length);
+                    interpretations[i+1].substring_start = interpretations[i+1].substring_start - previous_gap;
+                    interpretations[i+1].substring_end = interpretations[i+1].substring_end - previous_gap;
+                } catch(e) { }
+            }
+        }
+
+        return new RuntimeResult().success(
+            new StringValue(interpreted_string ? interpreted_string : node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
+        );
     }
 }

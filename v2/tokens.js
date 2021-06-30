@@ -25,6 +25,7 @@ export class TokenType {
     static LSQUARE        = 'LSQUARE'
     static RSQUARE        = 'RSQUARE'
     static COMMA          = 'COMMA'
+    static STRING         = 'STRING'
     static EOF            = 'EOF'
 }
 
@@ -50,10 +51,12 @@ export class Token {
      * @param {any} value The value of the token.
      * @param {Position} pos_start The starting position of the token in the code.
      * @param {Position} pos_end The end position of the token in our code.
+     * @param {any} data Additionnal data (such as necessary interpretations for concatenations)
      */
-    constructor(type, value=null, pos_start=null, pos_end=null) {
+    constructor(type, value=null, pos_start=null, pos_end=null, data=null) {
         this.type = type;
         this.value = value;
+        this.data = data;
 
         if (pos_start) {
             this.pos_start = pos_start.copy();

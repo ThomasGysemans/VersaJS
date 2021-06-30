@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -26,6 +26,8 @@ export class Parser {
     backwards(steps=1) {
         this.idx -= steps;
         this.advancement_count -= steps;
+        if (this.idx < 0) this.idx = 0;
+        if (this.advancement_count < 0) this.advancement_count = 0;
         this.set_token();
     }
 
@@ -50,7 +52,7 @@ export class Parser {
             return null;
         }
 
-        let result = this.expr();
+        let result = this.statements();
 
         // not normal
         if (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
@@ -70,46 +72,55 @@ export class Parser {
     }
     
     statements() {
-        return this.statement();
-        // let statements = [];
-        // let pos_start = this.current_token.pos_start.copy();
+        let statements = [];
+        let pos_start = this.current_token.pos_start.copy();
 
-        // while (this.current_token.type === TokenType.NEWLINE) {
-        //     this.advance();
-        // }
+        while (this.current_token.type === TokenType.NEWLINE) {
+            this.advance();
+        }
 
-        // let statement = this.statement();
-        // statements.push(statement);
+        if (this.current_token.type === TokenType.EOF) {
+            throw new InvalidSyntaxError(
+                pos_start, this.current_token.pos_end,
+                "Unexpected end of file"
+            );
+        }
 
-        // let more_statements = true;
+        let statement = this.statement();
+        statements.push(statement);
 
-        // while (true) {
-        //     let newline_count = 0;
-        //     while (this.current_token.type === TokenType.NEWLINE) {
-        //         this.advance();
-        //         newline_count++;
-        //     }
+        let more_statements = true;
 
-        //     // there are no more lines
-        //     if (newline_count === 0) {
-        //         more_statements = false;
-        //     }
+        while (true) {
+            let newline_count = 0;
+            while (this.current_token.type === TokenType.NEWLINE) {
+                this.advance();
+                newline_count++;
+            }
 
-        //     if (!more_statements) break;
-        //     statement = this.statement();
-        //     if (!statement) {
-        //         more_statements = false;
-        //         continue;
-        //     }
+            if (this.current_token.type === TokenType.EOF) {
+                break;
+            }
 
-        //     statements.push(statement);
-        // }
+            // there are no more lines
+            if (newline_count === 0) more_statements = false;
+            if (!more_statements) break;
+            
+            statement = this.statement();
 
-        // return new ListNode(
-        //     statements,
-        //     pos_start,
-        //     this.current_token.pos_end.copy()
-        // );
+            if (!statement) {
+                more_statements = false;
+                continue;
+            }
+
+            statements.push(statement);
+        }
+
+        return new ListNode(
+            statements,
+            pos_start,
+            this.current_token.pos_end.copy()
+        );
     }
 
     statement() {
@@ -257,6 +268,9 @@ export class Parser {
         } else if (token.type === TokenType.NUMBER) {
             this.advance();
             return new NumberNode(token);
+        } else if (token.type === TokenType.STRING) {
+            this.advance();
+            return new StringNode(token);
         } else if (token.type === TokenType.PLUS) {
             this.advance();
             return new PlusNode(this.factor());

@@ -1,0 +1,3 @@
+var age = 10
+var test = "J'ai_{age + 1}_{age * 2}_{"AMAZING, {age} incroyable"}_"
+            0123456789

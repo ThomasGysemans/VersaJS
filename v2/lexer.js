@@ -1,12 +1,16 @@
 import KEYWORDS, { Token, TokenType } from './tokens.js';
 import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
-import { ExpectedCharError, IllegalCharError } from './Exceptions.js';
+import { ExpectedCharError, IllegalCharError, InvalidSyntaxError } from './Exceptions.js';
+import { Context } from './context.js';
 
-const WHITESPACE     = " \t";
-const DIGITS         = "0123456789_"; // we want to allow 100_000 === 100000
-const LETTERS        = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const LETTERS_DIGITS = LETTERS + DIGITS;
+const WHITESPACE        = " \t";
+const DIGITS            = "0123456789_"; // we want to allow 100_000 === 100000
+const LETTERS           = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const LETTERS_DIGITS    = LETTERS + DIGITS;
+const ESCAPE_CHARACTERS = new Map();
+ESCAPE_CHARACTERS.set('n', '\n');
+ESCAPE_CHARACTERS.set('t', '\t');
 
 /**
  * @classdesc Reads the code and creates the tokens.
@@ -16,9 +20,12 @@ export class Lexer {
      * @constructs Lexer
      * @param {string} text The source code.
      * @param {string} filename The filename.
+     * @param {Context} context The context (needed if there is "{var}" in a string) 
      */
-    constructor(text, filename="<stdin>") {
+    constructor(text, filename, context) {
         this.text = text[Symbol.iterator]();
+        this.filename = filename;
+        this.context = context;
         this.pos = new Position(-1, 0, -1, filename, text);
         this.advance();
     }
@@ -82,6 +89,12 @@ export class Lexer {
                 yield this.make_greater_than_or_equal();
             } else if (this.current_char === "?") {
                 yield this.make_else_assign();
+            } else if (this.current_char === "'") {
+                yield this.make_string();
+            } else if (this.current_char === '"') {
+                yield this.make_string();
+            } else if (this.current_char === '`') {
+                yield this.make_string();
             } else if (this.current_char === ":") {
                 this.advance();
                 yield new Token(TokenType.SEMICOLON, null, this.pos);
@@ -223,5 +236,69 @@ export class Lexer {
             pos_start, this.pos,
             "'=' after '!'"
         );
+    }
+
+    make_string() {
+        let string = "";
+        let pos_start = this.pos.copy();
+        let escape_character = false; // do we have to escape the following character?
+        let opening_quote = this.current_char; // ', " or `
+        let interpretations = [];
+        let char_counter = 0;
+        this.advance();
+
+        // if we have to escape a character,
+        // even if we have a '"',
+        // we don't stop the loop
+        while (this.current_char !== null && (this.current_char !== opening_quote || escape_character)) {
+            if (escape_character) {
+                string += ESCAPE_CHARACTERS.has(this.current_char) ? ESCAPE_CHARACTERS.get(this.current_char) : this.current_char;
+                escape_character = false;
+            } else {
+                if (this.current_char === '\\') {
+                    escape_character = true;
+                } else if (opening_quote === '"' && this.current_char === "{") {
+                    let pos_start = this.pos.copy();
+                    let code = "";
+                    let substring_start = char_counter;
+                    let substring_end = char_counter + 1;
+
+                    while (true) {
+                        this.advance();
+                        substring_end++;
+                        char_counter++;
+                        // @ts-ignore
+                        if (this.current_char === "}") break;
+                        if (this.current_char === "{") {
+                            let ps = this.pos.copy();
+                            this.advance();
+                            throw new InvalidSyntaxError(ps, this.pos, "Cannot use multidimensional concatenation.");
+                        }
+                        code += this.current_char;
+                    }
+
+                    if (code.trim()) {
+                        interpretations.push({
+                            pos_start: pos_start,
+                            pos_end: this.pos,
+                            filename: this.filename,
+                            substring_start: substring_start,
+                            substring_end: substring_end,
+                            code: code
+                        });
+                    }
+
+                    string += "{" + code + "}";
+                } else {
+                    string += this.current_char;
+                }
+            }
+            this.advance();
+            char_counter++;
+        }
+
+        // end of the string
+        this.advance();
+        return new Token(TokenType.STRING, string, pos_start, this.pos, interpretations);
     }
 }
