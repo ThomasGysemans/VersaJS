@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -412,6 +412,12 @@ export class Parser {
         } else if (this.current_token.matches(TokenType.KEYWORD, "if")) {
             let if_expr = this.if_expr();
             return if_expr;
+        } else if (this.current_token.matches(TokenType.KEYWORD, "for")) {
+            let for_expr = this.for_expr();
+            return for_expr;
+        } else if (this.current_token.matches(TokenType.KEYWORD, "while")) {
+            let while_expr = this.while_expr();
+            return while_expr;
         } else {
             this.advance();
             throw new InvalidSyntaxError(pos_start, this.current_token.pos_end, "Unexpected node");
@@ -600,5 +606,151 @@ export class Parser {
         }
 
         return else_case;
+    }
+
+    for_expr() {
+        this.advance();
+
+        // after the "for" keyword,
+        // we start with an identifier (i)
+
+        if (this.current_token.type !== TokenType.IDENTIFIER) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected identifier"
+            );
+        }
+
+        let var_name_token = this.current_token;
+        this.advance();
+
+        // the variable i needs to have a value,
+        // so there must be an equal token
+
+        let start_value = null;
+
+        if (this.current_token.type === TokenType.EQUALS) {
+            // after the equal token, we expect an expr
+            this.advance();
+            start_value = this.expr();
+        }
+
+        // after the expr, we expect a `to` keyword
+
+        if (!this.current_token.matches(TokenType.KEYWORD, "to")) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected 'to'"
+            );
+        }
+
+        this.advance();
+
+        // The `to` keyword indicated the end value
+
+        let end_value = this.expr();
+
+        // we could have a `step` keyword afterwards
+
+        let step_value = null;
+        if (this.current_token.matches(TokenType.KEYWORD, "step")) {
+            this.advance();
+            step_value = this.expr();
+        }
+
+        if (this.current_token.type !== TokenType.SEMICOLON) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected ':'"
+            );
+        }
+
+        this.advance();
+
+        if (this.current_token.type === TokenType.NEWLINE) {
+            this.advance();
+
+            let extended_body = this.statements();
+
+            if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected 'end'"
+                );
+            }
+
+            this.advance();
+
+            return new ForNode(
+                var_name_token,
+                start_value,
+                end_value,
+                step_value,
+                extended_body,
+                true // should return null
+            );
+        }
+
+        // now there is the body of the statement
+        // for an inline loop
+
+        let body = this.statement();
+
+        return new ForNode(
+            var_name_token,
+            start_value,
+            end_value,
+            step_value,
+            body,
+            false
+        );
+    }
+
+    while_expr() {
+        this.advance();
+
+        // after the `while` keyword, there must be an expression
+
+        let condition = this.expr();
+
+        // after the condition, we expect a ":"
+
+        if (this.current_token.type !== TokenType.SEMICOLON) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected ':'"
+            );
+        }
+
+        this.advance();
+
+        if (this.current_token.type === TokenType.NEWLINE) {
+            this.advance();
+
+            let extended_body = this.statements();
+
+            if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected 'end'"
+                );
+            }
+
+            this.advance();
+
+            return new WhileNode(
+                condition,
+                extended_body,
+                true // should return null? True
+            );
+        }
+
+        let body = this.statement();
+
+        return new WhileNode(
+            condition,
+            body,
+            false
+        );
     }
 }

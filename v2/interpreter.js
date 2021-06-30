@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode } from './nodes.js';
 import { ListValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { CustomError, RuntimeError } from './Exceptions.js';
@@ -117,6 +117,10 @@ export class Interpreter {
             return this.visit_StringNode(node, context).value;
         } else if (node instanceof IfNode) {
             return this.visit_IfNode(node, context).value;
+        } else if (node instanceof ForNode) {
+            return this.visit_ForNode(node, context).value;
+        } else if (node instanceof WhileNode) {
+            return this.visit_WhileNode(node, context).value;
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -1454,7 +1458,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an else assignment node.
+     * Interprets a condition.
      * @param {IfNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -1482,5 +1486,100 @@ export class Interpreter {
         }
 
         return res.success(NumberValue.none);
+    }
+
+    /**
+     * Interprets an else assignment node.
+     * @param {ForNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ForNode(node, context) {
+        let res = new RuntimeResult();
+        let elements = []; // we want a loop to return by default a ListValue.
+
+        let start_value = new NumberValue(0);
+        if (node.start_value_node) {
+            start_value = res.register(this.visit(node.start_value_node, context));
+            if (res.should_return()) return res;
+        }
+
+        let end_value = res.register(this.visit(node.end_value_node, context));
+        if (res.should_return()) return res;
+
+        // this will automatically decide between 1 or -1
+        // based on the values of the starting point and the end point.
+        // In other words, if start < end (from 0 to 10 for instance),
+        // then we want to increase the variable, otherwise we want to decrease it.
+        let step_value = new NumberValue(start_value.value < end_value.value ? 1 : -1);
+        // This default value is overwritten if a value is specified in the program.
+        if (node.step_value_node) {
+            step_value = res.register(this.visit(node.step_value_node, context));
+            if (res.should_return()) return res;
+        }
+
+        let condition = () => false;
+        let i = start_value.value;
+
+        if (step_value.value >= 0) {
+            condition = () => i < end_value.value;
+        } else {
+            condition = () => i > end_value.value;
+        }
+
+        while (condition()) {
+            context.symbol_table.set(node.var_name_tok.value, new NumberValue(i));
+            i += step_value.value;
+
+            let value = res.register(this.visit(node.body_node, context));
+            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) {
+                return res;
+            }
+
+            if (res.loop_should_continue) continue;
+            if (res.loop_should_break) break;
+
+            elements.push(value);
+        }
+
+        return res.success(
+            node.should_return_null
+                ? NumberValue.none
+                : new ListValue(elements).set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
+    }
+
+    /**
+     * Interprets an else assignment node.
+     * @param {WhileNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_WhileNode(node, context) {
+        let res = new RuntimeResult();
+        let elements = []; // we want a loop to return a custom list by default.
+
+        while (true) {
+            let condition = res.register(this.visit(node.condition_node, context));
+            if (res.should_return()) return res;
+
+            if (!condition.is_true()) break;
+
+            let value = res.register(this.visit(node.body_node, context));
+            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) {
+                return res;
+            }
+
+            if (res.loop_should_continue) continue;
+            if (res.loop_should_break) break;
+
+            elements.push(value);
+        }
+
+        return res.success(
+            node.should_return_null
+                ? NumberValue.none
+                : new ListValue(elements).set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
     }
 }

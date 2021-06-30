@@ -37,7 +37,11 @@ const KEYWORDS = [
     "if",
     "elif",
     "else",
-    "end"
+    "end",
+    "for",
+    "while",
+    "to",
+    "step",
 ];
 
 export default KEYWORDS;

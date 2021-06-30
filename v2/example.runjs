@@ -1,14 +1,2 @@
-var age = 17
-var string = ""
-
-if age > 18:
-    string = "majeur"
-elif age == 18:
-    string = "pile 18 !"
-elif age == 17:
-    string = "presque !"
-else:
-    string = "mineuuuur"
-end
-
-string
+var i = 0
+var test = while i < 10: i = i + 1;

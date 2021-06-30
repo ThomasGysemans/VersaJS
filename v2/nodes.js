@@ -590,3 +590,53 @@ export class IfNode extends CustomNode {
         return `IfNode(${this.cases.length} cases)`;
     }
 }
+
+export class ForNode extends CustomNode {
+    /**
+     * @constructs ForNode
+     * @param {Token} var_name_tok The name of the variable in the for statement (i).
+     * @param {CustomNode} start_value_node The starting value.
+     * @param {CustomNode} end_value_node The value it will go up to.
+     * @param {CustomNode} step_value_node The step between each iteration.
+     * @param {CustomNode} body_node What gets evaluated on every iteration.
+     * @param {boolean} should_return_null Should return null? False for inline loops.
+     */
+    constructor(var_name_tok, start_value_node, end_value_node, step_value_node, body_node, should_return_null) {
+        super();
+        this.var_name_tok = var_name_tok;
+        this.start_value_node = start_value_node;
+        this.end_value_node = end_value_node;
+        this.step_value_node = step_value_node;
+        this.body_node = body_node;
+        this.should_return_null = should_return_null;
+
+        this.pos_start = this.var_name_tok.pos_start;
+        this.pos_end = this.body_node.pos_end;
+    }
+
+    toString() {
+        return `ForNode`;
+    }
+}
+
+export class WhileNode extends CustomNode {
+    /**
+     * @constructs WhileNode
+     * @param {CustomNode} condition_node The condition needed to evaluate the body.
+     * @param {CustomNode} body_node What gets evaluated on every iteration.
+     * @param {boolean} should_return_null Should return null? False for inline loops.
+     */
+    constructor(condition_node, body_node, should_return_null) {
+        super();
+        this.condition_node = condition_node;
+        this.body_node = body_node;
+        this.should_return_null = should_return_null;
+        
+        this.pos_start = this.condition_node.pos_start;
+        this.pos_end = this.body_node.pos_end;
+    }
+
+    toString() {
+        return `WhileNode`;
+    }
+}
