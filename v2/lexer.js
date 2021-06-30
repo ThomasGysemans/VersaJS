@@ -272,7 +272,7 @@ export class Lexer {
                         if (this.current_char === "{") {
                             let ps = this.pos.copy();
                             this.advance();
-                            throw new InvalidSyntaxError(ps, this.pos, "Cannot use multidimensional concatenation.");
+                            throw new InvalidSyntaxError(ps, this.pos, "Cannot use multidimensional internal concatenation.");
                         }
                         code += this.current_char;
                     }

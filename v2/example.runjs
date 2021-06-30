@@ -1,3 +1,14 @@
-var age = 10
-var test = "J'ai_{age + 1}_{age * 2}_{"AMAZING, {age} incroyable"}_"
-            0123456789
+var age = 17
+var string = ""
+
+if age > 18:
+    string = "majeur"
+elif age == 18:
+    string = "pile 18 !"
+elif age == 17:
+    string = "presque !"
+else:
+    string = "mineuuuur"
+end
+
+string

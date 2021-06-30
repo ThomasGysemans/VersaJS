@@ -566,3 +566,27 @@ export class StringNode extends CustomNode {
         return `${this.token}`;
     }
 }
+
+export class IfNode extends CustomNode {
+    /**
+     * @constructs IfNode
+     * @param {Array} cases The cases [[condition, expr, should_return_null]].
+     * @param {{code: any, should_return_null: boolean}} else_case The else case.
+     */
+    constructor(cases, else_case) {
+        super();
+        this.cases = cases;
+        this.else_case = else_case;
+
+        this.pos_start = this.cases[0][0].pos_start;
+        if (this.else_case.code) {
+            this.pos_end = this.else_case.code.pos_end;
+        } else {
+            this.pos_end = this.cases[this.cases.length - 1][0].pos_end;
+        }
+    }
+
+    toString() {
+        return `IfNode(${this.cases.length} cases)`;
+    }
+}

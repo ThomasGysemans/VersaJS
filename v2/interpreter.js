@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode } from './nodes.js';
 import { ListValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { CustomError, RuntimeError } from './Exceptions.js';
@@ -115,6 +115,8 @@ export class Interpreter {
             return this.visit_ListAssignmentNode(node, context).value;
         } else if (node instanceof StringNode) {
             return this.visit_StringNode(node, context).value;
+        } else if (node instanceof IfNode) {
+            return this.visit_IfNode(node, context).value;
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -1449,5 +1451,36 @@ export class Interpreter {
         return new RuntimeResult().success(
             new StringValue(interpreted_string ? interpreted_string : node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
         );
+    }
+
+    /**
+     * Interprets an else assignment node.
+     * @param {IfNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_IfNode(node, context) {
+        let res = new RuntimeResult();
+
+        for (let [condition, expr, should_return_null] of node.cases) {
+            let condition_value = res.register(this.visit(condition, context));
+            if (res.should_return()) return res;
+
+            if (condition_value.is_true()) {
+                let expr_value = res.register(this.visit(expr, context));
+                if (res.should_return()) return res;
+                return res.success(should_return_null ? NumberValue.none : expr_value);
+            }
+        }
+
+        if (node.else_case.code) {
+            let code = node.else_case.code;
+            let should_return_null = node.else_case.should_return_null;
+            let else_value = res.register(this.visit(code, context));
+            if (res.should_return()) return res;
+            return res.success(should_return_null ? NumberValue.none : else_value);
+        }
+
+        return res.success(NumberValue.none);
     }
 }

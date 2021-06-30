@@ -36,7 +36,8 @@ const KEYWORDS = [
     "not",
     "if",
     "elif",
-    "else"
+    "else",
+    "end"
 ];
 
 export default KEYWORDS;

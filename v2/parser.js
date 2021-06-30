@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -16,7 +16,17 @@ export class Parser {
         this.tokens = Array.from(tokens);
         this.idx = -1;
         this.advancement_count = 0;
+        this.backup_index = 0;
         this.advance();
+    }
+
+    backup() {
+        this.backup_index = this.idx;
+    }
+
+    rescue() {
+        this.idx = this.backup_index;
+        this.backup_index = 0;
     }
 
     reset_advancement_count() {
@@ -98,22 +108,31 @@ export class Parser {
                 newline_count++;
             }
 
-            if (this.current_token.type === TokenType.EOF) {
-                break;
-            }
+            if (this.current_token.type === TokenType.EOF) break;
 
             // there are no more lines
             if (newline_count === 0) more_statements = false;
             if (!more_statements) break;
             
-            statement = this.statement();
-
-            if (!statement) {
+            if (this.current_token.matches(TokenType.KEYWORD, "elif")) {
                 more_statements = false;
                 continue;
-            }
+            } else if (this.current_token.matches(TokenType.KEYWORD, "else")) {
+                more_statements = false;
+                continue;
+            } else if (this.current_token.matches(TokenType.KEYWORD, "end")) {
+                more_statements = false;
+                continue;
+            } else {
+                statement = this.statement();
 
-            statements.push(statement);
+                if (!statement) {
+                    more_statements = false;
+                    continue;
+                }
+
+                statements.push(statement);
+            }
         }
 
         return new ListNode(
@@ -391,8 +410,8 @@ export class Parser {
             let list_expr = this.list_expr();
             return list_expr;
         } else if (this.current_token.matches(TokenType.KEYWORD, "if")) {
-            this.advance();
-            
+            let if_expr = this.if_expr();
+            return if_expr;
         } else {
             this.advance();
             throw new InvalidSyntaxError(pos_start, this.current_token.pos_end, "Unexpected node");
@@ -432,5 +451,154 @@ export class Parser {
             pos_start,
             this.current_token.pos_end.copy()
         );
+    }
+
+    if_expr() {
+        const all_cases = this.if_expr_cases("if");
+        const cases = all_cases.cases;
+        const else_case = all_cases.else_case;
+        return new IfNode(cases, else_case);
+    }
+
+    /**
+     * Gets the cases of a condition, including: "if", "elif" and "else"
+     * @param {string} case_keyword The keyword for a case ("if" or "elif").
+     * @returns {{cases, else_case: {code, should_return_null: boolean}}}
+     */
+    if_expr_cases(case_keyword) {
+        let cases = [];
+        let else_case = { code: null, should_return_null: false };
+
+        // we must have a "if" (or "elif")
+
+        if (!this.current_token.matches(TokenType.KEYWORD, case_keyword)) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                `Expected '${case_keyword}'`
+            );
+        }
+
+        // we continue
+
+        this.advance();
+        let condition = this.expr();
+
+        // we must have a semicolon
+
+        if (this.current_token.type !== TokenType.SEMICOLON) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected ':'"
+            );
+        }
+
+        this.advance();
+
+        if (this.current_token.type === TokenType.NEWLINE) {
+            this.advance();
+
+            let statements = this.statements();
+
+            // true = should return null?
+            // before, we returned the evaluated expr
+            // now if we are on several lines, we don't want to return anything
+            cases.push([condition, statements, true]);
+
+            if (this.current_token.matches(TokenType.KEYWORD, "end")) {
+                this.advance();
+            } else {
+                // there might be elifs
+                const all_cases = this.if_expr_elif_or_else();
+                let new_cases = all_cases.cases;
+                else_case = all_cases.else_case;
+
+                if (new_cases.length > 0) {
+                    cases = [...cases, ...new_cases];
+                }
+            }
+        } else {
+            // inline condition
+            let statement = this.statement();
+            cases.push([condition, statement, false]); // we want the return value of a if statement (that's why false)
+
+            const all_cases = this.if_expr_elif_or_else();
+            let new_cases = all_cases.cases;
+            else_case = all_cases.else_case;
+
+            if (new_cases.length > 0) {
+                cases = [...cases, ...new_cases];
+            }
+        }
+
+        return { cases, else_case };
+    }
+
+    /**
+     * Checks if there is `elif` cases or an `else` case
+     * @returns {{cases, else_case: {code, should_return_null: boolean}}}
+     */
+    if_expr_elif_or_else() {
+        let cases = [];
+        let else_case = { code: null, should_return_null: false };
+
+        if (this.current_token.matches(TokenType.KEYWORD, "elif")) {
+            const all_cases = this.if_expr_elif();
+            cases = all_cases.cases;
+            else_case = all_cases.else_case;
+        } else {
+            else_case = this.if_expr_else();
+        }
+
+        return { cases, else_case };
+    }
+
+    /**
+     * Checks if there is an `elif` case.
+     * @returns {{cases, else_case: {code, should_return_null: boolean}}}
+     */
+    if_expr_elif() {
+        return this.if_expr_cases("elif"); // same as "if"
+    }
+
+    /**
+     * Checks if there is an `else` case.
+     * @returns {{code, should_return_null: boolean}}
+     */
+    if_expr_else() {
+        let else_case = { code: null, should_return_null: false };
+        
+        if (this.current_token.matches(TokenType.KEYWORD, "else")) {
+            this.advance();
+
+            if (this.current_token.type === TokenType.SEMICOLON) {
+                this.advance();
+            } else {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected ':'"
+                );
+            }
+
+            if (this.current_token.type === TokenType.NEWLINE) {
+                this.advance();
+                
+                let statements = this.statements();
+                else_case = { code: statements, should_return_null: true };
+
+                if (this.current_token.matches(TokenType.KEYWORD, "end")) {
+                    this.advance();
+                } else {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected 'end'"
+                    );
+                }
+            } else {
+                let statement = this.statement();
+                else_case = { code: statement, should_return_null: false };
+            }
+        }
+
+        return else_case;
     }
 }

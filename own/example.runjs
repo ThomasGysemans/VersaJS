@@ -1,1 +1,12 @@
-VAR age = 17; VAR str = "J'ai {age} ans"; log(str)
+VAR age = 18
+VAR string = ""
+
+IF age > 18 THEN
+    VAR string = "majeur"
+ELIF age == 18 THEN
+    VAR string = "pile 18 !"
+ELSE
+    VAR string = "mineuuuur"
+END
+
+log(string)
