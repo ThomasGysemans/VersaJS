@@ -73,6 +73,43 @@ export class SymbolTable {
     remove(name) {
         this.symbols.delete(name);
     }
+
+    getHighestParentContext() {
+        let parent = this.parent;
+        if (parent) {
+            while (true) {
+                let next_parent = parent.parent;
+                
+                if (next_parent) {
+                    parent = parent.parent;
+                } else {
+                    break;
+                }
+            }
+            return parent;
+        } else {
+            return this;
+        }
+    }
+
+    /**
+     * Checks if a constant exists.
+     * @param {string} name The name.
+     */
+    doesConstantExist(name) {
+        let table = this.getHighestParentContext();
+        return table.symbols.has(name);
+    }
+
+    /**
+     * Creates a constant.
+     * @param {string} name The name of the constant to create.
+     * @param {any} value The value of that constant.
+     */
+    define_constant(name, value) {
+        let table = this.getHighestParentContext();
+        table.symbols.set(name, value);
+    }
 }
 
 const global_symbol_table = new SymbolTable();

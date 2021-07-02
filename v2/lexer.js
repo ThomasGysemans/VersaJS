@@ -312,10 +312,8 @@ export class Lexer {
 
     skip_comment() {
         this.advance();
-        while (this.current_char !== "\n") {
+        while (this.current_char !== "\n" && this.current_char !== null) {
             this.advance();
         }
-        // console.log(`this.current_char = '${this.current_char}'`);
-        // this.advance();
     }
 }

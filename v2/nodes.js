@@ -758,3 +758,25 @@ export class BreakNode extends CustomNode {
         this.pos_end = pos_end;
     }
 }
+
+/**
+ * @classdesc Creates a constant.
+ */
+export class DefineNode extends CustomNode {
+    /**
+     * @constructs DefineNode
+     * @param {Token} var_name_tok The name of the variable.
+     * @param {CustomNode} value_node The value of the variable. It might be an ElseAssignmentNode.
+     */
+    constructor(var_name_tok, value_node) {
+        super();
+        this.var_name_tok = var_name_tok;
+        this.value_node = value_node;
+        this.pos_start = this.var_name_tok.pos_start;
+        this.pos_end = this.value_node.pos_end;
+    }
+
+    toString() {
+        return `(define ${this.var_name_tok.value} = ${this.value_node})`;
+    }
+}

@@ -1,11 +1,12 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode } from './nodes.js';
 import { BaseFunction, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { CustomError, RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
 import { Lexer } from './lexer.js';
 import { Parser } from './parser.js';
-import { SymbolTable } from './symbol_table.js';
+import { CONSTANTS, SymbolTable } from './symbol_table.js';
+import { is_in } from './miscellaneous.js';
 
 class BinarySelectorValues {
     /**
@@ -139,6 +140,8 @@ export class Interpreter {
             return this.visit_ContinueNode(node, context);
         } else if (node instanceof BreakNode) {
             return this.visit_BreakNode(node, context);
+        } else if (node instanceof DefineNode) {
+            return this.visit_DefineNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -497,6 +500,32 @@ export class Interpreter {
     }
 
     /**
+     * Interprets a variable declaration.
+     * @param {DefineNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_DefineNode(node, context) {
+        let res = new RuntimeResult();
+        let var_name = node.var_name_tok.value;
+        let value = res.register(this.visit(node.value_node, context));
+        if (res.should_return()) return res;
+        
+        if (context.symbol_table.doesConstantExist(var_name)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Constant "${var_name}" already exists`,
+                context
+            );
+        }
+
+        context.symbol_table.define_constant(var_name, value);
+        CONSTANTS[var_name] = value; // so that we cannot modify it later
+
+        return new RuntimeResult().success(value);
+    }
+
+    /**
      * Interprets a variable call.
      * @param {VarAccessNode} node The node.
      * @param {Context} context The context to use.
@@ -530,6 +559,14 @@ export class Interpreter {
         let var_name = node.var_name_tok.value;
         let value = res.register(this.visit(node.value_node, context));
         if (res.should_return()) return res;
+
+        if (is_in(var_name, Object.keys(CONSTANTS))) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "You cannot change the value of a constant.",
+                context
+            );
+        }
         
         var variable = context.symbol_table.get(var_name);
         if (variable === null || variable === undefined) {
@@ -1609,7 +1646,7 @@ export class Interpreter {
         while (true) {
             let condition = res.register(this.visit(node.condition_node, context));
             if (res.should_return()) return res;
-            
+
             if (!condition.is_true()) break;
 
             const exec_ctx = generate_new_context(context);

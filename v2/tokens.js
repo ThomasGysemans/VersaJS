@@ -47,7 +47,8 @@ const KEYWORDS = [
     "func",
     "return",
     "continue",
-    "break"
+    "break",
+    "define"
 ];
 
 export default KEYWORDS;

@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -169,7 +169,8 @@ export class Parser {
     }
 
     expr() {
-        if (this.current_token.matches(TokenType.KEYWORD, "var")) {
+        if (this.current_token.matches(TokenType.KEYWORD, "var") || this.current_token.matches(TokenType.KEYWORD, "define")) {
+            let is_variable = this.current_token.matches(TokenType.KEYWORD, "var");
             let pos_start = this.current_token.pos_start;
             this.advance();
             
@@ -193,7 +194,11 @@ export class Parser {
             this.advance();
             const value_node = this.expr();
 
-            return new VarAssignNode(var_name_tok, value_node);
+            if (is_variable) {
+                return new VarAssignNode(var_name_tok, value_node);
+            } else {
+                return new DefineNode(var_name_tok, value_node);
+            }
         }
 
         let result = this.comp_expr();
@@ -475,13 +480,6 @@ export class Parser {
             const var_name_tok = token;
             this.advance();
             if (this.current_token.type === TokenType.EQUALS) {
-                if (is_in(var_name_tok.value, Object.keys(CONSTANTS))) {
-                    throw new InvalidSyntaxError(
-                        pos_start, this.current_token.pos_end,
-                        "Invalid variable name for assigment."
-                    );
-                }
-
                 this.advance();
                 const value_node = this.expr();
                 return new VarModifyNode(var_name_tok, value_node);

@@ -19,8 +19,7 @@ export const run = (text, filename) => {
         // However, we want the same context everywhere
         const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
         context.symbol_table = global_symbol_table;
-
-        // console.log(Array.from(tokens).map((v) => v.toString()));
+        
         const lexer = new Lexer(text, filename);
         const tokens = lexer.generate_tokens();
 

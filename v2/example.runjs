@@ -1,6 +1,8 @@
 # ceci est un commentaire
 # sur plusieurs lignes
 
+define __VERSION__ = 0
+
 # just divide two numbers
 func divide(a, b):
     if b <= 0:
