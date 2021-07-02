@@ -2,7 +2,6 @@ import KEYWORDS, { Token, TokenType } from './tokens.js';
 import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
 import { ExpectedCharError, IllegalCharError, InvalidSyntaxError } from './Exceptions.js';
-import { Context } from './context.js';
 
 const WHITESPACE        = " \t";
 const DIGITS            = "0123456789_"; // we want to allow 100_000 === 100000
@@ -20,12 +19,10 @@ export class Lexer {
      * @constructs Lexer
      * @param {string} text The source code.
      * @param {string} filename The filename.
-     * @param {Context} context The context (needed if there is "{var}" in a string) 
      */
-    constructor(text, filename, context) {
+    constructor(text, filename="<stdin>") {
         this.text = text[Symbol.iterator]();
         this.filename = filename;
-        this.context = context;
         this.pos = new Position(-1, 0, -1, filename, text);
         this.advance();
     }
@@ -59,8 +56,7 @@ export class Lexer {
                 this.advance();
                 yield new Token(TokenType.PLUS, null, this.pos);
             } else if (this.current_char === "-") {
-                this.advance();
-                yield new Token(TokenType.MINUS, null, this.pos);
+                yield this.make_minus_or_arrow();
             } else if (this.current_char === "*") {
                 this.advance();
                 yield new Token(TokenType.MULTIPLY, null, this.pos);
@@ -88,7 +84,7 @@ export class Lexer {
             } else if (this.current_char === ">") {
                 yield this.make_greater_than_or_equal();
             } else if (this.current_char === "?") {
-                yield this.make_else_assign();
+                yield this.make_qmark_or_else_assign();
             } else if (this.current_char === "'") {
                 yield this.make_string();
             } else if (this.current_char === '"') {
@@ -221,21 +217,18 @@ export class Lexer {
         return new Token(tok_type, null, pos_start, this.pos);
     }
 
-    make_else_assign() {
+    make_qmark_or_else_assign() {
         let pos_start = this.pos.copy();
+        let tok_type = TokenType.QMARK;
         this.advance();
 
         // we want "??"
         if (this.current_char === "?") {
             this.advance();
-            return new Token(TokenType.ELSE_ASSIGN, null, pos_start, this.pos);
+            tok_type = TokenType.ELSE_ASSIGN;
         }
 
-        this.advance();
-        throw new ExpectedCharError(
-            pos_start, this.pos,
-            "'=' after '!'"
-        );
+        return new Token(tok_type, null, pos_start, this.pos);
     }
 
     make_string() {
@@ -300,5 +293,18 @@ export class Lexer {
         // end of the string
         this.advance();
         return new Token(TokenType.STRING, string, pos_start, this.pos, interpretations);
+    }
+
+    make_minus_or_arrow() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.MINUS;
+        this.advance();
+
+        if (this.current_char === ">") {
+            this.advance();
+            tok_type = TokenType.ARROW;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
     }
 }

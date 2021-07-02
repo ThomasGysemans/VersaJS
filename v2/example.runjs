@@ -1,2 +1,49 @@
-var i = 0
-var test = while i < 10: i = i + 1;
+func divide(a, b):
+    if b <= 0:
+        log("WOW, tu essaies de diviser {a} par 0, t'es pas bien ti")
+        return 0
+    end
+
+    return a / b
+end
+
+func average_grade(notes):
+    var somme = 0
+    var length = len(notes)
+
+    if length == 0:
+        log("WOW, t'as aucune note")
+        return 0
+    end
+
+    for i to length:
+        var note = notes[i]
+        somme = somme + note
+    end
+
+    return somme / length
+end
+
+func enumarate(list):
+    for i to len(list):
+        if list[i] == 0:
+            break
+            log("WOWOWOWO C PAS NORMAL CA")
+        end
+
+        if list[i] == 4:
+            continue
+        end
+
+        log(list[i])
+    end
+
+    return "alors?"
+end
+
+func test_with_lists():
+    return for i to 10: i
+end
+
+var notes = [10, 11, 12]
+var moyenne = average_grade(notes)

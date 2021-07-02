@@ -470,21 +470,21 @@ export class ListNode extends CustomNode {
 export class ListAccessNode extends CustomNode {
     /**
      * @constructs ListAccessNode
-     * @param {Token} var_name_tok The token that represents a variable.
+     * @param {CustomNode} node_to_access The token that represents a variable.
      * @param {number} depth The depth of the array.
      * @param {Array<CustomNode>} list_nodes The expressions between the brackets.
      */
-    constructor(var_name_tok, depth, list_nodes) {
+    constructor(node_to_access, depth, list_nodes) {
         super();
-        this.var_name_tok = var_name_tok;
+        this.node_to_access = node_to_access;
         this.depth = depth;
         this.list_nodes = list_nodes;
-        this.pos_start = var_name_tok.pos_start;
-        this.pos_end = var_name_tok.pos_end;
+        this.pos_start = node_to_access.pos_start;
+        this.pos_end = node_to_access.pos_end;
     }
 
     toString() {
-        return `(${this.var_name_tok.value}[...])`;
+        return `(${this.node_to_access}[expr])`;
     }
 }
 
@@ -503,25 +503,25 @@ export class ListAssignmentNode extends CustomNode {
     }
 
     toString() {
-        return `(${this.accessor.var_name_tok.value}[...] = ${this.new_value_node})`;
+        return `(${this.accessor.node_to_access}[...] = ${this.new_value_node})`;
     }
 }
 
 export class ListPushBracketsNode extends CustomNode {
     /**
      * @constructs ListPushBracketsNode
-     * @param {Token} var_name_tok The access node of the list.
+     * @param {Position} pos_start The starting position
+     * @param {Position} pos_end The end position
      */
-    constructor(var_name_tok) {
+    constructor(pos_start, pos_end) {
         super();
-        this.var_name_tok = var_name_tok;
         this.value = 0;
-        this.pos_start = var_name_tok.pos_start;
-        this.pos_end = var_name_tok.pos_end;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
     }
 
     toString() {
-        return `(${this.var_name_tok.value}[])`;
+        return `(list[])`;
     }
 }
 
@@ -638,5 +638,123 @@ export class WhileNode extends CustomNode {
 
     toString() {
         return `WhileNode`;
+    }
+}
+
+/**
+ * @classdesc Describes the declaration of a function.
+ */
+export class FuncDefNode extends CustomNode {
+    /**
+     * @constructs FuncDefNode
+     * @param {Token|null} var_name_tok The identifier that corresponds to the name of the function. Might be null for anonymous functions.
+     * @param {Array<Token>} arg_name_toks The arguments.
+     * @param {Array<Token>} mandatory_arg_name_toks The mandatory arguments.
+     * @param {Array<Token>} optional_arg_name_toks The optional arguments.
+     * @param {Array<CustomNode>} default_values_nodes The values of the optional arguments.
+     * @param {CustomNode} body_node The body of the function.
+     * @param {boolean} should_auto_return Should auto return? True if the function is an arrow function.
+     */
+    constructor(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node, should_auto_return) {
+        super();
+        this.var_name_tok = var_name_tok;
+        this.arg_name_toks = arg_name_toks;
+        this.mandatory_arg_name_toks = mandatory_arg_name_toks;
+        this.optional_arg_name_toks = optional_arg_name_toks;
+        this.default_values_nodes = default_values_nodes;
+        this.body_node = body_node;
+        this.should_auto_return = should_auto_return;
+
+        if (this.var_name_tok) {
+            this.pos_start = this.var_name_tok.pos_start;
+        } else if (this.arg_name_toks.length > 0) {
+            this.pos_start = this.arg_name_toks[0].pos_start;
+        } else {
+            this.pos_start = this.body_node.pos_start;
+        }
+
+        this.pos_end = this.body_node.pos_end;
+    }
+
+    toString() {
+        return `func ${this.var_name_tok.value}(${this.arg_name_toks.join(', ')})`;
+    }
+}
+
+/**
+ * @classdesc Describes the call to a function.
+ */
+export class CallNode extends CustomNode {
+    /**
+     * @constructs
+     * @param {CustomNode} node_to_call The identifier that corresponds to the name of the function to be called.
+     * @param {Array<CustomNode>} arg_nodes The list of arguments.
+     */
+    constructor(node_to_call, arg_nodes) {
+        super();
+        this.node_to_call = node_to_call;
+        this.arg_nodes = arg_nodes;
+
+        this.pos_start = this.node_to_call.pos_start;
+
+        if (this.arg_nodes.length > 0) {
+            this.pos_end = this.arg_nodes[this.arg_nodes.length - 1].pos_end;
+        } else {
+            this.pos_end = this.node_to_call.pos_end;
+        }
+    }
+
+    toString() {
+        return `call ${this.node_to_call}(${this.arg_nodes.length} args)`;
+    }
+}
+
+/**
+ * @classdesc A return keyword.
+ */
+export class ReturnNode extends CustomNode {
+    /**
+     * @constructs ReturnNode
+     * @param {CustomNode|null} node_to_return The value that we must return.
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(node_to_return, pos_start, pos_end) {
+        super();
+        this.node_to_return = node_to_return;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+}
+
+/**
+ * @classdesc A return keyword.
+ */
+export class ContinueNode extends CustomNode {
+    /**
+     * @constructs ContinueNode
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(pos_start, pos_end) {
+        super();
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+}
+
+/**
+ * @classdesc A return keyword.
+ */
+export class BreakNode extends CustomNode {
+    /**
+     * @constructs BreakNode
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(pos_start, pos_end) {
+        super();
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
     }
 }

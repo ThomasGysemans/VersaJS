@@ -291,4 +291,26 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with a function', () => {
+        const tokens = Array.from(new Lexer("func test(a, b?, c?=1) -> a").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "func"),
+            new Token(TokenType.IDENTIFIER, "test"),
+            new Token(TokenType.LPAREN),
+            new Token(TokenType.IDENTIFIER, "a"),
+            new Token(TokenType.COMMA),
+            new Token(TokenType.IDENTIFIER, "b"),
+            new Token(TokenType.QMARK),
+            new Token(TokenType.COMMA),
+            new Token(TokenType.IDENTIFIER, "c"),
+            new Token(TokenType.QMARK),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.NUMBER, 1),
+            new Token(TokenType.RPAREN),
+            new Token(TokenType.ARROW),
+            new Token(TokenType.IDENTIFIER, "a"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

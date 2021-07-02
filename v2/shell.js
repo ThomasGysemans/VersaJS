@@ -17,9 +17,20 @@ while (true) {
             break;
         }
     } else {
-        // console.log(Array.from(tokens).map((v) => v.toString()));
         if (text.trim()) {
-            run(text, "<stdin>");
+            const result = run(text, "<stdin>");
+            if (result) {
+                if (result.value.elements.length === 1) {
+                    let first_element = result.value.elements[0];
+                    if (first_element.repr !== undefined) {
+                        console.log(first_element.repr());
+                    } else {
+                        console.log(first_element.toString());
+                    }
+                } else {
+                    console.log(result.value.toString());
+                }
+            }
         } else {
             continue;
         }

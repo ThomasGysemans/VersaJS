@@ -26,6 +26,8 @@ export class TokenType {
     static RSQUARE        = 'RSQUARE'
     static COMMA          = 'COMMA'
     static STRING         = 'STRING'
+    static ARROW          = 'ARROW'
+    static QMARK          = 'QUESTION_MARK'
     static EOF            = 'EOF'
 }
 
@@ -42,6 +44,10 @@ const KEYWORDS = [
     "while",
     "to",
     "step",
+    "func",
+    "return",
+    "continue",
+    "break"
 ];
 
 export default KEYWORDS;

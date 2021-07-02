@@ -21,13 +21,14 @@ export class RuntimeResult {
 
     /**
      * Registers an action during runtime and checks if an error has been thrown.
+     * @param {RuntimeResult} res
      */
     register(res) {
         this.error = res.error;
         this.func_return_value = res.func_return_value;
         this.loop_should_continue = res.loop_should_continue;
         this.loop_should_break = res.loop_should_break;
-        return res;
+        return res.value;
     }
 
     /**
@@ -92,5 +93,9 @@ export class RuntimeResult {
                 || this.func_return_value
                 || this.loop_should_continue
                 || this.loop_should_break
+    }
+
+    toString() {
+        return `RuntimeResult(value = ${this.value})`;
     }
 }

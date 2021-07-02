@@ -20,7 +20,8 @@ export const run = (text, filename) => {
         const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
         context.symbol_table = global_symbol_table;
 
-        const lexer = new Lexer(text, filename, context);
+        // console.log(Array.from(tokens).map((v) => v.toString()));
+        const lexer = new Lexer(text, filename);
         const tokens = lexer.generate_tokens();
 
         const parser = new Parser(tokens);
@@ -33,11 +34,7 @@ export const run = (text, filename) => {
         const interpreter = new Interpreter();
         const result = interpreter.visit(tree, context);
 
-        if (result.elements.length === 1) {
-            console.log(result.elements[0].toString());
-        } else {
-            console.log(result.toString());
-        }
+        return result;
     } catch(e) {
         if (e instanceof CustomError) {
             console.error(e.toString());

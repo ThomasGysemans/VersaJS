@@ -1,10 +1,11 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode } from './nodes.js';
-import { ListValue, NumberValue, StringValue } from './values.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode } from './nodes.js';
+import { BaseFunction, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { CustomError, RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
 import { Lexer } from './lexer.js';
 import { Parser } from './parser.js';
+import { SymbolTable } from './symbol_table.js';
 
 class BinarySelectorValues {
     /**
@@ -45,6 +46,12 @@ function array_equals(a, b) {
                 if (a_element.value !== b_element.value) {
                     return false;
                 }
+            } else if (a_element instanceof StringValue) {
+                if (a_element.value !== b_element.value) {
+                    return false;
+                }
+            } else if (a_element instanceof BaseFunction) {
+                return false; // two functions cannot be equal
             }
             // todo: change here if there are new types
         }
@@ -61,66 +68,77 @@ export class Interpreter {
      * @constructs Interpreter
      * @param {CustomNode} node The node to be interpreted.
      * @param {Context} context The root context.
+     * @return {RuntimeResult}
      */
     visit(node, context) {
         if (node instanceof NumberNode) {
-            return this.visit_NumberNode(node, context).value;
+            return this.visit_NumberNode(node, context);
         } else if (node instanceof AddNode) {
-            return this.visit_AddNode(node, context).value;
+            return this.visit_AddNode(node, context);
         } else if (node instanceof SubtractNode) {
-            return this.visit_SubtractNode(node, context).value;
+            return this.visit_SubtractNode(node, context);
         } else if (node instanceof MultiplyNode) {
-            return this.visit_MultiplyNode(node, context).value;
+            return this.visit_MultiplyNode(node, context);
         } else if (node instanceof DivideNode) {
-            return this.visit_DivideNode(node, context).value;
+            return this.visit_DivideNode(node, context);
         } else if (node instanceof PlusNode) {
-            return this.visit_PlusNode(node, context).value;
+            return this.visit_PlusNode(node, context);
         } else if (node instanceof MinusNode) {
-            return this.visit_MinusNode(node, context).value;
+            return this.visit_MinusNode(node, context);
         } else if (node instanceof PowerNode) {
-            return this.visit_PowerNode(node, context).value;
+            return this.visit_PowerNode(node, context);
         } else if (node instanceof ModuloNode) {
-            return this.visit_ModuloNode(node, context).value;
+            return this.visit_ModuloNode(node, context);
         } else if (node instanceof VarAssignNode) {
-            return this.visit_VarAssignNode(node, context).value;
+            return this.visit_VarAssignNode(node, context);
         } else if (node instanceof VarAccessNode) {
-            return this.visit_VarAccessNode(node, context).value;
+            return this.visit_VarAccessNode(node, context);
         } else if (node instanceof VarModifyNode) {
-            return this.visit_VarModifyNode(node, context).value;
+            return this.visit_VarModifyNode(node, context);
         } else if (node instanceof AndNode) {
-            return this.visit_AndNode(node, context).value;
+            return this.visit_AndNode(node, context);
         } else if (node instanceof OrNode) {
-            return this.visit_OrNode(node, context).value;
+            return this.visit_OrNode(node, context);
         } else if (node instanceof NotNode) {
-            return this.visit_NotNode(node, context).value;
+            return this.visit_NotNode(node, context);
         } else if (node instanceof EqualsNode) {
-            return this.visit_EqualsNode(node, context).value;
+            return this.visit_EqualsNode(node, context);
         } else if (node instanceof LessThanNode) {
-            return this.visit_LessThanNode(node, context).value;
+            return this.visit_LessThanNode(node, context);
         } else if (node instanceof GreaterThanNode) {
-            return this.visit_GreaterThanNode(node, context).value;
+            return this.visit_GreaterThanNode(node, context);
         } else if (node instanceof LessThanOrEqualNode) {
-            return this.visit_LessThanOrEqualNode(node, context).value;
+            return this.visit_LessThanOrEqualNode(node, context);
         } else if (node instanceof GreaterThanOrEqualNode) {
-            return this.visit_GreaterThanOrEqualNode(node, context).value;
+            return this.visit_GreaterThanOrEqualNode(node, context);
         } else if (node instanceof NotEqualsNode) {
-            return this.visit_NotEqualsNode(node, context).value;
+            return this.visit_NotEqualsNode(node, context);
         } else if (node instanceof ElseAssignmentNode) {
-            return this.visit_ElseAssignmentNode(node, context).value;
+            return this.visit_ElseAssignmentNode(node, context);
         } else if (node instanceof ListNode) {
-            return this.visit_ListNode(node, context).value;
+            return this.visit_ListNode(node, context);
         } else if (node instanceof ListAccessNode) {
-            return this.visit_ListAccessNode(node, context).value;
+            return this.visit_ListAccessNode(node, context);
         } else if (node instanceof ListAssignmentNode) {
-            return this.visit_ListAssignmentNode(node, context).value;
+            return this.visit_ListAssignmentNode(node, context);
         } else if (node instanceof StringNode) {
-            return this.visit_StringNode(node, context).value;
+            return this.visit_StringNode(node, context);
         } else if (node instanceof IfNode) {
-            return this.visit_IfNode(node, context).value;
+            return this.visit_IfNode(node, context);
         } else if (node instanceof ForNode) {
-            return this.visit_ForNode(node, context).value;
+            return this.visit_ForNode(node, context);
         } else if (node instanceof WhileNode) {
-            return this.visit_WhileNode(node, context).value;
+            return this.visit_WhileNode(node, context);
+        } else if (node instanceof FuncDefNode) {
+            return this.visit_FuncDefNode(node, context);
+        } else if (node instanceof CallNode) {
+            return this.visit_CallNode(node, context);
+        } else if (node instanceof ReturnNode) {
+            return this.visit_ReturnNode(node, context);
+        } else if (node instanceof ContinueNode) {
+            return this.visit_ContinueNode(node, context);
+        } else if (node instanceof BreakNode) {
+            return this.visit_BreakNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -489,7 +507,7 @@ export class Interpreter {
         let var_name = node.var_name_tok.value;
         let value = context.symbol_table.get(var_name);
 
-        if (!context.symbol_table.doesExist(var_name)) {
+        if (value === undefined || value === null) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
                 `Variable '${var_name}' is not defined.`,
@@ -513,7 +531,8 @@ export class Interpreter {
         let value = res.register(this.visit(node.value_node, context));
         if (res.should_return()) return res;
         
-        if (!context.symbol_table.doesExist(var_name)) {
+        var variable = context.symbol_table.get(var_name);
+        if (variable === null || variable === undefined) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
                 `Variable "${var_name}" doesn't exist`,
@@ -521,7 +540,7 @@ export class Interpreter {
             );
         }
 
-        context.symbol_table.set(var_name, value);
+        context.symbol_table.modify(var_name, value);
 
         return new RuntimeResult().success(value);
     }
@@ -939,16 +958,24 @@ export class Interpreter {
      */
     visit_ListAccessNode(node, context) {
         let res = new RuntimeResult();
-        let var_name = node.var_name_tok.value;
-        /** @type {ListValue} */
-        let value = context.symbol_table.get(var_name);
 
-        if (!context.symbol_table.doesExist(var_name)) {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                `Variable '${var_name}' is not defined.`,
-                context
-            );
+        /** @type {ListValue} */
+        let value = null;
+        let var_name = null;
+        if (node.node_to_access instanceof VarModifyNode || node.node_to_access instanceof VarAccessNode || node.node_to_access instanceof VarAssignNode) {
+            var_name = node.node_to_access.var_name_tok.value;
+            value = context.symbol_table.get(var_name);
+
+            if (value === undefined || value === null) {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    `Variable '${var_name}' is not defined.`,
+                    context
+                );
+            }
+        } else {
+            value = res.register(this.visit(node.node_to_access, context));
+            if (res.should_return()) return res;
         }
 
         if (!(value instanceof ListValue)) {
@@ -980,7 +1007,7 @@ export class Interpreter {
                 if (!(expr_a instanceof NumberValue) && (expr_b !== null && expr_b instanceof NumberValue)) {
                     throw new RuntimeError(
                         node.pos_start, node.pos_end,
-                        `The binary selector of '${var_name}' must be composed of numbers only.`,
+                        `The binary selector of a list must be composed of numbers only.`,
                         context
                     );
                 }
@@ -988,7 +1015,7 @@ export class Interpreter {
                 if (expr_a.value < 0) {
                     throw new RuntimeError(
                         node.pos_start, node.pos_end,
-                        `The binary selector of '${var_name}' cannot start with a negative number.`,
+                        `The binary selector of a list cannot start with a negative number.`,
                         context
                     );
                 }
@@ -1001,7 +1028,7 @@ export class Interpreter {
                 if (!(visited_value instanceof NumberValue)) {
                     throw new RuntimeError(
                         node.pos_start, node.pos_end,
-                        `Can't access value at a certain index in the list '${var_name}' because one of the indexes is not a number.`,
+                        `Can't access value at this index in that list because one of the indexes is not a number.`,
                         context
                     );
                 }
@@ -1015,7 +1042,7 @@ export class Interpreter {
                         } else if (binary_selector[1].value > found_value.elements.length) {
                             throw new RuntimeError(
                                 node.pos_start, node.pos_end,
-                                `Element at this index could not be retrieved from list '${var_name}' because index is out of bounds.`,
+                                `Element at this index could not be retrieved from the list because index is out of bounds.`,
                                 context
                             );
                         } else if (binary_selector[1].value < 0) {
@@ -1038,7 +1065,7 @@ export class Interpreter {
                     } else if (binary_selector[1].value > value.elements.length) {
                         throw new RuntimeError(
                             node.pos_start, node.pos_end,
-                            `Element at this index could not be retrieved from list '${var_name}' because index is out of bounds.`,
+                            `Element at this index could not be retrieved from the list because index is out of bounds.`,
                             context
                         );
                     } else if (binary_selector[1].value < 0) {
@@ -1073,7 +1100,7 @@ export class Interpreter {
                 if (found_value === undefined) {
                     throw new RuntimeError(
                         node.pos_start, node.pos_end,
-                        `Element at this index could not be retrieved from list '${var_name}' because index is out of bounds.`,
+                        `Element at this index could not be retrieved from the list because index is out of bounds.`,
                         context
                     );
                 }
@@ -1093,20 +1120,29 @@ export class Interpreter {
      */
     visit_ListAssignmentNode(node, context) {
         let res = new RuntimeResult();
-        let var_name = node.accessor.var_name_tok.value;
+        
+        if (!(node.accessor.node_to_access instanceof VarAccessNode)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "You cannot assign new values to an undeclared list.",
+                context
+            );
+        }
+
+        let var_name = node.accessor.node_to_access.var_name_tok.value;
         /** @type {ListValue} */
         let value = context.symbol_table.get(var_name);
 
-        const new_value = res.register(this.visit(node.new_value_node, context));
-        if (res.should_return()) return res;
-
-        if (!context.symbol_table.doesExist(var_name)) {
+        if (value === undefined || value === null) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
                 `Variable '${var_name}' is not defined.`,
                 context
             );
         }
+
+        const new_value = res.register(this.visit(node.new_value_node, context));
+        if (res.should_return()) return res;
 
         if (!(value instanceof ListValue)) {
             throw new RuntimeError(
@@ -1394,7 +1430,7 @@ export class Interpreter {
                 let code = interpretations[i].code;
 
                 // Generate tokens
-                const lexer = new Lexer(code, filename, context);
+                const lexer = new Lexer(code, filename);
                 let tokens;
                 try {
                     tokens = lexer.generate_tokens();
@@ -1432,10 +1468,10 @@ export class Interpreter {
                 }
                 
                 let new_value;
-                if (result.repr !== undefined) {
-                    new_value = result.repr();
+                if (result.value.repr !== undefined) {
+                    new_value = result.value.repr();
                 } else {
-                    new_value = result.toString();
+                    new_value = result.value.toString();
                 }
 
                 interpreted_string = interpreted_string.substring(0, substring_start) + new_value + interpreted_string.substring(substring_end);
@@ -1489,7 +1525,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an else assignment node.
+     * Interprets a for node.
      * @param {ForNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -1527,15 +1563,20 @@ export class Interpreter {
             condition = () => i > end_value.value;
         }
 
+        const generate_new_context = (parent_context) => {
+            let new_context = new Context("<for>", parent_context, node.pos_start);
+            new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
+            return new_context;
+        }
+
         while (condition()) {
             context.symbol_table.set(node.var_name_tok.value, new NumberValue(i));
+            const exec_ctx = generate_new_context(context);
+            
             i += step_value.value;
 
-            let value = res.register(this.visit(node.body_node, context));
-            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) {
-                return res;
-            }
-
+            let value = res.register(this.visit(node.body_node, exec_ctx));
+            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) return res;
             if (res.loop_should_continue) continue;
             if (res.loop_should_break) break;
 
@@ -1550,7 +1591,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an else assignment node.
+     * Interprets a while node.
      * @param {WhileNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -1581,5 +1622,128 @@ export class Interpreter {
                 ? NumberValue.none
                 : new ListValue(elements).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
+    }
+
+    /**
+     * Interprets a function definition node.
+     * @param {FuncDefNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_FuncDefNode(node, context) {
+        let res = new RuntimeResult();
+        let func_name = node.var_name_tok ? node.var_name_tok.value : null;
+        let body_node = node.body_node;
+        let arg_names = [];
+        let optional_arg_names = [];
+        let mandatory_arg_names = [];
+        let default_values = [];
+
+        for (let arg_name of node.arg_name_toks) arg_names.push(arg_name.value);
+        for (let optional_arg of node.optional_arg_name_toks) optional_arg_names.push(optional_arg.value);
+        for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg.value);
+        for (let df of node.default_values_nodes) {
+            let value = res.register(this.visit(df, context));
+            if (res.should_return()) return res;
+            default_values.push(value);
+        }
+
+        let func_value = new FunctionValue(
+            func_name,
+            body_node,
+            arg_names,
+            mandatory_arg_names,
+            optional_arg_names,
+            default_values,
+            node.should_auto_return)
+                .set_context(context)
+                .set_pos(node.pos_start, node.pos_end);
+        
+        // we want to invoke the function with its name
+        // so we use it as a variable in our symbole table
+        if (node.var_name_tok) {
+            context.symbol_table.set(func_name, func_value);
+        }
+
+        return res.success(func_value);
+    }
+
+    /**
+     * Interprets a function definition node.
+     * @param {CallNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_CallNode(node, context) {
+        let res = new RuntimeResult();
+        let args = [];
+
+        let pos_start = node.pos_start;
+        let pos_end = node.pos_end;
+
+        let value_to_call = res.register(this.visit(node.node_to_call, context));
+        if (res.should_return()) return res;
+
+        if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof NativeFunction)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Cannot call a variable that is not a function.",
+                context
+            );
+        }
+
+        value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
+
+        for (let arg_node of node.arg_nodes) {
+            args.push(res.register(this.visit(arg_node, context)));
+            if (res.should_return()) return res;
+        }
+
+        let return_value = res.register(value_to_call.execute(args, pos_start, pos_end));
+        if (res.should_return()) return res;
+
+        return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
+        
+        return res.success(return_value);
+    }
+
+    /**
+     * Interprets a return node in a function.
+     * @param {ReturnNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ReturnNode(node, context) {
+        let res = new RuntimeResult();
+        let value = null;
+
+        if (node.node_to_return) {
+            value = res.register(this.visit(node.node_to_return, context));
+            if (res.should_return()) return res;
+        } else {
+            value = NumberValue.none;
+        }
+
+        return res.success_return(value);
+    }
+
+    /**
+     * Interprets a continue node in a loop.
+     * @param {ContinueNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ContinueNode(node, context) {
+        return new RuntimeResult().success_continue();
+    }
+
+    /**
+     * Interprets a continue node in a loop.
+     * @param {BreakNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_BreakNode(node, context) {
+        return new RuntimeResult().success_break();
     }
 }
