@@ -1,3 +1,7 @@
+# ceci est un commentaire
+# sur plusieurs lignes
+
+# just divide two numbers
 func divide(a, b):
     if b <= 0:
         log("WOW, tu essaies de diviser {a} par 0, t'es pas bien ti")
@@ -7,6 +11,7 @@ func divide(a, b):
     return a / b
 end
 
+# we want to test if the variable declarations work fine in a for loop
 func average_grade(notes):
     var somme = 0
     var length = len(notes)
@@ -17,13 +22,14 @@ func average_grade(notes):
     end
 
     for i to length:
-        var note = notes[i]
-        somme = somme + note
-    end
+        var note = notes[i] # this variable only exists inside the loop
+        somme = somme + note # this variable doesn't exist inside the loop, then we look for the parent context (the func)
+    end # end for the loop
 
     return somme / length
 end
 
+# we want to test the keywords "break" & "continue"
 func enumarate(list):
     for i to len(list):
         if list[i] == 0:
@@ -38,7 +44,7 @@ func enumarate(list):
         log(list[i])
     end
 
-    return "alors?"
+    return "alors ?"
 end
 
 func test_with_lists():
@@ -46,4 +52,5 @@ func test_with_lists():
 end
 
 var notes = [10, 11, 12]
-var moyenne = average_grade(notes)
+var moyenne = average_grade(notes) # should return 11 for [10, 11, 12]
+log("Ma moyenne est de {moyenne}.")

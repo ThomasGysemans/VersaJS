@@ -103,6 +103,8 @@ export class Lexer {
             } else if (this.current_char === ",") {
                 this.advance();
                 yield new Token(TokenType.COMMA, null, this.pos);
+            } else if (this.current_char === "#") {
+                this.skip_comment();
             } else {
                 let char = this.current_char;
                 let pos_start = this.pos.copy();
@@ -306,5 +308,14 @@ export class Lexer {
         }
 
         return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    skip_comment() {
+        this.advance();
+        while (this.current_char !== "\n") {
+            this.advance();
+        }
+        // console.log(`this.current_char = '${this.current_char}'`);
+        // this.advance();
     }
 }
