@@ -51,6 +51,18 @@ func test_with_lists():
     return for i to 10: i
 end
 
+# we want to test if the variable declarations work fine in a while loop, just like the for loop
+func test_with_while():
+    var i = 0
+    var test = 0
+
+    while i < 10:
+        var test = 5
+        i = i + 1
+    end
+
+    return i
+end
+
 var notes = [10, 11, 12]
 var moyenne = average_grade(notes) # should return 11 for [10, 11, 12]
-log("Ma moyenne est de {moyenne}.")

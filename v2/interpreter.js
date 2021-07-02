@@ -1600,17 +1600,22 @@ export class Interpreter {
         let res = new RuntimeResult();
         let elements = []; // we want a loop to return a custom list by default.
 
+        const generate_new_context = (parent_context) => {
+            let new_context = new Context("<while>", parent_context, node.pos_start);
+            new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
+            return new_context;
+        }
+
         while (true) {
             let condition = res.register(this.visit(node.condition_node, context));
             if (res.should_return()) return res;
-
+            
             if (!condition.is_true()) break;
 
-            let value = res.register(this.visit(node.body_node, context));
-            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) {
-                return res;
-            }
+            const exec_ctx = generate_new_context(context);
 
+            let value = res.register(this.visit(node.body_node, exec_ctx));
+            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) return res;
             if (res.loop_should_continue) continue;
             if (res.loop_should_break) break;
 
