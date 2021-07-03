@@ -7,7 +7,7 @@ statement   : KEYWORD:RETURN expr?
 
 expr        : KEYWORD:VAR IDENTIFIER EQ expr
             : KEYWORD:DEFINE IDENTIFIER EQ expr
-            : KEYWORD:DELETE IDENTIFIER([expr]([expr])*)?
+            : KEYWORD:DELETE call_list
             : comp-expr ((KEYWORD:AND|KEYWORD:OR) comp-expr)*
             
 comp-expr   : NOT comp-expr
@@ -15,16 +15,16 @@ comp-expr   : NOT comp-expr
 
 arith-expr  : term ((PLUS|MINUS) term)*
 
-term        : factor ((MUL|DIV) factor)*
+term        : factor ((MUL|DIV|POWER|MODULO) factor)*
 
 factor      : (PLUS|MINUS) factor
-            : power
+            : call_list
 
-power       : call (POWER factor)*
+call_list   : call ([expr]([expr])* (= expr)?)?
 
 call        : atom (LPAREN (expr (COMMA expr)*)? RPAREN)?
 
-atom        : INT|FLOAT|STRING|IDENTIFIER([expr]([expr])*)?
+atom        : NUMBER|STRING|IDENTIFIER(= expr)?
             : LPAREN expr RPAREN
             : list-expr
             : if-expr

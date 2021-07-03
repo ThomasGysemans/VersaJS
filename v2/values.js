@@ -1,4 +1,3 @@
-import prompt from 'prompt-sync';
 import process from 'process';
 
 import { Position } from "./position.js";
