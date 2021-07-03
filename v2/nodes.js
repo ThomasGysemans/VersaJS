@@ -780,3 +780,25 @@ export class DefineNode extends CustomNode {
         return `(define ${this.var_name_tok.value} = ${this.value_node})`;
     }
 }
+
+/**
+ * @classdesc Deletes a value.
+ */
+export class DeleteNode extends CustomNode {
+    /**
+     * @constructs DeleteNode
+     * @param {CustomNode} node_to_delete The name of the variable.
+     * @param {Position} pos_start The starting position of the node.
+     * @param {Position} pos_end The end position of the node.
+     */
+    constructor(node_to_delete, pos_start, pos_end) {
+        super();
+        this.node_to_delete = node_to_delete;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `(delete ${this.node_to_delete})`;
+    }
+}

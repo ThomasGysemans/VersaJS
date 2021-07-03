@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode } from "./nodes.js";
 import { is_in } from './miscellaneous.js';
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { CONSTANTS } from "./symbol_table.js";
@@ -199,6 +199,13 @@ export class Parser {
             } else {
                 return new DefineNode(var_name_tok, value_node);
             }
+        } else if (this.current_token.matches(TokenType.KEYWORD, "delete")) {
+            let pos_start = this.current_token.pos_start;
+            this.advance();
+
+            let node_to_delete = this.call_list();
+
+            return new DeleteNode(node_to_delete, pos_start, node_to_delete.pos_end);
         }
 
         let result = this.comp_expr();

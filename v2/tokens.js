@@ -48,7 +48,8 @@ const KEYWORDS = [
     "return",
     "continue",
     "break",
-    "define"
+    "define",
+    "delete"
 ];
 
 export default KEYWORDS;

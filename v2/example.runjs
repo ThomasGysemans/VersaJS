@@ -3,6 +3,12 @@
 
 define __VERSION__ = 0
 
+var hello = "HELLO"
+delete hello
+
+var example_of_a_list = [1, [[5, 8], 3], 3]
+delete example_of_a_list[1][0][-1] # delete the 8 in this list
+
 # just divide two numbers
 func divide(a, b):
     if b <= 0:

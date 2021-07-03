@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode } from './nodes.js';
 import { BaseFunction, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { CustomError, RuntimeError } from './Exceptions.js';
@@ -142,6 +142,8 @@ export class Interpreter {
             return this.visit_BreakNode(node, context);
         } else if (node instanceof DefineNode) {
             return this.visit_DefineNode(node, context);
+        } else if (node instanceof DeleteNode) {
+            return this.visit_DeleteNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -1787,5 +1789,343 @@ export class Interpreter {
      */
     visit_BreakNode(node, context) {
         return new RuntimeResult().success_break();
+    }
+
+    /**
+     * Interprets a delete node.
+     * @param {DeleteNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_DeleteNode(node, context) {
+        let res = new RuntimeResult();
+        let var_name = null;
+        let node_to_delete = node.node_to_delete
+        
+        if (node_to_delete instanceof VarAccessNode) {
+            var_name = node_to_delete.var_name_tok.value;
+            if (is_in(var_name, Object.keys(CONSTANTS))) {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "Cannot delete a constant.",
+                    context
+                );
+            }
+            context.symbol_table.remove(var_name);
+        } else if (node_to_delete instanceof ListAccessNode) {
+            /** @type {ListValue} */
+            let value = null;
+            let var_name = null;
+            let node_to_access = node_to_delete.node_to_access;
+
+            if (node_to_access instanceof VarAccessNode) {
+                var_name = node_to_access.var_name_tok.value;
+                value = context.symbol_table.get(var_name);
+
+                if (value === undefined || value === null) {
+                    throw new RuntimeError(
+                        node_to_access.pos_start, node_to_access.pos_end,
+                        `Variable '${var_name}' is not defined.`,
+                        context
+                    );
+                }
+
+                if (!(value instanceof ListValue)) {
+                    throw new RuntimeError(
+                        node_to_access.pos_start, node_to_access.pos_end,
+                        `Variable '${var_name}' must be of type Array`,
+                        context
+                    );
+                }
+
+                value = value.set_pos(node_to_access.pos_start, node_to_access.pos_end).set_context(context);
+
+                let index_per_depth = [];
+
+                for (let i = 0; i < node_to_delete.list_nodes.length; i++) {
+                    let index_node = node_to_delete.list_nodes[i];
+                    let visited_value = index_node instanceof ListPushBracketsNode || index_node instanceof ListBinarySelector ? index_node : res.register(this.visit(index_node, context));
+                    if (res.should_return()) return res;
+
+                    if (visited_value instanceof NumberValue || visited_value instanceof ListPushBracketsNode) {
+                        index_per_depth.push(visited_value);
+                    } else if (visited_value instanceof ListBinarySelector) {
+                        /** @type {NumberValue} */
+                        let expr_a = visited_value.node_a ? res.register(this.visit(visited_value.node_a, context)) : new NumberValue(0);
+                        if (res.should_return()) return res;
+
+                        /** @type {NumberValue} */
+                        let expr_b = visited_value.node_b ? res.register(this.visit(visited_value.node_b, context)) : null;
+                        if (res.should_return()) return res;
+
+                        if (!(expr_a instanceof NumberValue) && (expr_b !== null && expr_b instanceof NumberValue)) {
+                            throw new RuntimeError(
+                                node.pos_start, node.pos_end,
+                                `The binary selector of '${var_name}' must be composed of numbers only.`,
+                                context
+                            );
+                        }
+
+                        if (expr_a.value < 0) {
+                            throw new RuntimeError(
+                                node.pos_start, node.pos_end,
+                                `The binary selector of '${var_name}' cannot start with a negative number.`,
+                                context
+                            );
+                        }
+
+                        index_per_depth.push(new BinarySelectorValues(expr_a, expr_b));
+                    } else {
+                        throw new RuntimeError(
+                            node.pos_start, node.pos_end,
+                            `Can't access value at a certain index in the list '${var_name}' because one of the indexes is not a number.`,
+                            context
+                        );
+                    }
+                }
+
+                let value_to_be_replaced;
+                let previous_list_element; // we need to filter according to the previous depth of the list
+
+                for (let i = 0; i < index_per_depth.length; i++) {
+                    // we add something to the array
+                    // so it's like: `liste[liste.length] = something`
+                    // but it's ugly so we use `liste[] = something` (like PHP)
+                    if (index_per_depth[i] instanceof ListPushBracketsNode) {
+                        index_per_depth[i].value = value.elements.length;
+                    }
+
+                    // NumberValue : `list[5] = something` (modify the index 5 by something)
+                    // ListPushBracketsNode : `list[] = something` (add something to the array)
+                    // otherwise, it's a binary selector : `list[0:5] = something` (replace the values from index 0 to 5 by something)
+                    if (index_per_depth[i] instanceof NumberValue || index_per_depth[i] instanceof ListPushBracketsNode) {
+                        // have we already been searching for a value?
+                        if (value_to_be_replaced) {
+                            // we have several depths, therefore the previous value must be a list
+                            if (value_to_be_replaced instanceof ListValue) {
+                                previous_list_element = value_to_be_replaced;
+
+                                // if we are at the last iteration of that loop,
+                                // i.e. we have no more values afterwards,
+                                // then let's modify our current value by the new value
+                                if (i === (index_per_depth.length - 1)) {
+                                    // once again, we might have `list[1][] = something`
+                                    if (index_per_depth[i] instanceof ListPushBracketsNode) {
+                                        index_per_depth[i].value = value_to_be_replaced.elements.length;
+                                    } else if (index_per_depth[i].value < 0) { // or `list[-1]` === `list[list.length - 1]`
+                                        index_per_depth[i].value = value_to_be_replaced.elements.length + index_per_depth[i].value;
+                                    }
+
+                                    // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                                    if (index_per_depth[i].value > value_to_be_replaced.elements.length) {
+                                        for (let e = value_to_be_replaced.elements.length; e < index_per_depth[i].value; e++) {
+                                            value_to_be_replaced.elements[e] = NumberValue.none;
+                                        }
+                                    }
+                                    
+                                    // `value` will be automatically updated
+                                    value_to_be_replaced.elements[index_per_depth[i].value] = undefined;
+                                } else {
+                                    if (index_per_depth[i].value < 0) {
+                                        index_per_depth[i].value = value_to_be_replaced.elements.length + index_per_depth[i].value;
+                                    }
+
+                                    // this is not the last iteration
+                                    // so just remember the current value
+                                    value_to_be_replaced = value_to_be_replaced.elements[index_per_depth[i].value];
+                                }
+                            } else {
+                                throw new RuntimeError(
+                                    node.pos_start, node.pos_end,
+                                    `Can't access value at a certain index if this is not an array.`,
+                                    context
+                                );
+                            }
+                        } else {
+                            // if there is only one value, then we can just modify it
+                            // that's the easiest case
+                            if (index_per_depth.length === 1) {
+                                previous_list_element = value;
+
+                                // i == 0
+                                // so it's the same as not using `i`
+                                if (index_per_depth[0].value < 0) {
+                                    index_per_depth[0].value = value.elements.length + index_per_depth[0].value;
+                                }
+
+                                // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                                if (index_per_depth[i].value > value.elements.length) {
+                                    for (let e = value.elements.length; e < index_per_depth[i].value; e++) {
+                                        value.elements[e] = NumberValue.none;
+                                    }
+                                }
+
+                                value.elements[index_per_depth[0].value] = undefined;
+                            } else {
+                                // however, we'll have to loop again if we have: `list[0][1]`
+                                if (index_per_depth[i].value < 0) {
+                                    index_per_depth[i].value = value.elements.length + index_per_depth[i].value;
+                                }
+
+                                // so just remember the value `list[0]`
+                                // and continue in order to modify `value_to_be_replaced[1]` (value_to_be_replaced = list[0])
+                                value_to_be_replaced = value.elements[index_per_depth[i].value];
+                            }
+                        }
+                    } else { // binary selector `list[a:b]`
+                        if (value_to_be_replaced) {
+                            // if we have already been searching for a list
+                            // and we are still not finished with the depths
+                            // so it must be a list
+                            if (value_to_be_replaced instanceof ListValue) {
+                                previous_list_element = value_to_be_replaced;
+
+                                /** @type {BinarySelectorValues} */
+                                // @ts-ignore
+                                let current_index = index_per_depth[i];
+
+                                if (i === (index_per_depth.length - 1)) {
+                                    if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
+                                        current_index.b = new NumberValue(value_to_be_replaced.elements.length);
+                                    } else if (current_index.b.value < 0) { // we accept negative numbers only for `b`
+                                        current_index.b.value = value_to_be_replaced.elements.length + current_index.b.value;
+                                    }
+                                    
+                                    // `a` cannot be greater than the length of the list
+                                    // therefore we add `none` to the previous values that should have a value already.
+                                    if (current_index.a.value > value_to_be_replaced.elements.length) {
+                                        for (let e = value_to_be_replaced.elements.length; e < current_index.a.value; e++) {
+                                            value_to_be_replaced.elements[e] = NumberValue.none;
+                                        }
+                                    }
+                                    
+                                    // this is the last depth
+                                    // therefore, after having searched for the previous values,
+                                    // we must update the values
+                                    value_to_be_replaced.elements = [...value_to_be_replaced.elements.slice(0, current_index.a.value), undefined, ...value_to_be_replaced.elements.slice(current_index.b.value)];
+                                } else {
+                                    if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
+                                        current_index.b = new NumberValue(value_to_be_replaced.elements.length);
+                                    } else if (current_index.b.value < 0) { // we accept negative numbers only for `b`
+                                        current_index.b.value = value_to_be_replaced.elements.length + current_index.b.value;
+                                    }
+                                    
+                                    // `a` cannot be greater than the length of the list
+                                    if (current_index.a.value > value_to_be_replaced.elements.length) {
+                                        throw new RuntimeError(
+                                            node.pos_start, node.pos_end,
+                                            `Can't access values at this starting index.`,
+                                            context
+                                        );
+                                    }
+
+                                    // value_to_be_replaced is, at every iteration, the previous value
+                                    // therefore, we imitate the behavior: `((list[0])[1])[2]`
+                                    value_to_be_replaced = new ListValue(
+                                        value_to_be_replaced.elements.slice(current_index.a.value, current_index.b.value)
+                                    );
+                                }
+                            } else {
+                                // if we have `list[1][1]`, but `list[1]` is not an array
+                                throw new RuntimeError(
+                                    node.pos_start, node.pos_end,
+                                    `Can't access value at a certain index if this is not an array.`,
+                                    context
+                                );
+                            }
+                        } else {
+                            if (index_per_depth.length === 1) {
+                                previous_list_element = value;
+
+                                /** @type {BinarySelectorValues} */
+                                // @ts-ignore
+                                let first_index = index_per_depth[0];
+
+                                if (first_index.b === null) { // the current_index.b might be null if we have "list[1:]"
+                                    first_index.b = new NumberValue(value.elements.length);
+                                } else if (first_index.b.value < 0) { // we accept negative numbers only for `b`
+                                    first_index.b.value = value.elements.length + first_index.b.value;
+                                } 
+
+                                // `a` cannot be greater than the length of the list
+                                // therefore we add `none` to the previous values that should have a value already.
+                                if (first_index.a.value > value.elements.length) {
+                                    // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                                    for (let e = value.elements.length; e < first_index.a.value; e++) {
+                                        value.elements[e] = NumberValue.none;
+                                    }
+                                }
+
+                                // there is only one depth
+                                // therefore, after having searched for the previous values,
+                                // we must update the values
+                                value.elements = [...value.elements.slice(0, first_index.a.value), undefined, ...value.elements.slice(first_index.b.value)]
+                            } else {
+                                /** @type {BinarySelectorValues} */
+                                // @ts-ignore
+                                let current_index = index_per_depth[i]; // intellisense is often annoying
+
+                                if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
+                                    current_index.b = new NumberValue(value.elements.length)
+                                } else if (current_index.b.value < 0) { // we accept negative numbers only for `b`
+                                    current_index.b.value = value.elements.length + current_index.b.value;
+                                }
+
+                                // `a` cannot be greater than the length of the list
+                                if (current_index.a.value > value.elements.length) { 
+                                    throw new RuntimeError(
+                                        node.pos_start, node.pos_end,
+                                        `Can't access values at this starting index.`,
+                                        context
+                                    );
+                                }
+
+                                // value_to_be_replaced is, at every iteration, the previous value(s)
+                                // therefore, we imitate the behavior: `((list[0])[1])[2]`
+                                value_to_be_replaced = new ListValue(
+                                    value.elements.slice(current_index.a.value, current_index.b.value)
+                                );
+                            }
+                        }
+                    }
+                }
+
+                /** @param {ListValue} arr */
+                const remove = (arr) => {
+                    arr.elements = arr.elements.filter((value) => {
+                        if (value !== undefined) {
+                            return value;
+                        }
+                    });
+                    return arr.elements;
+                };
+
+                try {
+                    previous_list_element.elements = [...remove(previous_list_element)];
+                } catch(e) {
+                    throw new RuntimeError(
+                        node_to_delete.pos_start, node_to_delete.pos_end,
+                        "Unable to delete this element.",
+                        context
+                    );
+                }
+
+                context.symbol_table.set(var_name, value);
+            } else {
+                throw new RuntimeError(
+                    node_to_access.pos_start, node_to_access.pos_end,
+                    "Expected a variable to delete.",
+                    context
+                );
+            }
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Expected a variable to delete.",
+                context
+            );
+        }
+
+        return res.success(NumberValue.none);
     }
 }
