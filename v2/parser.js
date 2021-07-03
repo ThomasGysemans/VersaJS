@@ -262,14 +262,34 @@ export class Parser {
     arith_expr() {
         let result = this.term();
 
-        while (this.current_token !== null && is_in(this.current_token.type, [TokenType.PLUS, TokenType.MINUS])) {
-            if (this.current_token.type === TokenType.PLUS) {
+        if (this.current_token.type === TokenType.PLUS) {
+            this.advance();
+            if (this.current_token.type === TokenType.EQUALS) {
                 this.advance();
-                result = new AddNode(result, this.term());
-            } else if (this.current_token.type === TokenType.MINUS) {
-                this.advance();
-                result = new SubtractNode(result, this.term());
+                if (result instanceof VarAccessNode) {
+                    return new VarModifyNode(result.var_name_tok, new AddNode(result, this.expr()));
+                } else {
+                    throw new InvalidSyntaxError(
+                        result.pos_start, this.current_token.pos_end,
+                        "Expected a variable"
+                    );
+                }
             }
+            return new AddNode(result, this.term());
+        } else if (this.current_token.type === TokenType.MINUS) {
+            this.advance();
+            if (this.current_token.type === TokenType.EQUALS) {
+                this.advance();
+                if (result instanceof VarAccessNode) {
+                    return new VarModifyNode(result.var_name_tok, new SubtractNode(result, this.expr()));
+                } else {
+                    throw new InvalidSyntaxError(
+                        result.pos_start, this.current_token.pos_end,
+                        "Expected a variable"
+                    );
+                }
+            }
+            return new SubtractNode(result, this.term());
         }
 
         return result;
@@ -280,25 +300,66 @@ export class Parser {
      */
     term() {
         let node_a = this.factor();
-        let result;
 
-        while (this.current_token !== null && is_in(this.current_token.type, [TokenType.MULTIPLY, TokenType.DIVIDE, TokenType.POWER, TokenType.MODULO])) {
-            if (this.current_token.type === TokenType.MULTIPLY) {
+        if (this.current_token.type === TokenType.MULTIPLY) {
+            this.advance();
+            if (this.current_token.type === TokenType.EQUALS) {
                 this.advance();
-                result = new MultiplyNode(node_a, this.factor());
-            } else if (this.current_token.type === TokenType.DIVIDE) {
-                this.advance();
-                result = new DivideNode(node_a, this.factor());
-            } else if (this.current_token.type === TokenType.POWER) {
-                this.advance();
-                result = new PowerNode(node_a, this.factor());
-            } else if (this.current_token.type === TokenType.MODULO) {
-                this.advance();
-                result = new ModuloNode(node_a, this.factor());
+                if (node_a instanceof VarAccessNode) {
+                    return new VarModifyNode(node_a.var_name_tok, new MultiplyNode(node_a, this.expr()));
+                } else {
+                    throw new InvalidSyntaxError(
+                        node_a.pos_start, this.current_token.pos_end,
+                        "Expected a variable"
+                    );
+                }
             }
+            return new MultiplyNode(node_a, this.factor());
+        } else if (this.current_token.type === TokenType.DIVIDE) {
+            this.advance();
+            if (this.current_token.type === TokenType.EQUALS) {
+                this.advance();
+                if (node_a instanceof VarAccessNode) {
+                    return new VarModifyNode(node_a.var_name_tok, new DivideNode(node_a, this.expr()));
+                } else {
+                    throw new InvalidSyntaxError(
+                        node_a.pos_start, this.current_token.pos_end,
+                        "Expected a variable"
+                    );
+                }
+            }
+            return new DivideNode(node_a, this.factor());
+        } else if (this.current_token.type === TokenType.POWER) {
+            this.advance();
+            if (this.current_token.type === TokenType.EQUALS) {
+                this.advance();
+                if (node_a instanceof VarAccessNode) {
+                    return new VarModifyNode(node_a.var_name_tok, new PowerNode(node_a, this.expr()));
+                } else {
+                    throw new InvalidSyntaxError(
+                        node_a.pos_start, this.current_token.pos_end,
+                        "Expected a variable"
+                    );
+                }
+            }
+            return new PowerNode(node_a, this.factor());
+        } else if (this.current_token.type === TokenType.MODULO) {
+            this.advance();
+            if (this.current_token.type === TokenType.EQUALS) {
+                this.advance();
+                if (node_a instanceof VarAccessNode) {
+                    return new VarModifyNode(node_a.var_name_tok, new ModuloNode(node_a, this.expr()));
+                } else {
+                    throw new InvalidSyntaxError(
+                        node_a.pos_start, this.current_token.pos_end,
+                        "Expected a variable"
+                    );
+                }
+            }
+            return new ModuloNode(node_a, this.factor());
         }
 
-        return result ? result : node_a;
+        return node_a;
     }
 
     factor() {
@@ -485,13 +546,14 @@ export class Parser {
         } else if (token.type === TokenType.IDENTIFIER) {
             const var_name_tok = token;
             this.advance();
+
             if (this.current_token.type === TokenType.EQUALS) {
                 this.advance();
                 const value_node = this.expr();
                 return new VarModifyNode(var_name_tok, value_node);
-            } else {
-                return new VarAccessNode(token);
             }
+
+            return new VarAccessNode(token);
         } else if (this.current_token.type === TokenType.LSQUARE) {
             let list_expr = this.list_expr();
             return list_expr;
@@ -849,6 +911,8 @@ export class Parser {
         );
     }
 
+    // TODO : impossible de faire une fonction sur plusieurs lignes avec la syntaxe actuelle
+    // faut un moyen pour que `func a(): something; return something;` fonctionne
     func_expr() {
         this.advance();
 

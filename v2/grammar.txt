@@ -24,7 +24,7 @@ call_list   : call ([expr]([expr])* (= expr)?)?
 
 call        : atom (LPAREN (expr (COMMA expr)*)? RPAREN)?
 
-atom        : NUMBER|STRING|IDENTIFIER(= expr)?
+atom        : NUMBER|STRING|IDENTIFIER((PLUS|MINUS|MUL|DIV|POWER|MODULO)= expr)?
             : LPAREN expr RPAREN
             : list-expr
             : if-expr

@@ -376,7 +376,7 @@ export class Interpreter {
         let res = new RuntimeResult();
         let left = res.register(this.visit(node.node_a, context));
         if (res.should_return()) return res;
-        let right = this.visit(node.node_b, context);
+        let right = res.register(this.visit(node.node_b, context));
         if (res.should_return()) return res;
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
