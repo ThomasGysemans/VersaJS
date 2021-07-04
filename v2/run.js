@@ -26,6 +26,8 @@ export const run = (text, filename) => {
         const parser = new Parser(tokens);
         const tree = parser.parse();
 
+        console.log(`tree = ${tree}`);
+
         if (!tree) {
             return;
         }

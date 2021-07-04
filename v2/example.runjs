@@ -1,8 +1,6 @@
 # ceci est un commentaire
 # sur plusieurs lignes
 
-log(5 + 5 - 5 * 2)
-
 define __VERSION__ = 0
 
 var hello = "HELLO"

@@ -171,7 +171,7 @@ export class PrefixOperationNode extends CustomNode {
 
     toString() {
         if (this.difference < 0) {
-            return `(${'--'.repeat(this.difference)}${this.node})`;
+            return `(${'--'.repeat(Math.abs(this.difference))}${this.node})`;
         } else {
             return `(${'++'.repeat(this.difference)}${this.node})`;
         }
@@ -194,7 +194,7 @@ export class PostfixOperationNode extends CustomNode {
 
     toString() {
         if (this.difference < 0) {
-            return `(${this.node}${'--'.repeat(this.difference)})`;
+            return `(${this.node}${'--'.repeat(Math.abs(this.difference))})`;
         } else {
             return `(${this.node}${'++'.repeat(this.difference)})`;
         }
@@ -723,7 +723,7 @@ export class FuncDefNode extends CustomNode {
     }
 
     toString() {
-        return `func ${this.var_name_tok.value}(${this.arg_name_toks.join(', ')})`;
+        return `func ${this.var_name_tok ? this.var_name_tok.value : ''}(${this.arg_name_toks.join(', ')})`;
     }
 }
 
@@ -751,7 +751,7 @@ export class CallNode extends CustomNode {
     }
 
     toString() {
-        return `call ${this.node_to_call}(${this.arg_nodes.length} args)`;
+        return `(call ${this.node_to_call}(${this.arg_nodes.length} args))`;
     }
 }
 

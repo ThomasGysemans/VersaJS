@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode } from '../nodes.js';
 import { ListValue, NumberValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
@@ -8,6 +8,23 @@ import global_symbol_table from '../symbol_table.js'; // ok
 
 const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
 context.symbol_table = global_symbol_table;
+
+/* 
+How to make tests with the interpreter?
+
+* Because of a glitch, we have to comment `CONSTANTS` in symbol_table.js AND replace it with an empty object
+* Design an operation (example: 5 ^ (1 + 2 * 10 / 10))
+* Test this operation and don't forget to console.log the generated tree (in run.js)
+* Recreate that tree in your test.
+
+Tests with `mocha`
+
+*/
+
+// HELPERS
+const number = (n) => {
+    return new NumberNode(new Token(TokenType.NUMBER, n));
+};
 
 describe('Interpreter', () => {
     it('should work with numbers', () => {
@@ -43,6 +60,26 @@ describe('Interpreter', () => {
     it('should work with a modulo', () => {
         const value = new Interpreter().visit(new ModuloNode(new NumberNode(new Token(TokenType.NUMBER, 9)), new NumberNode(new Token(TokenType.NUMBER, 2))), context);
         assert.deepStrictEqual(value.value, new NumberValue(1).set_context(context));
+    });
+
+    it('should work with a complex operation', () => {
+        // 5 ^ (1 + 2 * 10 / 10) = 125
+        // tree = (5^(1+((2*10)/10)))
+        const tree = new PowerNode(
+            number(5),
+            new AddNode(
+                number(1),
+                new DivideNode(
+                    new MultiplyNode(
+                        number(2),
+                        number(10)
+                    ),
+                    number(10)
+                )
+            )
+        );
+        const value = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(value.value, new NumberValue(125).set_context(context));
     });
 
     it('should work with a prefix operation (before)', () => {
@@ -130,5 +167,33 @@ describe('Interpreter', () => {
         } else {
             assert.strictEqual(ListValue, false);
         }
+    });
+
+    it('should work with a complex operation including prefix operation (negative)', () => {
+        // 5 - --2 - 5 = -1
+        // tree = ((5-(--2))-5)
+        const tree = new SubtractNode(
+            new SubtractNode(
+                new NumberNode(new Token(TokenType.NUMBER, 5)),
+                new PrefixOperationNode(new NumberNode(new Token(TokenType.NUMBER, 2)), -1)
+            ),
+            new NumberNode(new Token(TokenType.NUMBER, 5))
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value, new NumberValue(-1).set_context(context));
+    });
+
+    it('should work with a complex operation including prefix operation (positive)', () => {
+        // 5 + ++2 + 5 = 16
+        // tree = ((5+(++5))+5)
+        const tree = new AddNode(
+            new AddNode(
+                new NumberNode(new Token(TokenType.NUMBER, 5)),
+                new PrefixOperationNode(new NumberNode(new Token(TokenType.NUMBER, 5)), 1)
+            ),
+            new NumberNode(new Token(TokenType.NUMBER, 5))
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value, new NumberValue(16).set_context(context));
     });
 });

@@ -2,6 +2,7 @@ import { TokenType, Token } from "./tokens.js";
 import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { NumberValue } from "./values.js";
+import { is_in } from "./miscellaneous.js";
 
 /**
  * @classdesc Reads the sequence of tokens in order to create the nodes.
@@ -206,11 +207,7 @@ export class Parser {
             return new DeleteNode(node_to_delete, pos_start, node_to_delete.pos_end);
         }
 
-        console.log(`(1) this.current_token = ${this.current_token}`);
-
         let result = this.comp_expr();
-
-        console.log(`comp_expr = ${result}`);
 
         if (this.current_token !== null) {
             if (this.current_token.matches(TokenType.KEYWORD, "and")) {
@@ -235,9 +232,6 @@ export class Parser {
         }
 
         let node_a = this.arith_expr();
-
-        console.log(`(1+2) arith_expr = ${node_a}`);
-        console.log(`(-) this.current_token = ${this.current_token}`);
 
         if (this.current_token.type === TokenType.DOUBLE_EQUALS) {
             this.advance();
@@ -268,60 +262,62 @@ export class Parser {
     arith_expr() {
         let result = this.term();
 
-        if (this.current_token.type === TokenType.PLUS) {
-            this.advance();
-            if (this.current_token.type === TokenType.EQUALS) {
+        while (this.current_token !== null && is_in(this.current_token.type, [TokenType.PLUS, TokenType.MINUS, TokenType.INC, TokenType.DEC])) {
+            if (this.current_token.type === TokenType.PLUS) {
                 this.advance();
-                if (result instanceof VarAccessNode) {
-                    return new VarModifyNode(result.var_name_tok, new AddNode(result, this.expr()));
-                } else if (result instanceof ListAccessNode) {
-                    return new ListAssignmentNode(result, new AddNode(result, this.expr()));
-                } else {
-                    throw new InvalidSyntaxError(
-                        result.pos_start, this.current_token.pos_end,
-                        "Expected a variable"
-                    );
+                if (this.current_token.type === TokenType.EQUALS) { // +=
+                    this.advance();
+                    if (result instanceof VarAccessNode) {
+                        return new VarModifyNode(result.var_name_tok, new AddNode(result, this.expr()));
+                    } else if (result instanceof ListAccessNode) {
+                        return new ListAssignmentNode(result, new AddNode(result, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
                 }
-            }
-            return new AddNode(result, this.term());
-        } else if (this.current_token.type === TokenType.MINUS) {
-            this.advance();
-            if (this.current_token.type === TokenType.EQUALS) {
+                result = new AddNode(result, this.term());
+            } else if (this.current_token.type === TokenType.MINUS) { // -=
                 this.advance();
-                if (result instanceof VarAccessNode) {
-                    return new VarModifyNode(result.var_name_tok, new SubtractNode(result, this.expr()));
-                } else if (result instanceof ListAccessNode) {
-                    return new ListAssignmentNode(result, new SubtractNode(result, this.expr()));
-                } else {
-                    throw new InvalidSyntaxError(
-                        result.pos_start, this.current_token.pos_end,
-                        "Expected a variable"
-                    );
+                if (this.current_token.type === TokenType.EQUALS) {
+                    this.advance();
+                    if (result instanceof VarAccessNode) {
+                        return new VarModifyNode(result.var_name_tok, new SubtractNode(result, this.expr()));
+                    } else if (result instanceof ListAccessNode) {
+                        return new ListAssignmentNode(result, new SubtractNode(result, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
                 }
-            }
-            return new SubtractNode(result, this.term());
-        } else if (this.current_token.type === TokenType.INC) { // a++
-            this.advance();
-            let difference = 1;
-            while (this.current_token.type === TokenType.INC) {
-                difference++;
+                result = new SubtractNode(result, this.term());
+            } else if (this.current_token.type === TokenType.INC) { // a++
                 this.advance();
-            }
-            if (result instanceof ListAccessNode) {
-                return new ListAssignmentNode(result, new AddNode(result, new NumberNode(new Token(TokenType.NUMBER, difference))));
-            }
-            return new PostfixOperationNode(result, difference);
-        } else if (this.current_token.type === TokenType.DEC) { // b--
-            this.advance();
-            let difference = -1;
-            while (this.current_token.type === TokenType.DEC) {
-                difference--;
+                let difference = 1;
+                while (this.current_token.type === TokenType.INC) {
+                    difference++;
+                    this.advance();
+                }
+                if (result instanceof ListAccessNode) {
+                    return new ListAssignmentNode(result, new AddNode(result, new NumberNode(new Token(TokenType.NUMBER, difference))));
+                }
+                return new PostfixOperationNode(result, difference);
+            } else if (this.current_token.type === TokenType.DEC) { // b--
                 this.advance();
+                let difference = -1;
+                while (this.current_token.type === TokenType.DEC) {
+                    difference--;
+                    this.advance();
+                }
+                if (result instanceof ListAccessNode) {
+                    return new ListAssignmentNode(result, new AddNode(result, new NumberNode(new Token(TokenType.NUMBER, difference))));
+                }
+                return new PostfixOperationNode(result, difference);
             }
-            if (result instanceof ListAccessNode) {
-                return new ListAssignmentNode(result, new AddNode(result, new NumberNode(new Token(TokenType.NUMBER, difference))));
-            }
-            return new PostfixOperationNode(result, difference);
         }
 
         return result;
@@ -332,74 +328,77 @@ export class Parser {
      */
     term() {
         let node_a = this.factor();
+        let result;
 
-        if (this.current_token.type === TokenType.MULTIPLY) {
-            this.advance();
-            if (this.current_token.type === TokenType.EQUALS) {
+        while (this.current_token !== null && is_in(this.current_token.type, [TokenType.MULTIPLY, TokenType.DIVIDE, TokenType.POWER, TokenType.MODULO])) {
+            if (this.current_token.type === TokenType.MULTIPLY) {
                 this.advance();
-                if (node_a instanceof VarAccessNode) {
-                    return new VarModifyNode(node_a.var_name_tok, new MultiplyNode(node_a, this.expr()));
-                } else if (node_a instanceof ListAccessNode) {
-                    return new ListAssignmentNode(node_a, new MultiplyNode(node_a, this.expr()));
-                } else {
-                    throw new InvalidSyntaxError(
-                        node_a.pos_start, this.current_token.pos_end,
-                        "Expected a variable"
-                    );
+                if (this.current_token.type === TokenType.EQUALS) { // *=
+                    this.advance();
+                    if (node_a instanceof VarAccessNode) {
+                        return new VarModifyNode(node_a.var_name_tok, new MultiplyNode(node_a, this.expr()));
+                    } else if (node_a instanceof ListAccessNode) {
+                        return new ListAssignmentNode(node_a, new MultiplyNode(node_a, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            node_a.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
                 }
-            }
-            return new MultiplyNode(node_a, this.factor());
-        } else if (this.current_token.type === TokenType.DIVIDE) {
-            this.advance();
-            if (this.current_token.type === TokenType.EQUALS) {
+                result = new MultiplyNode(result ? result : node_a, this.factor());
+            } else if (this.current_token.type === TokenType.DIVIDE) {
                 this.advance();
-                if (node_a instanceof VarAccessNode) {
-                    return new VarModifyNode(node_a.var_name_tok, new DivideNode(node_a, this.expr()));
-                } else if (node_a instanceof ListAccessNode) {
-                    return new ListAssignmentNode(node_a, new DivideNode(node_a, this.expr()));
-                } else {
-                    throw new InvalidSyntaxError(
-                        node_a.pos_start, this.current_token.pos_end,
-                        "Expected a variable"
-                    );
+                if (this.current_token.type === TokenType.EQUALS) { // /=
+                    this.advance();
+                    if (node_a instanceof VarAccessNode) {
+                        return new VarModifyNode(node_a.var_name_tok, new DivideNode(node_a, this.expr()));
+                    } else if (node_a instanceof ListAccessNode) {
+                        return new ListAssignmentNode(node_a, new DivideNode(node_a, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            node_a.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
                 }
-            }
-            return new DivideNode(node_a, this.factor());
-        } else if (this.current_token.type === TokenType.POWER) {
-            this.advance();
-            if (this.current_token.type === TokenType.EQUALS) {
+                result = new DivideNode(result ? result : node_a, this.factor());
+            } else if (this.current_token.type === TokenType.POWER) {
                 this.advance();
-                if (node_a instanceof VarAccessNode) {
-                    return new VarModifyNode(node_a.var_name_tok, new PowerNode(node_a, this.expr()));
-                } else if (node_a instanceof ListAccessNode) {
-                    return new ListAssignmentNode(node_a, new PowerNode(node_a, this.expr()));
-                } else {
-                    throw new InvalidSyntaxError(
-                        node_a.pos_start, this.current_token.pos_end,
-                        "Expected a variable"
-                    );
+                if (this.current_token.type === TokenType.EQUALS) { // ^=
+                    this.advance();
+                    if (node_a instanceof VarAccessNode) {
+                        return new VarModifyNode(node_a.var_name_tok, new PowerNode(node_a, this.expr()));
+                    } else if (node_a instanceof ListAccessNode) {
+                        return new ListAssignmentNode(node_a, new PowerNode(node_a, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            node_a.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
                 }
-            }
-            return new PowerNode(node_a, this.factor());
-        } else if (this.current_token.type === TokenType.MODULO) {
-            this.advance();
-            if (this.current_token.type === TokenType.EQUALS) {
+                result = new PowerNode(result ? result : node_a, this.factor());
+            } else if (this.current_token.type === TokenType.MODULO) {
                 this.advance();
-                if (node_a instanceof VarAccessNode) {
-                    return new VarModifyNode(node_a.var_name_tok, new ModuloNode(node_a, this.expr()));
-                } else if (node_a instanceof ListAccessNode) {
-                    return new ListAssignmentNode(node_a, new ModuloNode(node_a, this.expr()));
-                } else {
-                    throw new InvalidSyntaxError(
-                        node_a.pos_start, this.current_token.pos_end,
-                        "Expected a variable"
-                    );
+                if (this.current_token.type === TokenType.EQUALS) { // %=
+                    this.advance();
+                    if (node_a instanceof VarAccessNode) {
+                        return new VarModifyNode(node_a.var_name_tok, new ModuloNode(node_a, this.expr()));
+                    } else if (node_a instanceof ListAccessNode) {
+                        return new ListAssignmentNode(node_a, new ModuloNode(node_a, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            node_a.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
                 }
+                result = new ModuloNode(result ? result : node_a, this.factor());
             }
-            return new ModuloNode(node_a, this.factor());
         }
 
-        return node_a;
+        return result ? result : node_a;
     }
 
     factor() {
@@ -418,7 +417,7 @@ export class Parser {
                 difference++;
                 this.advance();
             }
-            let expr = this.expr();
+            let expr = this.term();
             return new PrefixOperationNode(expr, difference);
         } else if (this.current_token.type === TokenType.DEC) { // --expr
             this.advance();
@@ -427,7 +426,7 @@ export class Parser {
                 difference--;
                 this.advance();
             }
-            let expr = this.expr();
+            let expr = this.term();
             return new PrefixOperationNode(expr, difference);
         } else {
             return this.call_list();

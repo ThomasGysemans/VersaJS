@@ -1,3 +1,6 @@
+NOTE: #comment#
+This file describes the grammar of the language.
+
 statements  : NEWLINE* statement (NEWLINE+ statement)* NEWLINE*
 
 statement   : KEYWORD:RETURN expr?
@@ -14,17 +17,19 @@ comp-expr   : NOT comp-expr
             : arith-expr ((EE|LT|GT|LTE|GTE|ELSE_ASSIGN)* arith-expr)*
 
 arith-expr  : term ((PLUS|MINUS) term)*
+            : term (INC|DEC)*
 
 term        : factor ((MUL|DIV|POWER|MODULO) factor)*
 
 factor      : (PLUS|MINUS) factor
+            : (INC|DEC) term
             : call_list
 
 call_list   : call ([expr]([expr])* (= expr)?)?
 
 call        : atom (LPAREN (expr (COMMA expr)*)? RPAREN)?
 
-atom        : NUMBER|STRING|IDENTIFIER((PLUS|MINUS|MUL|DIV|POWER|MODULO)= expr)?
+atom        : NUMBER|STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POWER|MODULO)= expr)?
             : LPAREN expr RPAREN
             : list-expr
             : if-expr
