@@ -27,6 +27,8 @@ export class TokenType {
     static COMMA          = 'COMMA'
     static STRING         = 'STRING'
     static ARROW          = 'ARROW'
+    static INC            = 'INC'
+    static DEC            = 'DEC'
     static QMARK          = 'QUESTION_MARK'
     static EOF            = 'EOF'
 }

@@ -53,10 +53,11 @@ export class Lexer {
             } else if (this.current_char === "." || is_in(this.current_char, DIGITS)) {
                 yield this.make_number();
             } else if (this.current_char === "+") {
-                this.advance();
-                yield new Token(TokenType.PLUS, null, this.pos);
+                // this.advance();
+                // yield new Token(TokenType.PLUS, null, this.pos);
+                yield this.make_plus_or_increment();
             } else if (this.current_char === "-") {
-                yield this.make_minus_or_arrow();
+                yield this.make_minus_decrement_or_arrow();
             } else if (this.current_char === "*") {
                 this.advance();
                 yield new Token(TokenType.MULTIPLY, null, this.pos);
@@ -297,7 +298,7 @@ export class Lexer {
         return new Token(TokenType.STRING, string, pos_start, this.pos, interpretations);
     }
 
-    make_minus_or_arrow() {
+    make_minus_decrement_or_arrow() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.MINUS;
         this.advance();
@@ -305,6 +306,22 @@ export class Lexer {
         if (this.current_char === ">") {
             this.advance();
             tok_type = TokenType.ARROW;
+        } else if (this.current_char === "-") {
+            this.advance();
+            tok_type = TokenType.DEC;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_plus_or_increment() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.PLUS;
+        this.advance();
+
+        if (this.current_char === "+") {
+            this.advance();
+            tok_type = TokenType.INC;
         }
 
         return new Token(tok_type, null, pos_start, this.pos);

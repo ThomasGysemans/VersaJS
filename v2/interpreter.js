@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode } from './nodes.js';
 import { BaseFunction, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { CustomError, RuntimeError } from './Exceptions.js';
@@ -144,6 +144,10 @@ export class Interpreter {
             return this.visit_DefineNode(node, context);
         } else if (node instanceof DeleteNode) {
             return this.visit_DeleteNode(node, context);
+        } else if (node instanceof PrefixOperationNode) {
+            return this.visit_PrefixOperationNode(node, context);
+        } else if (node instanceof PostfixOperationNode) {
+            return this.visit_PostfixOperationNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -570,7 +574,7 @@ export class Interpreter {
             );
         }
         
-        var variable = context.symbol_table.get(var_name);
+        let variable = context.symbol_table.get(var_name);
         if (variable === null || variable === undefined) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
@@ -2127,5 +2131,80 @@ export class Interpreter {
         }
 
         return res.success(NumberValue.none);
+    }
+
+    /**
+     * Interprets an incrementation/decrementation node (++a or --a).
+     * @param {PrefixOperationNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_PrefixOperationNode(node, context) {
+        let res = new RuntimeResult();
+        let difference = node.difference;
+        let visited = res.register(this.visit(node.node, context));
+        if (res.should_return()) return res;
+
+        if (visited instanceof NumberValue) {
+            return res.success(
+                new NumberValue(visited.value + difference).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            ); 
+        }
+    }
+
+    /**
+     * Interprets an incrementation/decrementation node (a++ or a--).
+     * @param {PostfixOperationNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_PostfixOperationNode(node, context) {
+        let access_node = node.node;
+        let difference = node.difference;
+        
+        if (!(access_node instanceof VarAccessNode)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Expected a variable to increment",
+                context
+            );
+        }
+
+        let var_name = access_node.var_name_tok.value;
+
+        if (is_in(var_name, Object.keys(CONSTANTS))) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "You cannot change the value of a constant.",
+                context
+            );
+        }
+
+        let value = context.symbol_table.get(var_name);
+        if (value === null || value === undefined) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Variable "${var_name}" doesn't exist`,
+                context
+            );
+        }
+
+        if (value instanceof NumberValue) {
+            let new_value = new NumberValue(value.value + difference);
+            context.symbol_table.modify(var_name, new_value);
+            return new RuntimeResult().success(new_value);
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Illegal operation",
+                context
+            );
+        }
     }
 }

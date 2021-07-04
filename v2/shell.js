@@ -1,5 +1,6 @@
 import prompt from 'prompt-sync';
 import { run } from './run.js';
+import { ListValue } from './values.js';
 
 while (true) {
     const text = prompt()("run > ");
@@ -22,7 +23,7 @@ while (true) {
             if (result) {
                 if (result.value.elements.length === 1) {
                     let first_element = result.value.elements[0];
-                    if (first_element.repr !== undefined) {
+                    if (first_element.repr !== undefined && !(first_element instanceof ListValue)) {
                         console.log(first_element.repr());
                     } else {
                         console.log(first_element.toString());

@@ -155,6 +155,52 @@ export class MinusNode extends CustomNode {
     }
 }
 
+export class PrefixOperationNode extends CustomNode {
+    /**
+     * @constructs IncrementBeforeNode
+     * @param {CustomNode} node The node.
+     * @param {number} difference How many times there is the incrementation token?
+     */
+    constructor(node, difference) {
+        super();
+        this.node = node;
+        this.difference = difference;
+
+        this.set_pos(node.pos_start, node.pos_end);
+    }
+
+    toString() {
+        if (this.difference < 0) {
+            return `(${'--'.repeat(this.difference)}${this.node})`;
+        } else {
+            return `(${'++'.repeat(this.difference)}${this.node})`;
+        }
+    }
+}
+
+export class PostfixOperationNode extends CustomNode {
+    /**
+     * @constructs PostfixOperationNode
+     * @param {CustomNode} node The node.
+     * @param {number} difference How many times there is the incrementation token?
+     */
+    constructor(node, difference) {
+        super();
+        this.node = node;
+        this.difference = difference;
+
+        this.set_pos(node.pos_start, node.pos_end);
+    }
+
+    toString() {
+        if (this.difference < 0) {
+            return `(${this.node}${'--'.repeat(this.difference)})`;
+        } else {
+            return `(${this.node}${'++'.repeat(this.difference)})`;
+        }
+    }
+}
+
 export class PowerNode extends CustomNode {
     /**
      * @constructs PowerNode

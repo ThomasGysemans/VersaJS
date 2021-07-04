@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode } from '../nodes.js';
 import { ListValue, NumberValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
@@ -43,6 +43,11 @@ describe('Interpreter', () => {
     it('should work with a modulo', () => {
         const value = new Interpreter().visit(new ModuloNode(new NumberNode(new Token(TokenType.NUMBER, 9)), new NumberNode(new Token(TokenType.NUMBER, 2))), context);
         assert.deepStrictEqual(value.value, new NumberValue(1).set_context(context));
+    });
+
+    it('should work with a prefix operation (before)', () => {
+        const value = new Interpreter().visit(new PrefixOperationNode(new NumberNode(new Token(TokenType.NUMBER, 9)), 1), context);
+        assert.deepStrictEqual(value.value, new NumberValue(10).set_context(context));
     });
     
     it('should raise an exception with division by 0', () => {

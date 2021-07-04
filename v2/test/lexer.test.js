@@ -313,4 +313,48 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with incrementation', () => {
+        const tokens = Array.from(new Lexer("5 + ++5").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 5),
+            new Token(TokenType.PLUS),
+            new Token(TokenType.INC),
+            new Token(TokenType.NUMBER, 5),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with incrementation (2nd test)', () => {
+        const tokens = Array.from(new Lexer("++5 + 5").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.INC),
+            new Token(TokenType.NUMBER, 5),
+            new Token(TokenType.PLUS),
+            new Token(TokenType.NUMBER, 5),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with decrementation', () => {
+        const tokens = Array.from(new Lexer("5 - --5").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 5),
+            new Token(TokenType.MINUS),
+            new Token(TokenType.DEC),
+            new Token(TokenType.NUMBER, 5),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with decrementation (2nd test)', () => {
+        const tokens = Array.from(new Lexer("--5 - 5").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.DEC),
+            new Token(TokenType.NUMBER, 5),
+            new Token(TokenType.MINUS),
+            new Token(TokenType.NUMBER, 5),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });
