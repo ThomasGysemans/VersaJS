@@ -1,7 +1,7 @@
 import { TokenType, Token } from "./tokens.js";
 import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
-import { NumberValue } from "./values.js";
+import { DictionnaryValue, NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
 
 /**
@@ -689,25 +689,48 @@ export class Parser {
                 // we have values in the dictionnary
                 let key = this.expr();
 
-                if (!(key instanceof StringNode)) {
+                if (key instanceof StringNode) {
+                    if (this.current_token.type !== TokenType.SEMICOLON) {
+                        throw new InvalidSyntaxError(
+                            pos_start, this.current_token.pos_end,
+                            "Expected a semicolon (':')"
+                        );
+                    }
+
+                    this.advance();
+
+                    let value = this.expr();
+                    let element = new DictionnaryElementNode(key, value);
+                    dict_element_nodes.push(element);
+                } else if (key instanceof VarAccessNode) {
+                    // if this is a variable, we want its name to become the key and its value to become the value of this key
+                    // var age = 17; var dico = { age, name: "thomas" }
+
+                    // the user had to use a string
+                    // because he's trying to do: `{ age: 17 }`
+                    if (this.current_token.type === TokenType.SEMICOLON) {
+                        throw new InvalidSyntaxError(
+                            pos_start, this.current_token.pos_end,
+                            "Expected a comma, or change the key to a string"
+                        );
+                    }
+
+                    // we don't need to advance
+
+                    // we'll do a little trick
+                    // => the key becomes the name of the variable
+                    // the value becomes the key (an instance of VarAccessNode)
+                    // therefore, during interpretation, we'll have: { "age": age }
+                    let key_string = new StringNode(key.var_name_tok);
+                    let value = key;
+                    let element = new DictionnaryElementNode(key_string, value);
+                    dict_element_nodes.push(element);
+                } else {
                     throw new InvalidSyntaxError(
                         key.pos_start, key.pos_end,
-                        "Expected a string as key"
+                        "Expected a string or an identifier as key"
                     );
                 }
-
-                if (this.current_token.type !== TokenType.SEMICOLON) {
-                    throw new InvalidSyntaxError(
-                        pos_start, this.current_token.pos_end,
-                        "Expected a semicolon (':')"
-                    );
-                }
-
-                this.advance();
-
-                let value = this.expr();
-                let element = new DictionnaryElementNode(key, value);
-                dict_element_nodes.push(element);
             };
 
             read_element();
@@ -1039,7 +1062,7 @@ export class Parser {
     }
 
     // TODO : impossible de faire une fonction sur plusieurs lignes avec la syntaxe actuelle
-    // faut un moyen pour que `func a(): something; return something;` fonctionne
+    // faut un moyen pour que `func a(): something; return something; end;` fonctionne
     func_expr() {
         this.advance();
 
