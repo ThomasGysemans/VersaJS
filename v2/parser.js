@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
@@ -449,19 +449,17 @@ export class Parser {
 
                 if (this.current_token.type === TokenType.LSQUARE) is_depth = true;
                 if (!is_depth) break;
+                if (is_pushing) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        `Expected '='`
+                    );
+                }
 
                 this.advance();
 
                 // if "list[]"
                 if (this.current_token.type === TokenType.RSQUARE) {
-                    // if it's already pushing
-                    if (is_pushing) {
-                        throw new InvalidSyntaxError(
-                            this.current_token.pos_start, this.current_token.pos_end,
-                            `Cannot push several times on the same list.`
-                        );
-                    }
-
                     index_nodes.push(new ListPushBracketsNode(pos_start, this.current_token.pos_end));
                     is_pushing = true;
                 } else {
@@ -614,6 +612,9 @@ export class Parser {
         } else if (this.current_token.type === TokenType.LSQUARE) {
             let list_expr = this.list_expr();
             return list_expr;
+        } else if (this.current_token.type === TokenType.LBRACK) {
+            let dict_expr = this.dict_expr();
+            return dict_expr;
         } else if (this.current_token.matches(TokenType.KEYWORD, "if")) {
             let if_expr = this.if_expr();
             return if_expr;
@@ -627,6 +628,7 @@ export class Parser {
             let func_expr = this.func_expr();
             return func_expr;
         } else {
+            // console.log(`unexpected node, this.current_token = ${this.current_token}`);
             this.advance();
             let pos_end = pos_start.copy();
             if (this.current_token) {
@@ -670,6 +672,67 @@ export class Parser {
             element_nodes,
             pos_start,
             this.current_token.pos_end.copy()
+        );
+    }
+
+    dict_expr() {
+        let dict_element_nodes = [];
+        let pos_start = this.current_token.pos_start.copy();
+        let pos_end;
+        this.advance();
+
+        // if the dictionnary is empty ("{}")
+        if (this.current_token.type === TokenType.RBRACK) {
+            this.advance();
+        } else {
+            const read_element = () => {
+                // we have values in the dictionnary
+                let key = this.expr();
+
+                if (!(key instanceof StringNode)) {
+                    throw new InvalidSyntaxError(
+                        key.pos_start, key.pos_end,
+                        "Expected a string as key"
+                    );
+                }
+
+                if (this.current_token.type !== TokenType.SEMICOLON) {
+                    throw new InvalidSyntaxError(
+                        pos_start, this.current_token.pos_end,
+                        "Expected a semicolon (':')"
+                    );
+                }
+
+                this.advance();
+
+                let value = this.expr();
+                let element = new DictionnaryElementNode(key, value);
+                dict_element_nodes.push(element);
+            };
+
+            read_element();
+
+            while (this.current_token.type === TokenType.COMMA) {
+                this.advance();
+                read_element();
+            }
+
+            if (this.current_token.type !== TokenType.RBRACK) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected ',' or '}'"
+                );
+            }
+
+            pos_end = this.current_token.pos_end.copy();
+
+            this.advance();
+        }
+
+        return new DictionnaryNode(
+            dict_element_nodes,
+            pos_start,
+            pos_end
         );
     }
 

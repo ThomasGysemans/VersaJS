@@ -24,6 +24,8 @@ export class TokenType {
     static NEWLINE        = 'NEWLINE'
     static LSQUARE        = 'LSQUARE'
     static RSQUARE        = 'RSQUARE'
+    static LBRACK         = 'LBRACK'
+    static RBRACK         = 'RBRACK'
     static COMMA          = 'COMMA'
     static STRING         = 'STRING'
     static ARROW          = 'ARROW'

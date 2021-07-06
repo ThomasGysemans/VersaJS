@@ -101,6 +101,12 @@ export class Lexer {
             } else if (this.current_char === "]") {
                 this.advance();
                 yield new Token(TokenType.RSQUARE, null, this.pos);
+            } else if (this.current_char === "{") {
+                this.advance();
+                yield new Token(TokenType.LBRACK, null, this.pos);
+            } else if (this.current_char === "}") {
+                this.advance();
+                yield new Token(TokenType.RBRACK, null, this.pos);
             } else if (this.current_char === ",") {
                 this.advance();
                 yield new Token(TokenType.COMMA, null, this.pos);

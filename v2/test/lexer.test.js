@@ -357,4 +357,16 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with a dictionnary', () => {
+        const tokens = Array.from(new Lexer("{ 'yo': 5 }").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.LBRACK),
+            new Token(TokenType.STRING, "yo"),
+            new Token(TokenType.SEMICOLON),
+            new Token(TokenType.NUMBER, 5),
+            new Token(TokenType.RBRACK),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

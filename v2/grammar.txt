@@ -25,19 +25,22 @@ factor      : (PLUS|MINUS) factor
             : (INC|DEC) term
             : call_list
 
-call_list   : call ([expr]([expr])* (= expr)?)?
+call_list   : call ([expr]([expr])* (= expr)?)? #same for dictionnaries#
 
 call        : atom (LPAREN (expr (COMMA expr)*)? RPAREN)?
 
 atom        : NUMBER|STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POWER|MODULO)= expr)?
             : LPAREN expr RPAREN
             : list-expr
+            : dict-expr
             : if-expr
             : for-expr
             : while-expr
             : func-def
 
 list-expr   : LSQUARE (expr (COMMA expr)*)? RSQUARE
+
+dict-expr   : LBRACK (expr SEMICOLON expr COMMA etc.)* RBRACK
 
 if-expr     : KEYWORD:IF expr KEYWORD:THEN
                 (statement if-expr-elif|if-expr-else?)

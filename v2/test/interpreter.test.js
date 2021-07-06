@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode } from '../nodes.js';
-import { ListValue, NumberValue } from '../values.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode } from '../nodes.js';
+import { DictionnaryValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
 import { Context } from '../context.js'; // ok
@@ -24,6 +24,10 @@ Tests with `mocha`
 // HELPERS
 const number = (n) => {
     return new NumberNode(new Token(TokenType.NUMBER, n));
+};
+
+const str = (string) => {
+    return new StringNode(new Token(TokenType.STRING, string));
 };
 
 describe('Interpreter', () => {
@@ -195,5 +199,50 @@ describe('Interpreter', () => {
         );
         const result = new Interpreter().visit(tree, context);
         assert.deepStrictEqual(result.value, new NumberValue(16).set_context(context));
+    });
+
+    it('should work with a dictionnary', () => {
+        // { 'yo': 5, 'test: 'coucou', 'list': [1, 2] }
+        const tree = new DictionnaryNode(
+            [
+                new DictionnaryElementNode(str("yo"), number(5)),
+                new DictionnaryElementNode(str("test"), str("coucou")),
+                new DictionnaryElementNode(str("list"), new ListNode([number(1), number(2)], null, null)),
+            ],
+            null,
+            null,
+        );
+        const result = new Interpreter().visit(tree, context);
+        const keys = [
+            new StringValue("yo"),
+            new StringValue("test"),
+            new StringValue("list"),
+        ];
+        const expected = [
+            new NumberValue(5),
+            new StringValue("coucou"),
+            new ListValue([new NumberValue(1), new NumberValue(2)]),
+        ];
+        if (result.value instanceof DictionnaryValue) {
+            for (let i = 0; i < keys.length; i++) {
+                let v = result.value.elements.get(keys[i].value);
+                let e = expected[i];
+                if (e instanceof ListValue) {
+                    let value_elements = v.elements;
+                    let expected_elements = e.elements;
+                    if (value_elements.length !== expected_elements.length) {
+                        throw new Error("The length of the expected elements should be equal to the length of the registered elements.");
+                    }
+                    for (let y = 0; y < value_elements.length; y++) {
+                        // @ts-ignore
+                        assert.strictEqual(value_elements[y].value, expected_elements[y].value);
+                    }
+                } else {
+                    assert.strictEqual(v.value, e.value);
+                }
+            }
+        } else {
+            assert.strictEqual(DictionnaryValue, false);
+        }
     });
 });

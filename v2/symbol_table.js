@@ -71,7 +71,18 @@ export class SymbolTable {
      * @param {string} name The name of the variable to remove.
      */
     remove(name) {
-        this.symbols.delete(name);
+        if (this.symbols.has(name)) {
+            this.symbols.delete(name);
+        } else {
+            var parent = this.parent;
+            while (parent) {
+                if (parent.symbols.has(name)) {
+                    parent.symbols.delete(name);
+                    break;
+                }
+                parent = parent.parent;
+            }
+        }
     }
 
     getHighestParentContext() {

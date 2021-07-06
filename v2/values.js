@@ -123,6 +123,38 @@ export class ListValue extends Value {
     }
 }
 
+export class DictionnaryValue extends Value {
+    /**
+     * @constructs DictionnaryValue
+     * @param {Map<string, Value>} elements The elements inside the list.
+     */
+    constructor(elements) {
+        super();
+        this.elements = elements;
+    }
+
+    toString() {
+        return "{" + Array.from(this.elements).map(v => {
+            return `${v[0]}: ${v[1]}`;
+        }).join(',') + "}";
+    }
+
+    is_true() {
+        return this.elements.size > 0;
+    }
+
+    /**
+     * @override
+     * @return {DictionnaryValue}
+     */
+    copy() {
+        let copy = new DictionnaryValue(this.elements);
+        copy.set_pos(this.pos_start, this.pos_end);
+        copy.set_context(this.context);
+        return copy;
+    }
+}
+
 /**
  * @classdesc A string in our program.
  */

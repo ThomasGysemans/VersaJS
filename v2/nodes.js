@@ -513,6 +513,44 @@ export class ListNode extends CustomNode {
     }
 }
 
+export class DictionnaryElementNode extends CustomNode {
+    /**
+     * @constructs DictionnaryElementNode
+     * @param {StringNode} key The key of the element.
+     * @param {CustomNode} value The value of that element.
+     */
+    constructor(key, value) {
+        super();
+        this.key = key;
+        this.value = value;
+        this.pos_start = key.pos_start;
+        this.pos_end = value.pos_end;
+    }
+
+    toString() {
+        return `(${this.key}: ${this.value})`;
+    }
+}
+
+export class DictionnaryNode extends CustomNode {
+    /**
+     * @constructs DictionnaryNode
+     * @param {Array<DictionnaryElementNode>} element_nodes The token that represents a string.
+     * @param {Position} pos_start The starting position of the list (we must have it from the constructor because of empty lists).
+     * @param {Position} pos_end The end position of the list (we must have it from the constructor because of empty lists).
+     */
+    constructor(element_nodes, pos_start, pos_end) {
+        super();
+        this.element_nodes = element_nodes;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `{${this.element_nodes.join(', ')}}`;
+    }
+}
+
 export class ListAccessNode extends CustomNode {
     /**
      * @constructs ListAccessNode
