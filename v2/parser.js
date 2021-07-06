@@ -1061,8 +1061,6 @@ export class Parser {
         );
     }
 
-    // TODO : impossible de faire une fonction sur plusieurs lignes avec la syntaxe actuelle
-    // faut un moyen pour que `func a(): something; return something; end;` fonctionne
     func_expr() {
         this.advance();
 
@@ -1218,6 +1216,12 @@ export class Parser {
                 true // should auto return? True because the arrow behaves like the `return` keyword.
             );
         }
+        
+        //
+        //
+        // Multiline function
+        //
+        // 
 
         // I want to write a semicolon when there are several lines
         if (this.current_token.type !== TokenType.SEMICOLON) {
@@ -1230,15 +1234,6 @@ export class Parser {
         this.advance();
 
         // now there might be a new line
-
-        if (this.current_token.type !== TokenType.NEWLINE) {
-            throw new InvalidSyntaxError(
-                this.current_token.pos_start, this.current_token.pos_end,
-                "Expected '->' or a new line"
-            );
-        }
-
-        this.advance();
 
         let body = this.statements();
 
