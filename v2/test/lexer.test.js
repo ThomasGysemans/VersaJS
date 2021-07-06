@@ -242,6 +242,15 @@ describe('Lexer tests', () => {
         check_tokens(tokens, expected_tokens);
     });
 
+    it('should work with the delete keyword', () => {
+        const tokens = Array.from(new Lexer("delete variable").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "delete"),
+            new Token(TokenType.IDENTIFIER, "variable"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
     it('should work with a list', () => {
         const tokens = Array.from(new Lexer("[1, 3]").generate_tokens());
         const expected_tokens = [

@@ -656,18 +656,16 @@ export class IfNode extends CustomNode {
      * @constructs IfNode
      * @param {Array} cases The cases [[condition, expr, should_return_null]].
      * @param {{code: any, should_return_null: boolean}} else_case The else case.
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
      */
-    constructor(cases, else_case) {
+    constructor(cases, else_case, pos_start, pos_end) {
         super();
         this.cases = cases;
         this.else_case = else_case;
-
-        this.pos_start = this.cases[0][0].pos_start;
-        if (this.else_case.code) {
-            this.pos_end = this.else_case.code.pos_end;
-        } else {
-            this.pos_end = this.cases[this.cases.length - 1][0].pos_end;
-        }
+        
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
     }
 
     toString() {

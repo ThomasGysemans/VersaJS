@@ -1,10 +1,11 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode } from '../nodes.js';
 import { DictionnaryValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
 import { Context } from '../context.js'; // ok
 import global_symbol_table from '../symbol_table.js'; // ok
+import { RuntimeError } from '../Exceptions.js';
 
 const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
 context.symbol_table = global_symbol_table;
@@ -19,6 +20,8 @@ How to make tests with the interpreter?
 
 Tests with `mocha`
 
+! Careful, the context is the same throughout every tests, therefore we might get errors such as "variable 'i' already exists"
+
 */
 
 // HELPERS
@@ -29,6 +32,10 @@ const number = (n) => {
 const str = (string) => {
     return new StringNode(new Token(TokenType.STRING, string));
 };
+
+const identifier_tok = (string) => {
+    return new Token(TokenType.IDENTIFIER, string);
+}
 
 describe('Interpreter', () => {
     it('should work with numbers', () => {
@@ -64,6 +71,120 @@ describe('Interpreter', () => {
     it('should work with a modulo', () => {
         const value = new Interpreter().visit(new ModuloNode(new NumberNode(new Token(TokenType.NUMBER, 9)), new NumberNode(new Token(TokenType.NUMBER, 2))), context);
         assert.deepStrictEqual(value.value, new NumberValue(1).set_context(context));
+    });
+
+    it('should work with a negative number', () => {
+        const tree = new MinusNode(number(5));
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, -5);
+    });
+
+    it('should work with a less than (<) (expected true)', () => {
+        const tree = new LessThanNode(
+            number(20),
+            number(30)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+    });
+
+    it('should work with a less than (<) (expected false)', () => {
+        const tree = new LessThanNode(
+            number(30),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+    });
+
+    it('should work with a greater than (>) (expected true)', () => {
+        const tree = new GreaterThanNode(
+            number(30),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+    });
+
+    it('should work with a greater than (>) (expected false)', () => {
+        const tree = new GreaterThanNode(
+            number(20),
+            number(30)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+    });
+
+    it('should work with a less than or equal (<=) (expected true)', () => {
+        const tree = new LessThanOrEqualNode(
+            number(20),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+    });
+
+    it('should work with a less than or equal (<=) (expected false)', () => {
+        const tree = new LessThanOrEqualNode(
+            number(21),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+    });
+
+    it('should work with a greater than or equal (>=) (expected true)', () => {
+        const tree = new GreaterThanOrEqualNode(
+            number(20),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+    });
+
+    it('should work with a greater than or equal (>=) (expected false)', () => {
+        const tree = new GreaterThanOrEqualNode(
+            number(19),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+    });
+
+    it('should work with an equal node (==) (expected true)', () => {
+        const tree = new EqualsNode(
+            number(20),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+    });
+
+    it('should work with an equal node (==) (expected false)', () => {
+        const tree = new EqualsNode(
+            number(19),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+    });
+
+    it('should work with a not equal node (!=) (expected true)', () => {
+        const tree = new NotEqualsNode(
+            number(19),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+    });
+
+    it('should work with a not equal node (!=) (expected false)', () => {
+        const tree = new NotEqualsNode(
+            number(20),
+            number(20)
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.value, 0); // 0 == false
     });
 
     it('should work with a complex operation', () => {
@@ -126,6 +247,21 @@ describe('Interpreter', () => {
         assert.deepStrictEqual(result.value, new NumberValue(1).set_context(context));
     });
 
+    it('should work with an access to a variable', () => {
+        // var number = 8; number
+        // tree = [(var number = 8), (number)]
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("number"), number(8)),
+                new VarAccessNode(identifier_tok("number"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        assert.deepStrictEqual(result.value.elements[1].value, 8);
+    });
+
     it('should work with a modification of a variable', () => {
         const tree = new VarModifyNode(
             new Token(TokenType.IDENTIFIER, "list"),
@@ -133,6 +269,29 @@ describe('Interpreter', () => {
         );
         const result = new Interpreter().visit(tree, context);
         assert.deepStrictEqual(result.value, new NumberValue(1).set_context(context));
+    });
+
+    it('should work with a delete keyword', () => {
+        // var number = 1; delete number; number
+        // tree = (delete (number))
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("number"), number(1)),
+                new DeleteNode(
+                    new VarAccessNode(identifier_tok("number")),
+                    null,
+                    null
+                ),
+                new VarAccessNode(identifier_tok("number")) // should raise an error
+            ],
+            null,
+            null
+        );
+        try {
+            const result = new Interpreter().visit(tree, context);
+        } catch(e) {
+            assert.strictEqual(true, e instanceof RuntimeError);
+        }
     });
 
     it('should work with an else operator (??)', () => {
@@ -173,6 +332,231 @@ describe('Interpreter', () => {
         }
     });
 
+    it('should work with a for-loop (basic for i to 10)', () => {
+        // for i to 10: i
+        // tree = ForNode
+        // expected result = ListValue of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        const tree = new ForNode(
+            identifier_tok("i"),
+            number(0),
+            number(10),
+            number(1),
+            new VarAccessNode(identifier_tok("i")),
+            false
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+        const value = result.value.elements.map((number_value) => number_value.value);
+        assert.deepStrictEqual(expected, value);
+    });
+
+    it('should work with a while-loop', () => {
+        // var e = 0; while e<10: e++
+        // tree = [(var i = 0), WhileNode]
+        // expected result = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("e"), number(0)),
+                new WhileNode(
+                    new LessThanNode(
+                        new VarAccessNode(identifier_tok("e")),
+                        number(10)
+                    ),
+                    new PostfixOperationNode(
+                        new VarAccessNode(identifier_tok("e")),
+                        1
+                    ),
+                    false
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        const value = result.value.elements[1].elements.map((number_value) => number_value.value);
+        assert.deepStrictEqual(expected, value);
+    });
+
+    it('should work with an if statement (if)', () => {
+        // var age = 19; if age > 18: "majeur" elif age == 18: "pile 18" else: "mineur"
+        // tree = [(var age = 19), IfNode(2 cases)]
+        // expected result = "majeur"
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("age"), number(19)),
+                new IfNode(
+                    [
+                        [
+                            new GreaterThanNode( // condition
+                                new VarAccessNode(identifier_tok("age")),
+                                number(18)
+                            ),
+                            str("majeur"), // the content to be returned if the condition is true
+                            false, // should return null?
+                        ],
+                        [
+                            new EqualsNode( // condition
+                                new VarAccessNode(identifier_tok("age")),
+                                number(18)
+                            ),
+                            str("pile 18"), // the content to be returned if the condition is true
+                            false // should return null?
+                        ]
+                    ],
+                    { code: str("mineur"), should_return_null: false },
+                    null,
+                    null
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = "majeur";
+        assert.deepStrictEqual(result.value.elements[1].value, expected);
+    });
+
+    it('should work with an if statement (elif)', () => {
+        // var _age = 18; if _age > 18: "majeur" elif _age == 18: "pile 18" else: "mineur"
+        // tree = [(var _age = 18), IfNode(2 cases)]
+        // expected result = "pile 18"
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("_age"), number(18)),
+                new IfNode(
+                    [
+                        [
+                            new GreaterThanNode( // condition
+                                new VarAccessNode(identifier_tok("_age")),
+                                number(18)
+                            ),
+                            str("majeur"), // the content to be returned if the condition is true
+                            false, // should return null?
+                        ],
+                        [
+                            new EqualsNode( // condition
+                                new VarAccessNode(identifier_tok("_age")),
+                                number(18)
+                            ),
+                            str("pile 18"), // the content to be returned if the condition is true
+                            false // should return null?
+                        ]
+                    ],
+                    { code: str("mineur"), should_return_null: false },
+                    null,
+                    null
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = "pile 18";
+        assert.deepStrictEqual(result.value.elements[1].value, expected);
+    });
+
+    it('should work with an if statement (else)', () => {
+        // var __age = 5; if __age > 18: "majeur" elif __age == 18: "pile 18" else: "mineur"
+        // tree = [(var __age = 5), IfNode(2 cases)]
+        // expected result = "mineur"
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("__age"), number(5)),
+                new IfNode(
+                    [
+                        [
+                            new GreaterThanNode( // condition
+                                new VarAccessNode(identifier_tok("__age")),
+                                number(18)
+                            ),
+                            str("majeur"), // the content to be returned if the condition is true
+                            false, // should return null?
+                        ],
+                        [
+                            new EqualsNode( // condition
+                                new VarAccessNode(identifier_tok("__age")),
+                                number(18)
+                            ),
+                            str("pile 18"), // the content to be returned if the condition is true
+                            false // should return null?
+                        ]
+                    ],
+                    { code: str("mineur"), should_return_null: false },
+                    null,
+                    null
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = "mineur";
+        assert.deepStrictEqual(result.value.elements[1].value, expected);
+    });
+
+    it('should work with a function declaration', () => {
+        // func add(a, b?, c?=1) -> if b != 0: a + b + c else: a + c; add(5)
+        // tree = (func add(a, b, c))
+        // expected result = 6
+        const tree = new ListNode(
+            [
+                new FuncDefNode(
+                    identifier_tok("add"),
+                    [ // all
+                        identifier_tok("a"),
+                        identifier_tok("b"),
+                        identifier_tok("c"),
+                    ],
+                    [ // mandatories
+                        identifier_tok("a"),
+                    ],
+                    [ // optionals
+                        identifier_tok("b"),
+                        identifier_tok("c"),
+                    ],
+                    [
+                        number(0),
+                        number(1),
+                    ],
+                    new IfNode(
+                        [
+                            [
+                                new NotEqualsNode(
+                                    new VarAccessNode(identifier_tok("b")),
+                                    number(0)
+                                ),
+                                new AddNode(
+                                    new AddNode(
+                                        new VarAccessNode(identifier_tok("a")),
+                                        new VarAccessNode(identifier_tok("b"))
+                                    ),
+                                    new VarAccessNode(identifier_tok("c"))
+                                ),
+                                false
+                            ]
+                        ],
+                        { code: new AddNode(new VarAccessNode(identifier_tok("a")), new VarAccessNode(identifier_tok("c"))), should_return_null: false },
+                        null,
+                        null
+                    ),
+                    true
+                ),
+                new CallNode(
+                    new VarAccessNode(identifier_tok("add")),
+                    [
+                        number(5)
+                    ]
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected_result = 6;
+        assert.deepStrictEqual(result.value.elements[1].value, expected_result);
+    });
+
     it('should work with a complex operation including prefix operation (negative)', () => {
         // 5 - --2 - 5 = -1
         // tree = ((5-(--2))-5)
@@ -199,6 +583,48 @@ describe('Interpreter', () => {
         );
         const result = new Interpreter().visit(tree, context);
         assert.deepStrictEqual(result.value, new NumberValue(16).set_context(context));
+    });
+
+    it('should work with a complex operation including postfix operation (negative)', () => {
+        // var b = 5; b----
+        // tree = [((b)----)]
+        // expected result = 3
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("b"), number(5)),
+                new PostfixOperationNode(
+                    new VarAccessNode(identifier_tok("b")),
+                    -2
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.elements[1].value;
+        const expected = 3;
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a complex operation including postfix operation (positive)', () => {
+        // var a = 5; a++++
+        // tree = [((a)++++)]
+        // expected result = 7
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("a"), number(5)),
+                new PostfixOperationNode(
+                    new VarAccessNode(identifier_tok("a")),
+                    2
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.elements[1].value;
+        const expected = 7;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a dictionnary', () => {

@@ -737,10 +737,17 @@ export class Parser {
     }
 
     if_expr() {
+        const pos_start = this.current_token.pos_start.copy();
         const all_cases = this.if_expr_cases("if");
         const cases = all_cases.cases;
         const else_case = all_cases.else_case;
-        return new IfNode(cases, else_case);
+        let pos_end;
+        if (else_case.code) {
+            pos_end = else_case.code.pos_end;
+        } else {
+            pos_end = cases[cases.length - 1][0].pos_end;
+        }
+        return new IfNode(cases, else_case, pos_start, pos_end);
     }
 
     /**
