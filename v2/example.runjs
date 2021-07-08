@@ -10,7 +10,26 @@ end
 var foreach_list = ["a", "b", "c", "d", "e"]
 var foreach_dico = { "age": 17, "prenom": "thomas", "dico": { "test": 5 } }
 var foreach_number = 5 # should raise an error
-# test_foreach(foreach_number)
+
+# should work on several lines
+var dico_data = 5
+var dico_multilines = {
+    "age"
+    : 
+    17,
+    "name":
+        "thomas",
+    dico_data,
+}
+
+# should work on several lines
+var list_multilines = [
+    0
+    ,
+    [0,
+    1],
+    1,
+]
 
 define __VERSION__ = 0
 
@@ -27,8 +46,17 @@ func divide(a, b):
         return 0
     end
 
-    return a / b
+    return # multiline :D
+        a / b
 end
+
+# should work on several lines
+log(
+    divide(
+        5
+        , 2
+    )
+)
 
 # we want to test if the variable declarations work fine in a for loop
 func average_grade(notes):

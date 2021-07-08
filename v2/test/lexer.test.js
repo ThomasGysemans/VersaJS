@@ -226,14 +226,14 @@ describe('Lexer tests', () => {
         check_tokens(tokens, expected_tokens)
     });
 
-    it('should work with newlines', () => {
+    it('should work with a newline', () => {
         const tokens = Array.from(new Lexer("var a = 1; var b = 2").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.KEYWORD, "var"),
             new Token(TokenType.IDENTIFIER, "a"),
             new Token(TokenType.EQUALS),
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.NEWLINE),
+            new Token(TokenType.SEMICOLON),
             new Token(TokenType.KEYWORD, "var"),
             new Token(TokenType.IDENTIFIER, "b"),
             new Token(TokenType.EQUALS),
@@ -292,7 +292,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.IDENTIFIER, "list"),
             new Token(TokenType.LSQUARE),
             new Token(TokenType.NUMBER, 0),
-            new Token(TokenType.SEMICOLON),
+            new Token(TokenType.COLON),
             new Token(TokenType.NUMBER, 5),
             new Token(TokenType.RSQUARE),
             new Token(TokenType.EQUALS),
@@ -372,7 +372,7 @@ describe('Lexer tests', () => {
         const expected_tokens = [
             new Token(TokenType.LBRACK),
             new Token(TokenType.STRING, "yo"),
-            new Token(TokenType.SEMICOLON),
+            new Token(TokenType.COLON),
             new Token(TokenType.NUMBER, 5),
             new Token(TokenType.RBRACK),
         ];

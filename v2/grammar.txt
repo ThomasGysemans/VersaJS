@@ -27,7 +27,7 @@ factor      : (PLUS|MINUS) factor
 
 call_func   : (LPAREN (expr (COMMA expr)*)? RPAREN)*
 
-call_list   : (LSQUARE (expr)|(expr SEMICOLON expr) RSQUARE)* (= expr)? #almost the same for dictionnaries#
+call_list   : (LSQUARE (expr)|(expr COLON expr) RSQUARE)* (= expr)? #almost the same for dictionnaries#
 
 call        : atom (call|call_list)*
 
@@ -43,7 +43,7 @@ atom        : NUMBER|(f)?STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POW
 
 list-expr   : LSQUARE (expr (COMMA expr)*)? RSQUARE
 
-dict-expr   : LBRACK ((expr SEMICOLON expr)|(IDENTIFIER) (COMMA (expr SEMICOLON expr)|(IDENTIFIER))*)? RBRACK
+dict-expr   : LBRACK (((expr COLON expr)|(IDENTIFIER) COMMA)*)? RBRACK
 
 if-expr     : KEYWORD:IF expr KEYWORD:THEN
                 (statement if-expr-elif|if-expr-else?)
@@ -62,7 +62,7 @@ for-expr    : KEYWORD:FOR IDENTIFIER EQ expr KEYWORD:TO expr
                 statement
                 | (NEWLINE statements KEYWORD:END)
 
-foreach-expr: KEYWORD:FOREACH call_list KEYWORD:AS (IDENTIFIER DOUBLE_ARROW IDENTIFIER)|(IDENTIFIER) SEMICOLON
+foreach-expr: KEYWORD:FOREACH call_list KEYWORD:AS (IDENTIFIER DOUBLE_ARROW IDENTIFIER)|(IDENTIFIER) COLON
                 (statement) | (NEWLINE statements KEYWORD:END)
 
 while-expr  : KEYWORD:WHILE expr KEYWORD:THEN
@@ -72,6 +72,6 @@ while-expr  : KEYWORD:WHILE expr KEYWORD:THEN
 func-def    : KEYWORD:FUNC IDENTIFIER?
                 LPAREN (IDENTIFIER (COMMA IDENTIFIER)*)? RPAREN
                 (ARROW expr)
-                | (SEMICOLON statements KEYWORD:END)
+                | (COLON statements KEYWORD:END)
 
 concatenation = f"I am $age years old"

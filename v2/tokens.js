@@ -20,8 +20,12 @@ export class TokenType {
     static LTE            = 'LESS_THAN_OR_EQUAL'
     static GTE            = 'GREATER_THAN_OR_EQUAL'
     static ELSE_ASSIGN    = 'ELSE_ASSIGN' // "??"
-    static SEMICOLON      = 'SEMICOLON'
+    static COLON          = 'COLON'
     static NEWLINE        = 'NEWLINE'
+    // a semicolon represents a newline, except in certain cases
+    // where we need to make the differencee between a newline and a semicolon
+    // for instance, we want to avoid newlines inside lists, but not semicolons
+    static SEMICOLON      = 'SEMICOLON' 
     static LSQUARE        = 'LSQUARE'
     static RSQUARE        = 'RSQUARE'
     static LBRACK         = 'LBRACK'

@@ -39,13 +39,16 @@ export class Lexer {
         while (this.current_char !== null) {
             if (is_in(this.current_char, WHITESPACE)) {
                 this.advance();
-            } else if (this.current_char === "\n" || this.current_char === "\r" || this.current_char === ";") {
+            } else if (this.current_char === "\n" || this.current_char === "\r") {
                 let pos_start = this.pos.copy();
                 if (this.current_char === "\r") {
                     this.advance(); // a newline can be sometimes : '\r\n'
                 }
                 this.advance();
                 yield new Token(TokenType.NEWLINE, null, pos_start);
+            } else if (this.current_char === ";") {
+                this.advance();
+                yield new Token(TokenType.SEMICOLON, null, this.pos);
             } else if (is_in(this.current_char, LETTERS + "_")) { // has to be before digits
                 yield this.make_identifier();
             } else if (this.current_char === "." || is_in(this.current_char, DIGITS)) {
@@ -92,7 +95,7 @@ export class Lexer {
                 yield this.make_string();
             } else if (this.current_char === ":") {
                 this.advance();
-                yield new Token(TokenType.SEMICOLON, null, this.pos);
+                yield new Token(TokenType.COLON, null, this.pos);
             } else if (this.current_char === "[") {
                 this.advance();
                 yield new Token(TokenType.LSQUARE, null, this.pos);

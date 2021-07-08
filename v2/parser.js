@@ -1,7 +1,7 @@
 import { TokenType, Token } from "./tokens.js";
 import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
-import { DictionnaryValue, NumberValue } from "./values.js";
+import { NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
 import { Position } from "./position.js";
 
@@ -58,6 +58,28 @@ export class Parser {
         this.current_token = this.idx < this.tokens.length ? this.tokens[this.idx] : null;
     }
 
+    // \n, \r\n or ;
+    is_newline() {
+        return this.current_token.type === TokenType.NEWLINE || this.current_token.type === TokenType.SEMICOLON;
+    }
+
+    // we just want to avoid the newlines (\n)
+    // but not the semicolons.
+    // That allows us to make the difference between the wanted syntax of the user
+    // and a syntax error (a semicolon inside a list declaration for example).
+    // Let's take:
+    // `return;` // i.e. end of statement
+    // However, we might have:
+    // ```
+    // return
+    //     (5 + 5)
+    // ```
+    ignore_newlines() {
+        while (this.current_token.type === TokenType.NEWLINE) {
+            this.advance();
+        }
+    }
+
     parse() {
         if (this.current_token === null) {
             return null;
@@ -86,7 +108,7 @@ export class Parser {
         let statements = [];
         let pos_start = this.current_token.pos_start.copy();
 
-        while (this.current_token.type === TokenType.NEWLINE) {
+        while (this.is_newline()) {
             this.advance();
         }
 
@@ -104,7 +126,7 @@ export class Parser {
 
         while (true) {
             let newline_count = 0;
-            while (this.current_token.type === TokenType.NEWLINE) {
+            while (this.is_newline()) {
                 this.advance();
                 newline_count++;
             }
@@ -148,9 +170,10 @@ export class Parser {
 
         if (this.current_token.matches(TokenType.KEYWORD, "return")) {
             this.advance();
+            this.ignore_newlines();
 
             let expr = null;
-            if (this.current_token.type !== TokenType.NEWLINE && this.current_token.type !== TokenType.EOF) expr = this.expr();
+            if (!this.is_newline() && this.current_token.type !== TokenType.EOF) expr = this.expr();
             
             return new ReturnNode(expr, pos_start, this.current_token.pos_end.copy());
         }
@@ -438,7 +461,7 @@ export class Parser {
         let atom = this.atom();
         let pos_start = this.current_token.pos_start.copy();
         let result;
-
+        
         while (this.current_token.type === TokenType.LPAREN || this.current_token.type === TokenType.LSQUARE) {
             if (this.current_token.type === TokenType.LPAREN) {
                 result = this.helper_call_func(result ? result : atom);
@@ -479,6 +502,7 @@ export class Parser {
                 }
 
                 this.advance();
+                this.ignore_newlines();
 
                 // if "list[]"
                 if (this.current_token.type === TokenType.RSQUARE) {
@@ -488,12 +512,13 @@ export class Parser {
                     let index_pos_start = this.current_token.pos_start.copy();
                     let expr;
                     
-                    // is it "[:3]" ? (is it already a semicolon)
-                    if (this.current_token.type === TokenType.SEMICOLON) {
+                    // is it "[:3]" ? (is it already a colon)
+                    if (this.current_token.type === TokenType.COLON) {
                         expr = null;
                     } else {
                         try {
                             expr = this.expr();
+                            this.ignore_newlines();
                         } catch(e) {
                             throw new InvalidSyntaxError(
                                 pos_start, index_pos_start,
@@ -502,7 +527,7 @@ export class Parser {
                         }
                     }
 
-                    if (this.current_token.type === TokenType.SEMICOLON) {
+                    if (this.current_token.type === TokenType.COLON) {
                         this.advance();
                         
                         let right_expr;
@@ -511,6 +536,7 @@ export class Parser {
                         } else {
                             try {
                                 right_expr = this.expr();
+                                this.ignore_newlines();
                             } catch(e) {
                                 throw new InvalidSyntaxError(
                                     pos_start, index_pos_start,
@@ -576,12 +602,14 @@ export class Parser {
                 if (!is_calling) break;
 
                 this.advance();
+                this.ignore_newlines();
 
                 if (this.current_token.type === TokenType.RPAREN) {
                     this.advance();
                 } else {
                     try {
                         arg_nodes.push(this.expr());
+                        this.ignore_newlines();
                     } catch(e) {
                         throw new InvalidSyntaxError(
                             this.current_token.pos_start, this.current_token.pos_end,
@@ -591,8 +619,11 @@ export class Parser {
 
                     while (this.current_token.type === TokenType.COMMA) {
                         this.advance();
+                        this.ignore_newlines();
                         arg_nodes.push(this.expr());
                     }
+
+                    this.ignore_newlines();
 
                     if (this.current_token.type !== TokenType.RPAREN) {
                         throw new InvalidSyntaxError(
@@ -674,7 +705,6 @@ export class Parser {
             let func_expr = this.func_expr();
             return func_expr;
         } else {
-            // console.log(`unexpected node, this.current_token = ${this.current_token}`);
             this.advance();
             let pos_end = pos_start.copy();
             if (this.current_token) {
@@ -690,6 +720,7 @@ export class Parser {
         let element_nodes = [];
         let pos_start = this.current_token.pos_start.copy();
         this.advance();
+        this.ignore_newlines();
 
         // if the list is empty ("[]")
         if (this.current_token.type === TokenType.RSQUARE) {
@@ -698,10 +729,14 @@ export class Parser {
             // we have values in the list
             // it's actually the same as getting arguments from the call method
             element_nodes.push(this.expr());
+            this.ignore_newlines();
 
             while (this.current_token.type === TokenType.COMMA) {
                 this.advance();
+                this.ignore_newlines();
+                if (this.current_token.type === TokenType.RSQUARE) break;
                 element_nodes.push(this.expr());
+                this.ignore_newlines();
             }
 
             if (this.current_token.type !== TokenType.RSQUARE) {
@@ -726,6 +761,7 @@ export class Parser {
         let pos_start = this.current_token.pos_start.copy();
         let pos_end;
         this.advance();
+        this.ignore_newlines();
 
         // if the dictionnary is empty ("{}")
         if (this.current_token.type === TokenType.RBRACK) {
@@ -734,18 +770,21 @@ export class Parser {
             const read_element = () => {
                 // we have values in the dictionnary
                 let key = this.expr();
+                this.ignore_newlines();
 
                 if (key instanceof StringNode) {
-                    if (this.current_token.type !== TokenType.SEMICOLON) {
+                    if (this.current_token.type !== TokenType.COLON) {
                         throw new InvalidSyntaxError(
                             pos_start, this.current_token.pos_end,
-                            "Expected a semicolon (':')"
+                            "Expected a colon (':')"
                         );
                     }
 
                     this.advance();
+                    this.ignore_newlines();
 
                     let value = this.expr();
+                    this.ignore_newlines();
                     let element = new DictionnaryElementNode(key, value);
                     dict_element_nodes.push(element);
                 } else if (key instanceof VarAccessNode) {
@@ -754,7 +793,7 @@ export class Parser {
 
                     // the user had to use a string
                     // because he's trying to do: `{ age: 17 }`
-                    if (this.current_token.type === TokenType.SEMICOLON) {
+                    if (this.current_token.type === TokenType.COLON) {
                         throw new InvalidSyntaxError(
                             pos_start, this.current_token.pos_end,
                             "Expected a comma, or change the key to a string"
@@ -783,8 +822,12 @@ export class Parser {
 
             while (this.current_token.type === TokenType.COMMA) {
                 this.advance();
+                this.ignore_newlines();
+                if (this.current_token.type === TokenType.RBRACK) break;
                 read_element();
             }
+
+            this.ignore_newlines();
 
             if (this.current_token.type !== TokenType.RBRACK) {
                 throw new InvalidSyntaxError(
@@ -842,9 +885,9 @@ export class Parser {
         this.advance();
         let condition = this.expr();
 
-        // we must have a semicolon
+        // we must have a colon
 
-        if (this.current_token.type !== TokenType.SEMICOLON) {
+        if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
                 "Expected ':'"
@@ -853,7 +896,7 @@ export class Parser {
 
         this.advance();
 
-        if (this.current_token.type === TokenType.NEWLINE) {
+        if (this.is_newline()) {
             this.advance();
 
             let statements = this.statements();
@@ -929,7 +972,7 @@ export class Parser {
         if (this.current_token.matches(TokenType.KEYWORD, "else")) {
             this.advance();
 
-            if (this.current_token.type === TokenType.SEMICOLON) {
+            if (this.current_token.type === TokenType.COLON) {
                 this.advance();
             } else {
                 throw new InvalidSyntaxError(
@@ -938,7 +981,7 @@ export class Parser {
                 );
             }
 
-            if (this.current_token.type === TokenType.NEWLINE) {
+            if (this.is_newline()) {
                 this.advance();
                 
                 let statements = this.statements();
@@ -1011,7 +1054,7 @@ export class Parser {
             step_value = this.expr();
         }
 
-        if (this.current_token.type !== TokenType.SEMICOLON) {
+        if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
                 "Expected ':'"
@@ -1020,7 +1063,7 @@ export class Parser {
 
         this.advance();
 
-        if (this.current_token.type === TokenType.NEWLINE) {
+        if (this.is_newline()) {
             this.advance();
 
             let extended_body = this.statements();
@@ -1095,16 +1138,16 @@ export class Parser {
             this.advance();
         }
 
-        if (this.current_token.type !== TokenType.SEMICOLON) {
+        if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
-                "Expected a semicolon ':'"
+                "Expected a colon ':'"
             );
         }
 
         this.advance();
 
-        if (this.current_token.type === TokenType.NEWLINE) {
+        if (this.is_newline()) {
             this.advance();
 
             let extended_body = this.statements();
@@ -1151,7 +1194,7 @@ export class Parser {
 
         // after the condition, we expect a ":"
 
-        if (this.current_token.type !== TokenType.SEMICOLON) {
+        if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
                 "Expected ':'"
@@ -1160,7 +1203,7 @@ export class Parser {
 
         this.advance();
 
-        if (this.current_token.type === TokenType.NEWLINE) {
+        if (this.is_newline()) {
             this.advance();
 
             let extended_body = this.statements();
@@ -1352,8 +1395,8 @@ export class Parser {
         //
         // 
 
-        // I want to write a semicolon when there are several lines
-        if (this.current_token.type !== TokenType.SEMICOLON) {
+        // I want to write a colon when there are several lines
+        if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
                 "Expected ':' or '->'"
