@@ -3,8 +3,7 @@ import { BaseFunction, DictionnaryValue, FunctionValue, ListValue, NativeFunctio
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
-import { Lexer } from './lexer.js';
-import { Parser } from './parser.js';
+import { LETTERS_DIGITS } from './lexer.js';
 import { CONSTANTS, SymbolTable } from './symbol_table.js';
 import { is_in } from './miscellaneous.js';
 
@@ -1746,53 +1745,41 @@ export class Interpreter {
      */
     visit_StringNode(node, context) {
         let interpreted_string = "";
-        let filename = node.filename;
-        let opening_quote = node.opening_quote;
+        let allow_concatenation = node.allow_concatenation;
 
-        // in order to write strings inside interpretations ({})
-        // we'll have to write: "My name is {\"Thomas\"}."
-
-        if (opening_quote === '"') {
+        if (allow_concatenation) {
             for (let i = 0; i < node.token.value.length; i++) {
                 let char = node.token.value[i];
-                let code = "";
-                let opening_brackets = 0;
-                if (char === "{") {
-                    opening_brackets++;
+                let variable_name = "";
+                if (char === "$") {
+                    let previous_char = "";
                     while (true) {
                         i++;
                         if (i >= node.token.value.length) break;
-                        if (node.token.value[i] === "{") opening_brackets++;
-                        if (node.token.value[i] === "}") opening_brackets--;
-                        if (opening_brackets <= 0) break;
+                        if (node.token.value[i] === " ") break;
+                        if (!is_in(node.token.value[i], LETTERS_DIGITS)) {
+                            previous_char = node.token.value[i];
+                            break;
+                        }
                         char = node.token.value[i];
-                        code += char;
+                        variable_name += char;
                     }
-                    if (code.trim()) {
-                        const lexer = new Lexer(code, filename);
-                        const tokens = lexer.generate_tokens();
-
-                        const parser = new Parser(tokens);
-                        const tree = parser.parse();
-
-                        if (!tree) {
+                    if (variable_name) {
+                        let value = context.symbol_table.get(variable_name);
+                        if (value === null || value === undefined) {
                             throw new RuntimeError(
                                 node.pos_start, node.pos_end,
-                                "Unable to concatenate the string.",
+                                `Undefined variable '${variable_name}'`,
                                 context
                             );
                         }
-
-                        const interpreter = new Interpreter();
-                        const result = interpreter.visit(tree, context);
-
-                        if (result.value.repr !== undefined) {
-                            interpreted_string += result.value.repr();
+                        if (value.repr !== undefined) {
+                            interpreted_string += value.repr() + previous_char;
                         } else {
-                            interpreted_string += result.value.toString();
+                            interpreted_string += value.toString() + previous_char;
                         }
                     } else {
-                        interpreted_string += "{}";
+                        interpreted_string += "$";
                     }
                 } else {
                     interpreted_string += char;

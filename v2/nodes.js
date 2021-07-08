@@ -637,14 +637,14 @@ export class StringNode extends CustomNode {
     /**
      * @constructs StringNode
      * @param {Token} token The token that represents a string.
+     * @param {boolean} allow_concatenation
      */
-    constructor(token) {
+    constructor(token, allow_concatenation=false) {
         super();
         this.token = token;
         this.pos_start = this.token.pos_start;
         this.pos_end = this.token.pos_end;
-        this.filename = this.token.data ? this.token.data.filename || "<stdin>" : "<stdin>";
-        this.opening_quote = this.token.data ? this.token.data.opening_quote || '"' : '"';
+        this.allow_concatenation = allow_concatenation;
     }
 
     toString() {

@@ -29,8 +29,8 @@ const number = (n) => {
     return new NumberNode(new Token(TokenType.NUMBER, n));
 };
 
-const str = (string) => {
-    return new StringNode(new Token(TokenType.STRING, string));
+const str = (string, allow_concatenation=true) => {
+    return new StringNode(new Token(TokenType.STRING, string), allow_concatenation);
 };
 
 const identifier_tok = (string) => {
@@ -977,6 +977,89 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context);
         const value = result.value.elements[1].value;
         const expected = 7;
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with concatenation', () => {
+        // var age = 17; var str = f"I am $age."; str
+        // expected result = "I am 17."
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("age_concatenation"), number(17)),
+                new VarAssignNode(identifier_tok("str_concatenation"), str("I am $age_concatenation.")),
+                new VarAccessNode(identifier_tok("str_concatenation"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.elements[2].value;
+        const expected = "I am 17.";
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with concatenation (2)', () => {
+        // var variable = "adult"; var str = f"I am an $variable"; str
+        // expected result = "I am an adult"
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("variable_concatenation"), str("adult")),
+                new VarAssignNode(identifier_tok("str_concatenation_2"), str("I am an $variable_concatenation")),
+                new VarAccessNode(identifier_tok("str_concatenation_2"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.elements[2].value;
+        const expected = "I am an adult";
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with concatenation (with if statement)', () => {
+        // var age = 18; "I am " + (if age > 18: "major" elif age == 18: "18" else: "minor") + "."
+        // tree = [((STRING:I am +IfNode(2 cases))+STRING:.)]
+        // if we don't put parentheses, the else case becomes "minor" + "." ("minor.")
+        // expected result = "I am 18."
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("age_concatenation_3"), number(18)),
+                new AddNode(
+                    new AddNode(
+                        str("I am "),
+                        new IfNode(
+                            [
+                                [
+                                    new GreaterThanNode(
+                                        new VarAccessNode(identifier_tok("age_concatenation_3")),
+                                        number(18)
+                                    ),
+                                    str("major"),
+                                    false
+                                ],
+                                [
+                                    new EqualsNode(
+                                        new VarAccessNode(identifier_tok("age_concatenation_3")),
+                                        number(18)
+                                    ),
+                                    str("18"),
+                                    false
+                                ]
+                            ],
+                            { code: str("minor"), should_return_null: false },
+                            null,
+                            null
+                        )
+                    ),
+                    str(".")
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.elements[1].value;
+        const expected = "I am 18.";
         assert.deepStrictEqual(value, expected);
     });
 

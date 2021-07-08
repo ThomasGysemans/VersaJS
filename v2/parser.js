@@ -639,6 +639,12 @@ export class Parser {
             const var_name_tok = token;
             this.advance();
 
+            if (var_name_tok.value === "f" && this.current_token.type === TokenType.STRING) {
+                const string = this.current_token;
+                this.advance();
+                return new StringNode(string, true);
+            }
+
             if (this.current_token.type === TokenType.EQUALS) {
                 this.advance();
                 const value_node = this.expr();

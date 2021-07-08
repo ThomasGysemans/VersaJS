@@ -1,15 +1,13 @@
 import KEYWORDS, { Token, TokenType } from './tokens.js';
 import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
-import { ExpectedCharError, IllegalCharError, InvalidSyntaxError } from './Exceptions.js';
+import { ExpectedCharError, IllegalCharError } from './Exceptions.js';
 
-const WHITESPACE        = " \t";
-const DIGITS            = "0123456789_"; // we want to allow 100_000 === 100000
-const LETTERS           = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const LETTERS_DIGITS    = LETTERS + DIGITS;
-const ESCAPE_CHARACTERS = new Map();
-ESCAPE_CHARACTERS.set('n', '\n');
-ESCAPE_CHARACTERS.set('t', '\t');
+export const WHITESPACE        = " \t";
+export const DIGITS            = "0123456789_"; // we want to allow 100_000 === 100000
+export const LETTERS           = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export const LETTERS_DIGITS    = LETTERS + DIGITS;
+export const ESCAPE_CHARACTERS = new Map([['n', '\n'], ['t', '\t']]);
 
 /**
  * @classdesc Reads the code and creates the tokens.
@@ -269,10 +267,7 @@ export class Lexer {
 
         // end of the string
         this.advance();
-        return new Token(TokenType.STRING, string, pos_start, this.pos, {
-            filename: this.filename,
-            opening_quote: opening_quote
-        });
+        return new Token(TokenType.STRING, string, pos_start, this.pos);
     }
 
     make_minus_decrement_or_arrow() {

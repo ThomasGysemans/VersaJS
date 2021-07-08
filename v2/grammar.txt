@@ -31,7 +31,7 @@ call_list   : (LSQUARE (expr)|(expr SEMICOLON expr) RSQUARE)* (= expr)? #almost 
 
 call        : atom (call|call_list)*
 
-atom        : NUMBER|STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POWER|MODULO)EQUALS expr)?
+atom        : NUMBER|(f)?STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POWER|MODULO)EQUALS expr)?
             : LPAREN expr RPAREN
             : list-expr
             : dict-expr
@@ -74,3 +74,4 @@ func-def    : KEYWORD:FUNC IDENTIFIER?
                 (ARROW expr)
                 | (SEMICOLON statements KEYWORD:END)
 
+concatenation = f"I am $age years old"
