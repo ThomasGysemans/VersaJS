@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode } from '../nodes.js';
 
 // npm run test
 
@@ -225,5 +225,17 @@ describe('Parser tests', () => {
         const tokens = new Lexer("{ 'yo': 5, 'test': 'hello' }").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof DictionnaryNode);
+    });
+
+    it('should work with a foreach loop (key as value)', () => {
+        const tokens = new Lexer("foreach list as key => value: log(key)").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof ForeachNode);
+    });
+
+    it('should work with a foreach loop (value)', () => {
+        const tokens = new Lexer("foreach list as value: log(key)").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof ForeachNode);
     });
 });

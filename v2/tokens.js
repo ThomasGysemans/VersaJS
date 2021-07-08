@@ -29,6 +29,7 @@ export class TokenType {
     static COMMA          = 'COMMA'
     static STRING         = 'STRING'
     static ARROW          = 'ARROW'
+    static DOUBLE_ARROW   = 'DOUBLE_ARROW'
     static INC            = 'INC'
     static DEC            = 'DEC'
     static QMARK          = 'QUESTION_MARK'
@@ -53,7 +54,9 @@ const KEYWORDS = [
     "continue",
     "break",
     "define",
-    "delete"
+    "delete",
+    "foreach",
+    "as",
 ];
 
 export default KEYWORDS;

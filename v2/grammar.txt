@@ -10,7 +10,7 @@ statement   : KEYWORD:RETURN expr?
 
 expr        : KEYWORD:VAR IDENTIFIER EQ expr
             : KEYWORD:DEFINE IDENTIFIER EQ expr
-            : KEYWORD:DELETE call_list
+            : KEYWORD:DELETE call
             : comp-expr ((KEYWORD:AND|KEYWORD:OR) comp-expr)*
             
 comp-expr   : NOT comp-expr
@@ -22,25 +22,28 @@ arith-expr  : term ((PLUS|MINUS) term)*
 term        : factor ((MUL|DIV|POWER|MODULO) factor)*
 
 factor      : (PLUS|MINUS) factor
-            : (INC|DEC) term
-            : call_list
+            : (INC|DEC)* term
+            : call
 
-call_list   : call ([expr]([expr])* (= expr)?)? #same for dictionnaries#
+call_func   : (LPAREN (expr (COMMA expr)*)? RPAREN)*
 
-call        : atom (LPAREN (expr (COMMA expr)*)? RPAREN)?
+call_list   : (LSQUARE (expr)|(expr SEMICOLON expr) RSQUARE)* (= expr)? #almost the same for dictionnaries#
 
-atom        : NUMBER|STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POWER|MODULO)= expr)?
+call        : atom (call|call_list)*
+
+atom        : NUMBER|STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POWER|MODULO)EQUALS expr)?
             : LPAREN expr RPAREN
             : list-expr
             : dict-expr
             : if-expr
             : for-expr
+            : foreach-expr
             : while-expr
             : func-def
 
 list-expr   : LSQUARE (expr (COMMA expr)*)? RSQUARE
 
-dict-expr   : LBRACK ((expr SEMICOLON expr)|(IDENTIFIER) COMMA etc.)* RBRACK
+dict-expr   : LBRACK ((expr SEMICOLON expr)|(IDENTIFIER) (COMMA (expr SEMICOLON expr)|(IDENTIFIER))*)? RBRACK
 
 if-expr     : KEYWORD:IF expr KEYWORD:THEN
                 (statement if-expr-elif|if-expr-else?)
@@ -58,6 +61,9 @@ for-expr    : KEYWORD:FOR IDENTIFIER EQ expr KEYWORD:TO expr
                 (KEYWORD:STEP expr)? KEYWORD:THEN
                 statement
                 | (NEWLINE statements KEYWORD:END)
+
+foreach-expr: KEYWORD:FOREACH call_list KEYWORD:AS (IDENTIFIER DOUBLE_ARROW IDENTIFIER)|(IDENTIFIER) SEMICOLON
+                (statement) | (NEWLINE statements KEYWORD:END)
 
 while-expr  : KEYWORD:WHILE expr KEYWORD:THEN
                 statement

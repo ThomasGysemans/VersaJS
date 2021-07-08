@@ -1,8 +1,9 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { DictionnaryValue, NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
+import { Position } from "./position.js";
 
 /**
  * @classdesc Reads the sequence of tokens in order to create the nodes.
@@ -202,7 +203,7 @@ export class Parser {
             let pos_start = this.current_token.pos_start;
             this.advance();
 
-            let node_to_delete = this.call_list();
+            let node_to_delete = this.call();
 
             return new DeleteNode(node_to_delete, pos_start, node_to_delete.pos_end);
         }
@@ -406,10 +407,10 @@ export class Parser {
 
         if (token.type === TokenType.PLUS) {
             this.advance();
-            return new PlusNode(this.call_list());
+            return new PlusNode(this.call());
         } else if (token.type === TokenType.MINUS) {
             this.advance();
-            return new MinusNode(this.call_list());
+            return new MinusNode(this.call());
         } else if (this.current_token.type === TokenType.INC) { // ++expr
             this.advance();
             let difference = 1;
@@ -429,13 +430,34 @@ export class Parser {
             let expr = this.term();
             return new PrefixOperationNode(expr, difference);
         } else {
-            return this.call_list();
+            return this.call();
         }
     }
 
-    call_list() {
-        let atom = this.call();
+    call() {
+        let atom = this.atom();
         let pos_start = this.current_token.pos_start.copy();
+        let result;
+
+        while (this.current_token.type === TokenType.LPAREN || this.current_token.type === TokenType.LSQUARE) {
+            if (this.current_token.type === TokenType.LPAREN) {
+                result = this.helper_call_func(result ? result : atom);
+            } else if (this.current_token.type === TokenType.LSQUARE) {
+                result = this.helper_call_list(result ? result : atom, pos_start);
+            }
+        }
+
+        return result ? result : atom;
+    }
+
+    /**
+     * grammar: `call_list`
+     * @param {CustomNode} atom 
+     * @param {Position|null} pos_start 
+     */
+    helper_call_list(atom, pos_start=null) {
+        // if we have a left square bracket after our atom
+        // that means we are trying to get an element in a list
 
         if (this.current_token.type === TokenType.LSQUARE) {
             // list[(1+1)][index]
@@ -528,54 +550,69 @@ export class Parser {
             } else {
                 return accessor;
             }
-        } else {
-            return atom;
-        }
-    }
-
-    call() {
-        let atom = this.atom();
-
-        // if we have a left parenthesis after our atom
-        // that means we are calling the atom
-
-        if (this.current_token.type === TokenType.LPAREN) {
-            this.advance();
-            
-            let arg_nodes = [];
-            if (this.current_token.type === TokenType.RPAREN) {
-                this.advance();
-            } else {
-                try {
-                    arg_nodes.push(this.expr());
-                } catch(e) {
-                    throw new InvalidSyntaxError(
-                        this.current_token.pos_start, this.current_token.pos_end,
-                        "Expected an expression or ')'"
-                    );
-                }
-
-                while (this.current_token.type === TokenType.COMMA) {
-                    this.advance();
-                    arg_nodes.push(this.expr());
-                }
-
-                if (this.current_token.type !== TokenType.RPAREN) {
-                    throw new InvalidSyntaxError(
-                        this.current_token.pos_start, this.current_token.pos_end,
-                        "Expected ',' or ')'"
-                    );
-                }
-
-                this.advance();
-            }
-
-            return new CallNode(atom, arg_nodes);
         }
 
         return atom;
     }
 
+    /**
+     * grammar: `call_func`
+     * @param {CustomNode} atom 
+     * @param {Position|null} pos_start 
+     */
+    helper_call_func(atom, pos_start=null) {
+        // if we have a left parenthesis after our atom
+        // that means we are calling the atom
+
+        if (this.current_token.type === TokenType.LPAREN) {
+            let is_calling = false;
+            let result;
+
+            while (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
+                let arg_nodes = [];
+                is_calling = false;
+
+                if (this.current_token.type === TokenType.LPAREN) is_calling = true;
+                if (!is_calling) break;
+
+                this.advance();
+
+                if (this.current_token.type === TokenType.RPAREN) {
+                    this.advance();
+                } else {
+                    try {
+                        arg_nodes.push(this.expr());
+                    } catch(e) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected an expression or ')'"
+                        );
+                    }
+
+                    while (this.current_token.type === TokenType.COMMA) {
+                        this.advance();
+                        arg_nodes.push(this.expr());
+                    }
+
+                    if (this.current_token.type !== TokenType.RPAREN) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected ',' or ')'"
+                        );
+                    }
+
+                    this.advance();
+                }
+
+                result = new CallNode(result ? result : atom, arg_nodes);
+            }
+
+            return result;
+        }
+
+        return atom;
+    }
+    
     /**
      * @returns {CustomNode}
      */
@@ -621,6 +658,9 @@ export class Parser {
         } else if (this.current_token.matches(TokenType.KEYWORD, "for")) {
             let for_expr = this.for_expr();
             return for_expr;
+        } else if (this.current_token.matches(TokenType.KEYWORD, "foreach")) {
+            let foreach_expr = this.foreach_expr();
+            return foreach_expr;
         } else if (this.current_token.matches(TokenType.KEYWORD, "while")) {
             let while_expr = this.while_expr();
             return while_expr;
@@ -1010,6 +1050,89 @@ export class Parser {
             step_value,
             body,
             false
+        );
+    }
+
+    foreach_expr() {
+        let pos_start = this.current_token.pos_start.copy();
+        this.advance();
+
+        // after the "foreach" keyword,
+        // we start with a loop
+
+        let list_node = this.call();
+
+        if (!this.current_token.matches(TokenType.KEYWORD, "as")) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected 'as'"
+            );
+        }
+
+        this.advance();
+
+        if (this.current_token.type !== TokenType.IDENTIFIER) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected an identifier"
+            );
+        }
+
+        let var_name_tok = this.current_token;
+
+        this.advance();
+
+        let value_name_tok;
+        if (this.current_token.type === TokenType.DOUBLE_ARROW) {
+            this.advance();
+            value_name_tok = this.current_token;
+            this.advance();
+        }
+
+        if (this.current_token.type !== TokenType.SEMICOLON) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected a semicolon ':'"
+            );
+        }
+
+        this.advance();
+
+        if (this.current_token.type === TokenType.NEWLINE) {
+            this.advance();
+
+            let extended_body = this.statements();
+
+            if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected 'end'"
+                );
+            }
+
+            this.advance();
+
+            return new ForeachNode(
+                list_node,
+                value_name_tok ? var_name_tok : null,
+                value_name_tok ? value_name_tok : var_name_tok,
+                extended_body,
+                true,
+                pos_start,
+                extended_body.pos_end
+            );
+        }
+
+        let body = this.statement();
+
+        return new ForeachNode(
+            list_node,
+            value_name_tok ? var_name_tok : null,
+            value_name_tok ? value_name_tok : var_name_tok,
+            body,
+            false,
+            pos_start,
+            body.pos_end
         );
     }
 

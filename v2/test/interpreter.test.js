@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode } from '../nodes.js';
-import { DictionnaryValue, ListValue, NumberValue, StringValue } from '../values.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector } from '../nodes.js';
+import { DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
 import { Context } from '../context.js'; // ok
@@ -18,7 +18,7 @@ How to make tests with the interpreter?
 * Test this operation and don't forget to console.log the generated tree (in run.js)
 * Recreate that tree in your test.
 
-Tests with `mocha`
+Tests with `mocha` (npm run test ./test/interpreter.test.js)
 
 ! Careful, the context is the same throughout every tests, therefore we might get errors such as "variable 'i' already exists"
 
@@ -39,44 +39,59 @@ const identifier_tok = (string) => {
 
 describe('Interpreter', () => {
     it('should work with numbers', () => {
-        const value = new Interpreter().visit(new NumberNode(new Token(TokenType.NUMBER, 51.2)), context);
-        assert.deepStrictEqual(value.value, new NumberValue(51.2).set_context(context));
+        const tree = number(51.2);
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 51.2);
     });
 
     it('should work with an addition', () => {
-        const value = new Interpreter().visit(new AddNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14))), context);
-        assert.deepStrictEqual(value.value, new NumberValue(41).set_context(context));
+        const tree = new AddNode(number(27), number(14));
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 41);
     });
 
     it('should work with a subtract', () => {
-        const value = new Interpreter().visit(new SubtractNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14))), context);
-        assert.deepStrictEqual(value.value, new NumberValue(13).set_context(context));
+        const tree = new SubtractNode(number(27), number(14));
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 13);
     });
 
     it('should work with a multiplication', () => {
-        const value = new Interpreter().visit(new MultiplyNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14))), context);
-        assert.deepStrictEqual(value.value, new NumberValue(378).set_context(context));
+        const tree = new MultiplyNode(number(27), number(14));
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 378);
     });
 
     it('should work with a power', () => {
-        const value = new Interpreter().visit(new PowerNode(new NumberNode(new Token(TokenType.NUMBER, 10)), new NumberNode(new Token(TokenType.NUMBER, 0))), context);
-        assert.deepStrictEqual(value.value, new NumberValue(1).set_context(context));
+        const tree = new PowerNode(number(10), number(0));
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 1);
     });
 
     it('should work with a divison', () => {
-        const value = new Interpreter().visit(new DivideNode(new NumberNode(new Token(TokenType.NUMBER, 10)), new NumberNode(new Token(TokenType.NUMBER, 5))), context);
-        assert.deepStrictEqual(value.value, new NumberValue(2).set_context(context));
+        const tree = new DivideNode(number(10), number(5));
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 2);
     });
 
     it('should work with a modulo', () => {
-        const value = new Interpreter().visit(new ModuloNode(new NumberNode(new Token(TokenType.NUMBER, 9)), new NumberNode(new Token(TokenType.NUMBER, 2))), context);
-        assert.deepStrictEqual(value.value, new NumberValue(1).set_context(context));
+        const tree = new ModuloNode(number(9), number(2));
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 1);
     });
 
     it('should work with a negative number', () => {
         const tree = new MinusNode(number(5));
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, -5);
+        const value = result.value.value;
+        assert.deepStrictEqual(value, -5);
     });
 
     it('should work with a less than (<) (expected true)', () => {
@@ -85,7 +100,8 @@ describe('Interpreter', () => {
             number(30)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 1); // 1 == true
     });
 
     it('should work with a less than (<) (expected false)', () => {
@@ -94,7 +110,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 0); // 0 == false
     });
 
     it('should work with a greater than (>) (expected true)', () => {
@@ -103,7 +120,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 1); // 1 == true
     });
 
     it('should work with a greater than (>) (expected false)', () => {
@@ -112,7 +130,8 @@ describe('Interpreter', () => {
             number(30)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 0); // 0 == false
     });
 
     it('should work with a less than or equal (<=) (expected true)', () => {
@@ -121,7 +140,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 1); // 1 == true
     });
 
     it('should work with a less than or equal (<=) (expected false)', () => {
@@ -130,7 +150,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 0); // 0 == false
     });
 
     it('should work with a greater than or equal (>=) (expected true)', () => {
@@ -139,7 +160,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 1); // 1 == true
     });
 
     it('should work with a greater than or equal (>=) (expected false)', () => {
@@ -148,7 +170,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 0); // 0 == false
     });
 
     it('should work with an equal node (==) (expected true)', () => {
@@ -157,7 +180,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 1); // 1 == true
     });
 
     it('should work with an equal node (==) (expected false)', () => {
@@ -166,7 +190,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 0); // 0 == false
     });
 
     it('should work with a not equal node (!=) (expected true)', () => {
@@ -175,7 +200,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 1); // 1 == true
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 1); // 1 == true
     });
 
     it('should work with a not equal node (!=) (expected false)', () => {
@@ -184,7 +210,8 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.value, 0); // 0 == false
+        const value = result.value.value;
+        assert.deepStrictEqual(value, 0); // 0 == false
     });
 
     it('should work with a complex operation', () => {
@@ -203,18 +230,27 @@ describe('Interpreter', () => {
                 )
             )
         );
-        const value = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(value.value, new NumberValue(125).set_context(context));
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        const expected = 125;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a prefix operation (before)', () => {
-        const value = new Interpreter().visit(new PrefixOperationNode(new NumberNode(new Token(TokenType.NUMBER, 9)), 1), context);
-        assert.deepStrictEqual(value.value, new NumberValue(10).set_context(context));
+        const tree = new PrefixOperationNode(number(9), 1);
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value.value;
+        const expected = 10;
+        assert.deepStrictEqual(value, expected);
     });
     
     it('should raise an exception with division by 0', () => {
         try {
-            const value = new Interpreter().visit(new DivideNode(new NumberNode(new Token(TokenType.NUMBER, 10)), new NumberNode(new Token(TokenType.NUMBER, 0))), context);
+            const tree = new DivideNode(
+                number(10),
+                number(0),
+            );
+            const value = new Interpreter().visit(tree, context);
         } catch(e) {
             assert.strictEqual(true, true);
         }
@@ -235,16 +271,20 @@ describe('Interpreter', () => {
         );
 
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value, new NumberValue(-2166).set_context(context));
+        const value = result.value.value;
+        const expected = -2166;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with an assignment to a variable', () => {
         const tree = new VarAssignNode(
-            new Token(TokenType.IDENTIFIER, "list"),
-            new NumberNode(new Token(TokenType.NUMBER, 1))
+            identifier_tok("var_assignement"),
+            number(1)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value, new NumberValue(1).set_context(context));
+        const expected = 1;
+        const value = result.value.value;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with an access to a variable', () => {
@@ -259,16 +299,34 @@ describe('Interpreter', () => {
             null
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value.elements[1].value, 8);
+        const value = result.value.elements[1].value;
+        const expected = 8;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a modification of a variable', () => {
-        const tree = new VarModifyNode(
-            new Token(TokenType.IDENTIFIER, "list"),
-            new NumberNode(new Token(TokenType.NUMBER, 1))
-        );
+        // var variable = 5; variable = 4; variable
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("variable_modification"),
+                    number(5)
+                ),
+                new VarModifyNode(
+                    identifier_tok("variable_modification"),
+                    number(4)
+                ),
+                new VarAccessNode(
+                    identifier_tok("variable_modification")
+                )
+            ],
+            null,
+            null
+        )
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value, new NumberValue(1).set_context(context));
+        const expected = 4;
+        const value = result.value.elements[2].value;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a delete keyword', () => {
@@ -296,11 +354,13 @@ describe('Interpreter', () => {
 
     it('should work with an else operator (??)', () => {
         const tree = new ElseAssignmentNode(
-            new NumberNode(new Token(TokenType.NUMBER, 0)),
-            new NumberNode(new Token(TokenType.NUMBER, 1))
+            number(0),
+            number(1)
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value, new NumberValue(1).set_context(context));
+        const expected = 1;
+        const value = result.value.value;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a list', () => {
@@ -313,23 +373,252 @@ describe('Interpreter', () => {
             null,
         );
         const result = new Interpreter().visit(tree, context);
-        const expected = [
-            new NumberValue(0),
-            new NumberValue(1)
-        ];
-        var i = 0;
-        if (result.value instanceof ListValue) {
-            for (let el of result.value.elements) {
-                if (el instanceof NumberValue) {
-                    assert.strictEqual(el.value, expected[i].value);
-                } else {
-                    assert.strictEqual(NumberValue, false);
-                }
-                i++;
-            }
-        } else {
-            assert.strictEqual(ListValue, false);
-        }
+        const expected = [0, 1];
+        const value = result.value.elements.map((v) => v.value);
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a list (access)', () => {
+        // var list = [1, 2, 3]; list
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("list_access"),
+                    new ListNode(
+                        [
+                            number(1),
+                            number(2),
+                            number(3),
+                        ],
+                        null,
+                        null
+                    )
+                ),
+                new VarAccessNode(identifier_tok("list_access"))
+            ],
+            null,
+            null,
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [1, 2, 3];
+        const value = result.value.elements[1].elements.map((v) => v.value);
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a list (assignement)', () => {
+        // var list = [1, 2, 3]; list[4] = 5; list
+        // expected = [1, 2, 3, 0, 5]
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("list_assignement"),
+                    new ListNode(
+                        [
+                            number(1),
+                            number(2),
+                            number(3),
+                        ],
+                        null,
+                        null
+                    )
+                ),
+                new ListAssignmentNode(
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("list_assignement")),
+                        0,
+                        [
+                            number(4)
+                        ]
+                    ),
+                    number(5)
+                ),
+                new VarAccessNode(identifier_tok("list_assignement"))
+            ],
+            null,
+            null,
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [1, 2, 3, 0, 5];
+        const value = result.value.elements[2].elements.map((v) => v.value);
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a list (binary_selector)', () => {
+        // var list = [1, 2, 3, 0, 5]; list[1:-1]
+        // expected = [2, 3, 0]
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("list_binary_selector"),
+                    new ListNode(
+                        [
+                            number(1),
+                            number(2),
+                            number(3),
+                            number(0),
+                            number(3),
+                        ],
+                        null,
+                        null
+                    )
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("list_binary_selector")),
+                    0,
+                    [
+                        new ListBinarySelector(
+                            number(1),
+                            number(-1),
+                            null,
+                            null,
+                        )
+                    ]
+                ),
+            ],
+            null,
+            null,
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [2, 3, 0];
+        const value = result.value.elements[1].elements.map((v) => v.value);
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a list that contains a function, which we want to call', () => {
+        // var list_with_func = [func (a, b) -> a + b]; list_with_func[0](1, 2)
+        // tree = [(var list_with_func = [func (a, b)]), (call ((list_with_func)[expr])(2 args))]
+        // expected result = 3
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("list_with_func"),
+                    new ListNode(
+                        [
+                            new FuncDefNode(
+                                null,
+                                [
+                                    identifier_tok("a"),
+                                    identifier_tok("b"),
+                                ],
+                                [
+                                    identifier_tok("a"),
+                                    identifier_tok("b"),
+                                ],
+                                [],
+                                [],
+                                new AddNode(
+                                    new VarAccessNode(identifier_tok("a")),
+                                    new VarAccessNode(identifier_tok("b")),
+                                ),
+                                true
+                            )
+                        ],
+                        null,
+                        null
+                    )
+                ),
+                new CallNode(
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("list_with_func")),
+                        1,
+                        [
+                            number(0)
+                        ]
+                    ),
+                    [
+                        number(1),
+                        number(2)
+                    ]
+                )
+            ],
+            null,
+            null,
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = 3;
+        const value = result.value.elements[1].value;
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a list that contains a function, which we want to call (ultimate test)', () => {
+        // A list that contains a function, function that returns a list, a list that contains a function which we want to call
+        // var list = [func () -> [1, func (a, b) -> a + b]]; list[0]()[1](5, 1)
+        // tree (only the call) = [(call ((call ((list)[expr])(0 args))[expr])(2 args))]
+        // expected result = 6
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("list_with_func_ultimate"),
+                    new ListNode(
+                        [
+                            new FuncDefNode(
+                                null,
+                                [],
+                                [],
+                                [],
+                                [],
+                                new ListNode(
+                                    [
+                                        number(1),
+                                        new FuncDefNode(
+                                            null,
+                                            [
+                                                identifier_tok("a"),
+                                                identifier_tok("b"),
+                                            ],
+                                            [
+                                                identifier_tok("a"),
+                                                identifier_tok("b"),
+                                            ],
+                                            [],
+                                            [],
+                                            new AddNode(
+                                                new VarAccessNode(identifier_tok("a")),
+                                                new VarAccessNode(identifier_tok("b")),
+                                            ),
+                                            true
+                                        )
+                                    ],
+                                    null,
+                                    null
+                                ),
+                                true
+                            )
+                        ],
+                        null,
+                        null
+                    )
+                ),
+                new CallNode(
+                    new ListAccessNode(
+                        new CallNode(
+                            new ListAccessNode(
+                                new VarAccessNode(identifier_tok("list_with_func_ultimate")),
+                                0,
+                                [
+                                    number(0)
+                                ]
+                            ),
+                            []
+                        ),
+                        0,
+                        [
+                            number(1)
+                        ]
+                    ),
+                    [
+                        number(5),
+                        number(1)
+                    ]
+                )
+            ],
+            null,
+            null,
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = 6;
+        const value = result.value.elements[1].value;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a for-loop (basic for i to 10)', () => {
@@ -347,7 +636,7 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context);
         const expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         const value = result.value.elements.map((number_value) => number_value.value);
-        assert.deepStrictEqual(expected, value);
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a while-loop', () => {
@@ -375,7 +664,7 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context);
         const expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         const value = result.value.elements[1].elements.map((number_value) => number_value.value);
-        assert.deepStrictEqual(expected, value);
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with an if statement (if)', () => {
@@ -414,7 +703,8 @@ describe('Interpreter', () => {
         );
         const result = new Interpreter().visit(tree, context);
         const expected = "majeur";
-        assert.deepStrictEqual(result.value.elements[1].value, expected);
+        const value = result.value.elements[1].value;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with an if statement (elif)', () => {
@@ -453,7 +743,8 @@ describe('Interpreter', () => {
         );
         const result = new Interpreter().visit(tree, context);
         const expected = "pile 18";
-        assert.deepStrictEqual(result.value.elements[1].value, expected);
+        const value = result.value.elements[1].value;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with an if statement (else)', () => {
@@ -492,7 +783,8 @@ describe('Interpreter', () => {
         );
         const result = new Interpreter().visit(tree, context);
         const expected = "mineur";
-        assert.deepStrictEqual(result.value.elements[1].value, expected);
+        const value = result.value.elements[1].value;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a function declaration', () => {
@@ -553,8 +845,65 @@ describe('Interpreter', () => {
             null
         );
         const result = new Interpreter().visit(tree, context);
-        const expected_result = 6;
-        assert.deepStrictEqual(result.value.elements[1].value, expected_result);
+        const expected = 6;
+        const value = result.value.elements[1].value;
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a double call to a function (function that returns a function, which we want to call)', () => {
+        // func test_func() -> func(a, b) -> a + b; test_func()(5+5, 5)
+        // tree = [func test_func(), (call (call (test_func)(0 args))(2 args))]
+        // expected result = 15
+        const tree = new ListNode(
+            [
+                new FuncDefNode(
+                    identifier_tok("test_func"),
+                    [],
+                    [],
+                    [],
+                    [],
+                    new FuncDefNode(
+                        null,
+                        [
+                            identifier_tok("a"),
+                            identifier_tok("b"),
+                        ],
+                        [
+                            identifier_tok("a"),
+                            identifier_tok("b"),
+                        ],
+                        [],
+                        [],
+                        new AddNode(
+                            new VarAccessNode(identifier_tok("a")),
+                            new VarAccessNode(identifier_tok("b"))
+                        ),
+                        true
+                    ),
+                    true
+                ),
+                // we first call test_func(), then test_func()(a, b)
+                new CallNode( // the last call (right)
+                    new CallNode( // the first call is here (left)
+                        new VarAccessNode(identifier_tok("test_func")),
+                        []
+                    ),
+                    [
+                        new AddNode(
+                            number(5),
+                            number(5)
+                        ),
+                        number(5)
+                    ]
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = 15;
+        const value = result.value.elements[1].value;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a complex operation including prefix operation (negative)', () => {
@@ -568,7 +917,9 @@ describe('Interpreter', () => {
             new NumberNode(new Token(TokenType.NUMBER, 5))
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value, new NumberValue(-1).set_context(context));
+        const value = result.value.value;
+        const expected = -1;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a complex operation including prefix operation (positive)', () => {
@@ -582,7 +933,9 @@ describe('Interpreter', () => {
             new NumberNode(new Token(TokenType.NUMBER, 5))
         );
         const result = new Interpreter().visit(tree, context);
-        assert.deepStrictEqual(result.value, new NumberValue(16).set_context(context));
+        const value = result.value.value;
+        const expected = 16;
+        assert.deepStrictEqual(value, expected);
     });
 
     it('should work with a complex operation including postfix operation (negative)', () => {

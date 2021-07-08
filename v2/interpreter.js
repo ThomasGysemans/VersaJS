@@ -1,7 +1,7 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode } from './nodes.js';
 import { BaseFunction, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
-import { CustomError, RuntimeError } from './Exceptions.js';
+import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
 import { Lexer } from './lexer.js';
 import { Parser } from './parser.js';
@@ -195,6 +195,8 @@ export class Interpreter {
             return this.visit_PostfixOperationNode(node, context);
         } else if (node instanceof DictionnaryNode) {
             return this.visit_DictionnaryNode(node, context);
+        } else if (node instanceof ForeachNode) {
+            return this.visit_ForeachNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -1743,82 +1745,65 @@ export class Interpreter {
      * @returns {RuntimeResult}
      */
     visit_StringNode(node, context) {
-        /** @type {string} */
-        let interpreted_string = node.token.value;
-        let interpretations = node.interpretations;
+        let interpreted_string = "";
+        let filename = node.filename;
+        let opening_quote = node.opening_quote;
 
-        if (interpretations) {
-            let previous_gap = 0;
-            
-            for (let i = 0; i < interpretations.length; i++) {
-                let pos_start = interpretations[i].pos_start;
-                let pos_end = interpretations[i].pos_end;
-                let filename = interpretations[i].filename;
-                let substring_start = interpretations[i].substring_start;
-                let substring_end = interpretations[i].substring_end;
-                let code = interpretations[i].code;
+        // in order to write strings inside interpretations ({})
+        // we'll have to write: "My name is {\"Thomas\"}."
 
-                // Generate tokens
-                const lexer = new Lexer(code, filename);
-                let tokens;
-                try {
-                    tokens = lexer.generate_tokens();
-                } catch(e) {
-                    throw new RuntimeError(
-                        pos_start, pos_end,
-                        e instanceof CustomError ? e.details : "",
-                        context
-                    );
-                }
+        if (opening_quote === '"') {
+            for (let i = 0; i < node.token.value.length; i++) {
+                let char = node.token.value[i];
+                let code = "";
+                let opening_brackets = 0;
+                if (char === "{") {
+                    opening_brackets++;
+                    while (true) {
+                        i++;
+                        if (i >= node.token.value.length) break;
+                        if (node.token.value[i] === "{") opening_brackets++;
+                        if (node.token.value[i] === "}") opening_brackets--;
+                        if (opening_brackets <= 0) break;
+                        char = node.token.value[i];
+                        code += char;
+                    }
+                    if (code.trim()) {
+                        const lexer = new Lexer(code, filename);
+                        const tokens = lexer.generate_tokens();
 
-                const parser = new Parser(tokens);
-                let tree;
-                try {
-                    tree = parser.parse();
-                } catch(e) {
-                    throw new RuntimeError(
-                        pos_start, pos_end,
-                        e instanceof CustomError ? e.details : "",
-                        context
-                    );
-                }
+                        const parser = new Parser(tokens);
+                        const tree = parser.parse();
 
-                const interpreter = new Interpreter();
-                let result;
+                        if (!tree) {
+                            throw new RuntimeError(
+                                node.pos_start, node.pos_end,
+                                "Unable to concatenate the string.",
+                                context
+                            );
+                        }
 
-                try {
-                    result = interpreter.visit(tree, context);
-                } catch(e) {
-                    throw new RuntimeError(
-                        pos_start, pos_end,
-                        e instanceof CustomError ? e.details : "",
-                        context
-                    );
-                }
-                
-                let new_value;
-                if (result.value.repr !== undefined) {
-                    new_value = result.value.repr();
+                        const interpreter = new Interpreter();
+                        const result = interpreter.visit(tree, context);
+
+                        if (result.value.repr !== undefined) {
+                            interpreted_string += result.value.repr();
+                        } else {
+                            interpreted_string += result.value.toString();
+                        }
+                    } else {
+                        interpreted_string += "{}";
+                    }
                 } else {
-                    new_value = result.value.toString();
+                    interpreted_string += char;
                 }
-
-                interpreted_string = interpreted_string.substring(0, substring_start) + new_value + interpreted_string.substring(substring_end);
-                
-                try {
-                    // We modify the string gradually, concatenation by concatenation.
-                    // This has the effect of changing the positions by a certain number.
-                    // The difference is equivalent to the length of the code minus the length of the replacing value.
-                    // However, we must save the previous gap each time.
-                    previous_gap = previous_gap + ((code.length + 2) - new_value.length);
-                    interpretations[i+1].substring_start = interpretations[i+1].substring_start - previous_gap;
-                    interpretations[i+1].substring_end = interpretations[i+1].substring_end - previous_gap;
-                } catch(e) { }
             }
+        } else {
+            interpreted_string = node.token.value;
         }
 
         return new RuntimeResult().success(
-            new StringValue(interpreted_string ? interpreted_string : node.token.value).set_context(context).set_pos(node.pos_start, node.pos_end)
+            new StringValue(interpreted_string).set_context(context).set_pos(node.pos_start, node.pos_end)
         );
     }
 
@@ -1910,6 +1895,73 @@ export class Interpreter {
             if (res.loop_should_break) break;
 
             elements.push(value);
+        }
+
+        return res.success(
+            node.should_return_null
+                ? NumberValue.none
+                : new ListValue(elements).set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
+    }
+
+    /**
+     * Interprets a foreach node.
+     * @param {ForeachNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ForeachNode(node, context) {
+        let res = new RuntimeResult();
+        let elements = []; // we want a loop to return by default a ListValue.
+
+        const generate_new_context = (parent_context) => {
+            let new_context = new Context("<foreach>", parent_context, node.pos_start);
+            new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
+            return new_context;
+        }
+
+        let i = 0;
+        let list = res.register(this.visit(node.list_node, context));
+        if (res.should_return()) return res;
+
+        if (!(list instanceof ListValue) && !(list instanceof DictionnaryValue)) {
+            throw new RuntimeError(
+                node.list_node.pos_start, node.list_node.pos_end,
+                "Must loop on a list or dictionnary",
+                context
+            );
+        }
+
+        while (true) {
+            if (node.key_name_tok) {
+                if (list instanceof DictionnaryValue) {
+                    context.symbol_table.set(node.key_name_tok.value, new StringValue(Array.from(list.elements.keys())[i]));
+                } else {
+                    context.symbol_table.set(node.key_name_tok.value, new NumberValue(i));
+                }
+            }
+
+            if (list instanceof DictionnaryValue) {
+                context.symbol_table.set(node.value_name_tok.value, list.elements.get(Array.from(list.elements.keys())[i]));
+            } else if (list instanceof ListValue) {
+                context.symbol_table.set(node.value_name_tok.value, list.elements[i]);
+            }
+
+            const exec_ctx = generate_new_context(context);
+
+            let value = res.register(this.visit(node.body_node, exec_ctx));
+            if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) return res;
+            if (res.loop_should_continue) continue;
+            if (res.loop_should_break) break;
+
+            elements.push(value);
+
+            i++;
+            if (list instanceof ListValue) {
+                if (i >= list.elements.length) break;
+            } else if (list instanceof DictionnaryValue) {
+                if (i >= list.elements.size) break;
+            }
         }
 
         return res.success(

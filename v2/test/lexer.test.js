@@ -378,4 +378,17 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with a foreach statement', () => {
+        const tokens = Array.from(new Lexer("foreach variable as variable => variable").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "foreach"),
+            new Token(TokenType.IDENTIFIER, "variable"),
+            new Token(TokenType.KEYWORD, "as"),
+            new Token(TokenType.IDENTIFIER, "variable"),
+            new Token(TokenType.DOUBLE_ARROW),
+            new Token(TokenType.IDENTIFIER, "variable"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

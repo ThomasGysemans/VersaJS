@@ -1,6 +1,17 @@
 # ceci est un commentaire
 # sur plusieurs lignes
 
+func test_foreach(list):
+    foreach list as key => value:
+        log("key = {key} and value = {value}")
+    end
+end
+
+var foreach_list = ["a", "b", "c", "d", "e"]
+var foreach_dico = { "age": 17, "prenom": "thomas", "dico": { "test": 5 } }
+var foreach_number = 5 # should raise an error
+# test_foreach(foreach_number)
+
 define __VERSION__ = 0
 
 var hello = "HELLO"

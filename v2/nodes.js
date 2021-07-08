@@ -643,7 +643,8 @@ export class StringNode extends CustomNode {
         this.token = token;
         this.pos_start = this.token.pos_start;
         this.pos_end = this.token.pos_end;
-        this.interpretations = this.token.data;
+        this.filename = this.token.data ? this.token.data.filename || "<stdin>" : "<stdin>";
+        this.opening_quote = this.token.data ? this.token.data.opening_quote || '"' : '"';
     }
 
     toString() {
@@ -698,6 +699,37 @@ export class ForNode extends CustomNode {
 
     toString() {
         return `ForNode`;
+    }
+}
+
+export class ForeachNode extends CustomNode {
+    /**
+     * @constructs ForeachNode
+     * @param {CustomNode} list_node The list on which we want to loop.
+     * @param {Token|null} key_name_tok The variable that will get the name of the key as value. This will be the index if we loop on a list.
+     * @param {Token} value_name_tok The variable that will be the value
+     * @param {CustomNode} body_node The body of the foreach statement.
+     * @param {boolean} should_return_null Should return null? `true` for a multiline statement.
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(list_node, key_name_tok, value_name_tok, body_node, should_return_null, pos_start, pos_end) {
+        super();
+        this.list_node = list_node;
+        this.key_name_tok = key_name_tok;
+        this.value_name_tok = value_name_tok;
+        this.body_node = body_node;
+        this.should_return_null = should_return_null;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        if (this.key_name_tok) {
+            return `ForeachNode(${this.list_node} as ${this.key_name_tok} => ${this.value_name_tok})`
+        } else {
+            return `ForeachNode(${this.list_node} as ${this.value_name_tok})`
+        }
     }
 }
 

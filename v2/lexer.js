@@ -77,7 +77,7 @@ export class Lexer {
                 this.advance();
                 yield new Token(TokenType.RPAREN, null, this.pos);
             } else if (this.current_char === "=") {
-                yield this.make_equal();
+                yield this.make_doublearrow_or_equal();
             } else if (this.current_char === "!") {
                 yield this.make_not_equal();
             } else if (this.current_char === "<") {
@@ -171,13 +171,16 @@ export class Lexer {
         return new Token(token_type, identifier, pos_start, this.pos);
     }
 
-    make_equal() {
+    make_doublearrow_or_equal() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.EQUALS;
         this.advance();
 
         if (this.current_char === "=") {
             tok_type = TokenType.DOUBLE_EQUALS;
+            this.advance();
+        } else if (this.current_char === ">") {
+            tok_type = TokenType.DOUBLE_ARROW;
             this.advance();
         }
 
@@ -245,8 +248,6 @@ export class Lexer {
         let pos_start = this.pos.copy();
         let escape_character = false; // do we have to escape the following character?
         let opening_quote = this.current_char; // ', " or `
-        let interpretations = [];
-        let char_counter = 0;
         this.advance();
 
         // if we have to escape a character,
@@ -259,49 +260,19 @@ export class Lexer {
             } else {
                 if (this.current_char === '\\') {
                     escape_character = true;
-                } else if (opening_quote === '"' && this.current_char === "{") {
-                    let pos_start = this.pos.copy();
-                    let code = "";
-                    let substring_start = char_counter;
-                    let substring_end = char_counter + 1;
-
-                    while (true) {
-                        this.advance();
-                        substring_end++;
-                        char_counter++;
-                        // @ts-ignore
-                        if (this.current_char === "}") break;
-                        if (this.current_char === "{") {
-                            let ps = this.pos.copy();
-                            this.advance();
-                            throw new InvalidSyntaxError(ps, this.pos, "Cannot use multidimensional internal concatenation.");
-                        }
-                        code += this.current_char;
-                    }
-
-                    if (code.trim()) {
-                        interpretations.push({
-                            pos_start: pos_start,
-                            pos_end: this.pos,
-                            filename: this.filename,
-                            substring_start: substring_start,
-                            substring_end: substring_end,
-                            code: code
-                        });
-                    }
-
-                    string += "{" + code + "}";
                 } else {
                     string += this.current_char;
                 }
             }
             this.advance();
-            char_counter++;
         }
 
         // end of the string
         this.advance();
-        return new Token(TokenType.STRING, string, pos_start, this.pos, interpretations);
+        return new Token(TokenType.STRING, string, pos_start, this.pos, {
+            filename: this.filename,
+            opening_quote: opening_quote
+        });
     }
 
     make_minus_decrement_or_arrow() {
