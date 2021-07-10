@@ -1,15 +1,23 @@
 NOTE: #comment#
-This file describes the grammar of the language.
+#This file describes the grammar of the language.#
 
 statements  : NEWLINE* statement (NEWLINE+ statement)* NEWLINE*
 
 statement   : KEYWORD:RETURN expr?
             : KEYWORD:CONTINUE
             : KEYWORD:BREAK
+            : class-expr
             : expr
 
-expr        : KEYWORD:VAR IDENTIFIER EQ expr
-            : KEYWORD:DEFINE IDENTIFIER EQ expr
+class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON
+                (KEYWORD:private|KEYWORD:public|KEYWORD:protected) KEYWORD:property IDENTIFIER EQUALS expr
+                | (KEYWORD:PRIVATE|KEYWORD:public|KEYWORD:protected)? KEYWORD:method func_expr
+                | (KEYWORD:get) func_expr
+                | (KEYWORD:set) func_expr
+                # greedy
+
+expr        : KEYWORD:VAR IDENTIFIER EQUALS expr
+            : KEYWORD:DEFINE IDENTIFIER EQUALS expr
             : KEYWORD:DELETE call
             : comp-expr ((KEYWORD:AND|KEYWORD:OR) comp-expr)*
             
@@ -23,13 +31,17 @@ term        : factor ((MUL|DIV|POWER|MODULO) factor)*
 
 factor      : (PLUS|MINUS) factor
             : (INC|DEC)* term
-            : call
+            : prop
+
+prop        : call (DOT IDENTIFIER call_func|call_list)*
 
 call_func   : (LPAREN (expr (COMMA expr)*)? RPAREN)*
 
 call_list   : (LSQUARE (expr)|(expr COLON expr) RSQUARE)* (= expr)? #almost the same for dictionnaries#
 
-call        : atom (call|call_list)*
+call_class  : KEYWORD:new IDENTIFIER call_func
+
+call        : call_class | (atom (call_func|call_list)*)
 
 atom        : NUMBER|(f)?STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POWER|MODULO)EQUALS expr)?
             : LPAREN expr RPAREN
@@ -62,7 +74,7 @@ for-expr    : KEYWORD:FOR IDENTIFIER EQ expr KEYWORD:TO expr
                 statement
                 | (NEWLINE statements KEYWORD:END)
 
-foreach-expr: KEYWORD:FOREACH call_list KEYWORD:AS (IDENTIFIER DOUBLE_ARROW IDENTIFIER)|(IDENTIFIER) COLON
+foreach-expr: KEYWORD:FOREACH prop KEYWORD:AS (IDENTIFIER DOUBLE_ARROW IDENTIFIER)|(IDENTIFIER) COLON
                 (statement) | (NEWLINE statements KEYWORD:END)
 
 while-expr  : KEYWORD:WHILE expr KEYWORD:THEN

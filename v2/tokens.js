@@ -37,6 +37,7 @@ export class TokenType {
     static INC            = 'INC'
     static DEC            = 'DEC'
     static QMARK          = 'QUESTION_MARK'
+    static DOT            = 'DOT'
     static EOF            = 'EOF'
 }
 
@@ -61,6 +62,16 @@ const KEYWORDS = [
     "delete",
     "foreach",
     "as",
+    "class",
+    "private",
+    "public",
+    "protected",
+    "get",
+    "set",
+    "method",
+    "by",
+    "property",
+    "new"
 ];
 
 export default KEYWORDS;

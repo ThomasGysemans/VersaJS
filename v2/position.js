@@ -42,4 +42,8 @@ export class Position {
     copy() {
         return new Position(this.idx, this.ln, this.col, this.fn, this.ftxt);
     }
+
+    toString() {
+        return `${this.ln}:${this.col}, idx=${this.idx}`;
+    }
 }

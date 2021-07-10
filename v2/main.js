@@ -12,4 +12,4 @@ try {
     );
 }
 
-run(script, "<stdin>");
+run(script, fn);

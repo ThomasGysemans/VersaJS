@@ -26,6 +26,10 @@ export class Value {
         return this;
     }
 
+    is_true() {
+        return true;
+    }
+
     /**
      * Saves the context.
      * @param {Context|null} context The current context.
@@ -221,7 +225,7 @@ export class BaseFunction extends Value {
      * Checks if the number of arguments correspond.
      * @param {Array<string>} arg_names The names of the arguments.
      * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
-     * @param {Array} given_args The values of the given arguments (the function has been called by the user).
+     * @param {Array<Value>} given_args The values of the given arguments (the function has been called by the user).
      * @return {RuntimeResult}
      */
     check_args(arg_names, mandatory_arg_names, given_args) {
@@ -254,7 +258,7 @@ export class BaseFunction extends Value {
      * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
      * @param {Array<string>} optional_arg_names The names of the optional arguments.
      * @param {Array} default_values The default values of the optional arguments.
-     * @param {Array} given_args The values of the arguments.
+     * @param {Array<Value>} given_args The values of the arguments.
      * @param {Context} exec_ctx The context.
      */
     populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx) {
@@ -288,7 +292,7 @@ export class BaseFunction extends Value {
      * @param {Array<string>} arg_names The names of the arguments.
      * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
      * @param {Array<string>} optional_arg_names The names of the optional arguments.
-     * @param {Array} default_values The values of the optional arguments.
+     * @param {Array<Value>} default_values The values of the optional arguments.
      * @param {Array} given_args The values of the arguments.
      * @param {Context} exec_ctx The context.
      */
@@ -299,6 +303,49 @@ export class BaseFunction extends Value {
 
         this.populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx);
         return res.success(null);
+    }
+}
+
+export class ClassValue extends Value {
+    /**
+     * @constructs ClassValue
+     * @param {string} name The name of the class.
+     * @param {Map<string, {status:number, value:Value}>} value The class that has been instantiated.
+     */
+    constructor(name, value) {
+        super();
+        this.name = name;
+        this.context_name = `<Class ${this.name}>`; // we do it here because this name cannot be changed, it's very important
+        this.self = value;
+    }
+
+    is_true() {
+        return true;
+    }
+
+    /**
+     * @override
+     * @return {ClassValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new ClassValue(this.name, this.self);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        let __repr = this.self.get("__repr");
+        if (__repr) {
+            let method = __repr.value;
+            // @ts-ignore
+            let return_value = method.execute([]).value;
+            if (return_value.repr !== undefined) {
+                return return_value.repr();
+            }
+            return return_value.toString();
+        }
+        return `<Class ${this.name}>`;
     }
 }
 
@@ -313,22 +360,23 @@ export class FunctionValue extends BaseFunction {
      * @param {Array<string>} arg_names The list of arguments.
      * @param {Array<string>} mandatory_arg_name_toks The list of mandatory arguments.
      * @param {Array<string>} optional_args The list of optional args.
-     * @param {Array} default_values The values of the optional args.
+     * @param {Array<CustomNode>} default_values_nodes The values of the optional args.
      * @param {boolean} should_auto_return Should auto return? Yes for inline functions because the `return` keyword is the arrow.
      */
-    constructor(name, body_node, arg_names, mandatory_arg_name_toks, optional_args, default_values, should_auto_return) {
+    constructor(name, body_node, arg_names, mandatory_arg_name_toks, optional_args, default_values_nodes, should_auto_return) {
         super(name);
         this.body_node = body_node;
         this.arg_names = arg_names;
         this.mandatory_arg_name_toks = mandatory_arg_name_toks;
         this.optional_args = optional_args;
-        this.default_values = default_values;
+        this.default_values_nodes = default_values_nodes;
         this.should_auto_return = should_auto_return;
+        this.type_name = "function";
     }
 
     /**
      * Executes a custom function (this function has been called by the user).
-     * @param {Array} args The given arguments.
+     * @param {Array<Value>} args The given arguments.
      * @return {RuntimeResult}
      */
     execute(args) {
@@ -336,7 +384,14 @@ export class FunctionValue extends BaseFunction {
         let interpreter = new Interpreter();
         let exec_ctx = this.generate_new_context();
 
-        res.register(this.check_and_populate_args(this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values, args, exec_ctx));
+        let default_values = [];
+        for (let df of this.default_values_nodes) {
+            let value = res.register(interpreter.visit(df, exec_ctx));
+            if (res.should_return()) return res;
+            default_values.push(value);
+        }
+
+        res.register(this.check_and_populate_args(this.arg_names, this.mandatory_arg_name_toks, this.optional_args, default_values, args, exec_ctx));
         if (res.should_return()) return res;
 
         let value = res.register(interpreter.visit(this.body_node, exec_ctx));
@@ -346,19 +401,23 @@ export class FunctionValue extends BaseFunction {
         return res.success(ret_value);
     }
 
+    is_true() {
+        return true;
+    }
+
     /**
      * @override
      * @return {FunctionValue} A copy of that instance.
      */
     copy() {
-        let copy = new FunctionValue(this.name, this.body_node, this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values, this.should_auto_return);
+        let copy = new FunctionValue(this.name, this.body_node, this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values_nodes, this.should_auto_return);
         copy.set_context(this.context);
         copy.set_pos(this.pos_start, this.pos_end);
         return copy;
     }
 
     toString() {
-        return `<function ${this.name}>`;
+        return `<${this.type_name} ${this.name}>`;
     }
 }
 
@@ -469,6 +528,10 @@ export class NativeFunction extends BaseFunction {
         if (res.should_return()) return res;
 
         return res.success(return_value);
+    }
+
+    is_true() {
+        return true;
     }
 
     /**

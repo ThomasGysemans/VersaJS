@@ -27,13 +27,12 @@ describe('Lexer tests', () => {
     });
 
     it('should return numbers', () => {
-        const tokens = Array.from(new Lexer("123 123.456 123. .456 .").generate_tokens());
+        const tokens = Array.from(new Lexer("123 123.456 123. .456").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 123),
             new Token(TokenType.NUMBER, 123.456),
             new Token(TokenType.NUMBER, 123),
             new Token(TokenType.NUMBER, 0.456),
-            new Token(TokenType.NUMBER, 0),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -388,6 +387,40 @@ describe('Lexer tests', () => {
             new Token(TokenType.IDENTIFIER, "variable"),
             new Token(TokenType.DOUBLE_ARROW),
             new Token(TokenType.IDENTIFIER, "variable"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with a property call', () => {
+        const tokens = Array.from(new Lexer("example.prop").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "example"),
+            new Token(TokenType.DOT),
+            new Token(TokenType.IDENTIFIER, "prop"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with a property call (_._)', () => {
+        const tokens = Array.from(new Lexer("example_._1_prop").generate_tokens()); // might return a number instead of a DOT, that's why
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "example_"),
+            new Token(TokenType.DOT),
+            new Token(TokenType.IDENTIFIER, "_1_prop"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with an instantiation', () => {
+        const tokens = Array.from(new Lexer("var person = new Person()").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "var"),
+            new Token(TokenType.IDENTIFIER, "person"),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.KEYWORD, "new"),
+            new Token(TokenType.IDENTIFIER, "Person"),
+            new Token(TokenType.LPAREN),
+            new Token(TokenType.RPAREN),
         ];
         check_tokens(tokens, expected_tokens);
     });

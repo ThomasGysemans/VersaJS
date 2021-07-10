@@ -142,8 +142,15 @@ export class Lexer {
                 }
             }
 
+            // avoid `class.__init ` to become a number (._ == 0)
+            if (number_str === "." && this.current_char === "_") break;
+
             number_str += this.current_char;
             this.advance();
+        }
+
+        if (number_str === ".") {
+            return new Token(TokenType.DOT, null, pos_start);
         }
 
         if (number_str.startsWith('.')) {

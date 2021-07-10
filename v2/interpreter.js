@@ -1,5 +1,5 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode } from './nodes.js';
-import { BaseFunction, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, ClassMethodDefNode, CallPropertyNode, AssignPropertyNode } from './nodes.js';
+import { BaseFunction, ClassValue, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
@@ -174,6 +174,8 @@ export class Interpreter {
             return this.visit_ForNode(node, context);
         } else if (node instanceof WhileNode) {
             return this.visit_WhileNode(node, context);
+        } else if (node instanceof ClassMethodDefNode) { // ClassMethodDefNode extends from FuncDefNode
+            return this.visit_ClassMethodDefNode(node, context);
         } else if (node instanceof FuncDefNode) {
             return this.visit_FuncDefNode(node, context);
         } else if (node instanceof CallNode) {
@@ -196,6 +198,16 @@ export class Interpreter {
             return this.visit_DictionnaryNode(node, context);
         } else if (node instanceof ForeachNode) {
             return this.visit_ForeachNode(node, context);
+        } else if (node instanceof ClassDefNode) {
+            return this.visit_ClassDefNode(node, context);
+        } else if (node instanceof ClassCallNode) {
+            return this.visit_ClassCallNode(node, context);
+        } else if (node instanceof ClassPropertyDefNode) {
+            return this.visit_ClassPropertyDefNode(node, context);
+        } else if (node instanceof CallPropertyNode) {
+            return this.visit_CallPropertyNode(node, context);
+        } else if (node instanceof AssignPropertyNode) {
+            return this.visit_AssignPropertyNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -554,7 +566,7 @@ export class Interpreter {
 
         context.symbol_table.set(var_name, value);
 
-        return new RuntimeResult().success(value);
+        return res.success(value);
     }
 
     /**
@@ -749,11 +761,11 @@ export class Interpreter {
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value.length === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(new Number(left.value == right.value.toString()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(right.value.length === left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(new Number(right.value == left.value.toString()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof StringValue) {
             return new RuntimeResult().success(
@@ -1045,11 +1057,15 @@ export class Interpreter {
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value.length !== right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(new Number(left.value !== right.value.toString()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(right.value.length !== left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(new Number(right.value !== left.value.toString()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new NumberValue(new Number(left.value !== right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             let is_equal = dictionnary_equals(left, right);
@@ -2010,16 +2026,20 @@ export class Interpreter {
         let arg_names = [];
         let optional_arg_names = [];
         let mandatory_arg_names = [];
-        let default_values = [];
+
+        if (func_name) {
+            if (context.symbol_table.doesExist(func_name)) {
+                throw new RuntimeError(
+                    node.var_name_tok.pos_start, node.var_name_tok.pos_end,
+                    `The function '${func_name}' already exists.`,
+                    context
+                );
+            }
+        }
 
         for (let arg_name of node.arg_name_toks) arg_names.push(arg_name.value);
         for (let optional_arg of node.optional_arg_name_toks) optional_arg_names.push(optional_arg.value);
         for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg.value);
-        for (let df of node.default_values_nodes) {
-            let value = res.register(this.visit(df, context));
-            if (res.should_return()) return res;
-            default_values.push(value);
-        }
 
         let func_value = new FunctionValue(
             func_name,
@@ -2027,14 +2047,14 @@ export class Interpreter {
             arg_names,
             mandatory_arg_names,
             optional_arg_names,
-            default_values,
+            node.default_values_nodes,
             node.should_auto_return)
                 .set_context(context)
                 .set_pos(node.pos_start, node.pos_end);
         
         // we want to invoke the function with its name
         // so we use it as a variable in our symbole table
-        if (node.var_name_tok) {
+        if (func_name) {
             context.symbol_table.set(func_name, func_value);
         }
 
@@ -2680,5 +2700,348 @@ export class Interpreter {
         return res.success(
             new DictionnaryValue(map).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
+    }
+
+    /**
+     * Interprets a method.
+     * @param {ClassMethodDefNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ClassMethodDefNode(node, context) {
+        let res = new RuntimeResult();
+        let method_name = node.var_name_tok.value;
+        let body_node = node.body_node;
+        let arg_names = [];
+        let optional_arg_names = [];
+        let mandatory_arg_names = [];
+
+        if (context.symbol_table.doesExist(method_name)) {
+            throw new RuntimeError(
+                node.var_name_tok.pos_start, node.var_name_tok.pos_end,
+                `The method '${method_name}' already exists.`,
+                context
+            );
+        }
+
+        for (let arg_name of node.arg_name_toks) arg_names.push(arg_name.value);
+        for (let optional_arg of node.optional_arg_name_toks) optional_arg_names.push(optional_arg.value);
+        for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg.value);
+
+        let method_value = new FunctionValue(
+            method_name,
+            body_node,
+            arg_names,
+            mandatory_arg_names,
+            optional_arg_names,
+            node.default_values_nodes,
+            node.should_auto_return)
+                .set_context(context)
+                .set_pos(node.pos_start, node.pos_end);
+        
+        // we want to invoke the function with its name
+        // so we use it as a variable in our symbole table
+        if (method_name) {
+            context.symbol_table.set(method_name, method_value);
+        }
+        
+        return res.success(method_value);
+    }
+
+    /**
+     * Interprets a variable declaration.
+     * @param {ClassPropertyDefNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ClassPropertyDefNode(node, context) {
+        let res = new RuntimeResult();
+        let property_name = node.property_name_tok.value;
+        let value = res.register(this.visit(node.value_node, context));
+        if (res.should_return()) return res;
+
+        if (context.symbol_table.doesExist(property_name)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Property '${property_name}' already exists.`,
+                context
+            );
+        }
+
+        // add into the context allows us to check if a property, method etc. has already been defined inside the class
+        context.symbol_table.set(property_name, value);
+
+        return res.success(value);
+    }
+
+    /**
+     * Interprets a class.
+     * @param {ClassDefNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ClassDefNode(node, context) {
+        let res = new RuntimeResult();
+        let class_name = node.class_name_tok.value;
+
+        if (context.symbol_table.doesExist(class_name)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Class "${class_name}" already exists`,
+                context
+            );
+        }
+
+        const generate_new_context = (parent_context, context_name) => {
+            let new_context = new Context(context_name, parent_context, node.pos_start);
+            new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
+            return new_context;
+        }
+
+        let value = new ClassValue(class_name, new Map());
+        let exec_ctx = generate_new_context(context, value.context_name);
+        exec_ctx.symbol_table.set("self", value);
+
+        // Must be before properties
+        // so that we can use methods inside properties.
+        // Besides, we can use properties as default value for arguments :)
+        for (let i = 0; i < node.methods.length; i++) {
+            let method_node = node.methods[i];
+            let method_name = method_node.var_name_tok.value;
+            let method_status = method_node.status;
+            if (method_name === "__init" || method_name === "__repr") {
+                if (method_status !== 1) {
+                    let status_string = method_status === 0 ? "private" : "protected";
+                    throw new RuntimeError(
+                        method_node.pos_start, method_node.pos_end,
+                        `The ${method_name} method cannot be ${status_string}.`,
+                        context
+                    );
+                }
+            }
+            let method = res.register(this.visit(method_node, exec_ctx));
+            if (res.should_return()) return res;
+            if (method_name === "__repr" && method.arg_names.length > 0) {
+                throw new RuntimeError(
+                    method_node.pos_start, method_node.pos_end,
+                    `The __repr method is not allowed to have arguments.`,
+                    context
+                );
+            }
+            method.type_name = "method";
+            value.self.set(method_name, { status: method_status, value: method });
+        }
+
+        for (let i = 0; i < node.properties.length; i++) {
+            let property_node = node.properties[i];
+            let property_name = property_node.property_name_tok.value;
+            if (property_name === "__init" || property_name === "__repr") {
+                throw new RuntimeError(
+                    property_node.pos_start, property_node.pos_end,
+                    `In a class, '${property_name}' must be a method.`,
+                    context
+                );
+            }
+            let property_status = property_node.status;
+            let property = res.register(this.visit(property_node, exec_ctx));
+            if (res.should_return()) return res;
+            value.self.set(property_name, { status: property_status, value: property });
+        }
+
+        for (let i = 0; i < node.getters.length; i++) {
+            let getter_node = node.getters[i];
+            let getter_name = getter_node.var_name_tok.value;
+            if (getter_name === "__init" || getter_name === "__repr") {
+                throw new RuntimeError(
+                    getter_node.pos_start, getter_node.pos_end,
+                    `In a class, '${getter_name}' must be a method.`,
+                    context
+                );
+            }
+            let getter = res.register(this.visit(getter_node, exec_ctx));
+            if (res.should_return()) return res;
+            getter.type_name = "getter";
+            value.self.set(getter_name, { status: 1, value: getter });
+        }
+
+        for (let i = 0; i < node.setters.length; i++) {
+            let setter_node = node.setters[i];
+            let setter_name = setter_node.var_name_tok.value;
+            if (setter_name === "__init" || setter_name === "__repr") {
+                throw new RuntimeError(
+                    setter_node.pos_start, setter_node.pos_end,
+                    `In a class, '${setter_name}' must be a method.`,
+                    context
+                );
+            }
+            let setter = res.register(this.visit(setter_node, exec_ctx));
+            if (res.should_return()) return res;
+            setter.type_name = "setter";
+            value.self.set(setter_name, { status: 1, value: setter });
+        }
+
+        context.symbol_table.set(class_name, value);
+
+        return res.success(NumberValue.none);
+    }
+
+    /**
+     * Interprets an instantiation of a class.
+     * @param {ClassCallNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_ClassCallNode(node, context) {
+        let res = new RuntimeResult();
+        let class_name = node.class_name_tok.value;
+        let value = context.symbol_table.get(class_name);
+
+        if (value === undefined || value === null) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Class '${class_name}' is not defined.`,
+                context
+            );
+        }
+
+        if (!(value instanceof ClassValue)) {
+            throw new RuntimeError(
+                node.class_name_tok.pos_start, node.class_name_tok.pos_end,
+                `Variable ${class_name} is not a class.`,
+                context
+            );
+        }
+
+        let __init = value.self.get("__init");
+
+        if (__init) {
+            let method = __init.value;
+            let args = [];
+            for (let arg of node.arg_nodes) {
+                let value = res.register(this.visit(arg, context));
+                if (res.should_return()) return res;
+                args.push(value);
+            }
+
+            // @ts-ignore
+            method.execute(args);
+        }
+
+        value = value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
+        return res.success(value);
+    }
+
+    /**
+     * Interprets a property call (`example.property`)
+     * @param {CallPropertyNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_CallPropertyNode(node, context) {
+        let res = new RuntimeResult();
+        let base = res.register(this.visit(node.node_to_call, context));
+        if (res.should_return()) return res;
+        let property_name = node.property_tok.value;
+
+        if (property_name === "__init") {
+            throw new RuntimeError(
+                node.property_tok.pos_start, node.property_tok.pos_end,
+                `The __init method cannot be invoked.`,
+                context
+            );
+        }
+
+        if (!(base instanceof ClassValue)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Cannot call a property from a non-class value.",
+                context
+            );
+        }
+
+        let prop = base.self.get(property_name);
+
+        if (prop === undefined || prop === null) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Undefined property",
+                context
+            );
+        }
+
+        let value = prop.value;
+
+        if (!context.is_context_in(base.context_name)) {
+            // this means that we are outside the class
+            if (prop.status === 0 || prop.status === 2) {
+                // this means that the property we are looking for is not public
+                // todo: what happens with `protected` if we are in a child class?
+                let status_string = prop.status === 0 ? "private" : "protected";
+                throw new RuntimeError(
+                    node.property_tok.pos_start, node.property_tok.pos_end,
+                    `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
+                    context
+                );
+            }
+        } 
+
+        return res.success(value);
+    }
+
+    /**
+     * Interprets the modification of a property.
+     * @param {AssignPropertyNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_AssignPropertyNode(node, context) {
+        let res = new RuntimeResult();
+        let new_value = res.register(this.visit(node.value_node, context));
+        if (res.should_return()) return res;
+        let base = res.register(this.visit(node.property.node_to_call, context));
+        if (res.should_return()) return res;
+        let property_name = node.property.property_tok.value;
+
+        if (property_name === "__init" || property_name === "__repr") {
+            throw new RuntimeError(
+                node.property.pos_start, node.property.pos_end,
+                `The ${property_name} method cannot be reassigned.`,
+                context
+            );
+        }
+
+        if (!(base instanceof ClassValue)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Cannot call a property from a non-class value.",
+                context
+            );
+        }
+
+        let prop = base.self.get(property_name);
+        let status = 1;
+
+        if (prop) {
+            status = prop.status;
+            if (!context.is_context_in(base.context_name)) {
+                // this means that we are outside the class
+                if (status === 0 || status === 2) {
+                    // this means that the property we are looking for is not public
+                    // todo: what happens with `protected` if we are in a child class?
+                    let status_string = prop.status === 0 ? "private" : "protected";
+                    throw new RuntimeError(
+                        node.property.property_tok.pos_start, node.property.property_tok.pos_end,
+                        `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
+                        context
+                    );
+                }
+            } 
+        }
+
+        new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
+        base.self.set(property_name, { status, value: new_value });
+        context.symbol_table.set(base.name, base);
+
+        return res.success(new_value);
     }
 }

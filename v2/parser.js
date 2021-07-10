@@ -1,6 +1,6 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode } from "./nodes.js";
-import { InvalidSyntaxError } from "./Exceptions.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode } from "./nodes.js";
+import { InvalidSyntaxError, RuntimeError } from "./Exceptions.js";
 import { NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
 import { Position } from "./position.js";
@@ -188,7 +188,162 @@ export class Parser {
             return new BreakNode(pos_start, this.current_token.pos_end.copy());
         }
 
+        if (this.current_token.matches(TokenType.KEYWORD, "class")) {
+            let class_expr = this.class_expr();
+            return class_expr;
+        }
+
         return this.expr();
+    }
+    
+    class_expr() {
+        let class_pos_start = this.current_token.pos_start.copy();
+        this.advance();
+
+        if (this.current_token.type !== TokenType.IDENTIFIER) {
+            throw new InvalidSyntaxError(
+                class_pos_start, this.current_token.pos_end,
+                "Expected an identifier"
+            );
+        }
+
+        let class_name_tok = this.current_token;
+        let properties = [];
+        let methods = [];
+        let getters = [];
+        let setters = [];
+
+        this.advance();
+
+        if (this.current_token.type !== TokenType.COLON) {
+            throw new InvalidSyntaxError(
+                class_pos_start, this.current_token.pos_end,
+                "Expected ':'"
+            );
+        }
+
+        let class_pos_end = this.current_token.pos_end.copy();
+
+        this.advance();
+        this.ignore_newlines();
+
+        const is_public = () => this.current_token.matches(TokenType.KEYWORD, "public");
+        const is_private = () => this.current_token.matches(TokenType.KEYWORD, "private");
+        const is_protected = () => this.current_token.matches(TokenType.KEYWORD, "protected");
+
+        while (
+            is_private() ||
+            is_public() ||
+            is_protected() ||
+            this.current_token.matches(TokenType.KEYWORD, "property") ||
+            this.current_token.matches(TokenType.KEYWORD, "method") ||
+            this.current_token.matches(TokenType.KEYWORD, "set") ||
+            this.current_token.matches(TokenType.KEYWORD, "get")
+        ) {
+            let status = 1;
+            if (is_private()) status = 0;
+            if (is_protected()) status = 2;
+
+            if (
+                is_private() ||
+                is_public() ||
+                is_protected()
+            ) {
+                this.advance();
+            }
+
+            if (this.current_token.matches(TokenType.KEYWORD, "get")) { // getter
+                let get_pos_start = this.current_token.pos_start.copy();
+                let get_pos_end = this.current_token.pos_end.copy();
+                let func_expr = this.func_expr();
+                if (func_expr.var_name_tok === null) {
+                    throw new InvalidSyntaxError(
+                        get_pos_start, get_pos_end,
+                        "Expected an identifier"
+                    );
+                }
+                getters.push(func_expr);
+                this.advance()
+                this.ignore_newlines();
+            } else if (this.current_token.matches(TokenType.KEYWORD, "set")) { // setter
+                let set_pos_start = this.current_token.pos_start.copy();
+                let set_pos_end = this.current_token.pos_end.copy();
+                let func_expr = this.func_expr();
+                if (func_expr.var_name_tok === null) {
+                    throw new InvalidSyntaxError(
+                        set_pos_start, set_pos_end,
+                        "Expected an identifier"
+                    );
+                }
+                setters.push(func_expr);
+                this.advance()
+                this.ignore_newlines();
+            } else if (this.current_token.matches(TokenType.KEYWORD, "method")) {
+                let method_pos_start = this.current_token.pos_start.copy();
+                let method_pos_end = this.current_token.pos_end.copy();
+                let func_expr = this.func_expr();
+                if (func_expr.var_name_tok === null) {
+                    throw new InvalidSyntaxError(
+                        method_pos_start, method_pos_end,
+                        "Expected an identifier"
+                    );
+                }
+                let method_name = new ClassMethodDefNode(
+                    func_expr.var_name_tok,
+                    func_expr.arg_name_toks,
+                    func_expr.mandatory_arg_name_toks,
+                    func_expr.optional_arg_name_toks,
+                    func_expr.default_values_nodes,
+                    func_expr.body_node,
+                    func_expr.should_auto_return,
+                    status
+                );
+                methods.push(method_name);
+                this.advance();
+                this.ignore_newlines();
+            } else if (this.current_token.matches(TokenType.KEYWORD, "property")) { // property
+                let property_pos_start = this.current_token.pos_start.copy();
+                this.advance();
+                if (this.current_token.type !== TokenType.IDENTIFIER) {
+                    throw new InvalidSyntaxError(
+                        property_pos_start, this.current_token.pos_end,
+                        "Expected an identifier"
+                    );
+                }
+                let property_name_tok = this.current_token;
+                this.advance();
+                let value_node;
+                if (this.current_token.type === TokenType.EQUALS) {
+                    this.advance();
+                    value_node = this.expr();
+                } else {
+                    value_node = new NumberNode(new Token(TokenType.NUMBER, NumberValue.none.value))
+                }
+                let property_def_node = new ClassPropertyDefNode(property_name_tok, value_node, status);
+                properties.push(property_def_node);
+                this.advance();
+                this.ignore_newlines();
+            }
+        }
+
+        if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected 'end'"
+            );
+        }
+
+        this.advance();
+
+        return new ClassDefNode(
+            class_name_tok,
+            properties,
+            methods,
+            getters,
+            setters,
+            class_pos_start,
+            class_pos_end,
+        );
     }
 
     expr() {
@@ -226,7 +381,7 @@ export class Parser {
             let pos_start = this.current_token.pos_start;
             this.advance();
 
-            let node_to_delete = this.call();
+            let node_to_delete = this.call(); // I don't want to delete properties, so not `this.prop()`
 
             return new DeleteNode(node_to_delete, pos_start, node_to_delete.pos_end);
         }
@@ -430,10 +585,10 @@ export class Parser {
 
         if (token.type === TokenType.PLUS) {
             this.advance();
-            return new PlusNode(this.call());
+            return new PlusNode(this.prop());
         } else if (token.type === TokenType.MINUS) {
             this.advance();
-            return new MinusNode(this.call());
+            return new MinusNode(this.prop());
         } else if (this.current_token.type === TokenType.INC) { // ++expr
             this.advance();
             let difference = 1;
@@ -453,11 +608,126 @@ export class Parser {
             let expr = this.term();
             return new PrefixOperationNode(expr, difference);
         } else {
-            return this.call();
+            return this.prop();
         }
     }
 
+    prop() {
+        let node_to_call = this.call();
+        
+        // if we have a dot after our atom
+        // that means we are calling the atom (and that this atom is a ClassValue)
+
+        if (this.current_token.type === TokenType.DOT) {
+            let is_calling = false;
+            let result;
+
+            while (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
+                is_calling = false;
+
+                if (this.current_token.type === TokenType.DOT) is_calling = true;
+                if (!is_calling) break;
+
+                
+                this.advance();
+                this.ignore_newlines();
+                
+                if (this.current_token.type === TokenType.DOT) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Cannot follow two dots in a row"
+                    );
+                } else if (this.current_token.type !== TokenType.IDENTIFIER) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected identifier"
+                    );
+                }
+
+                let property_tok = this.current_token;
+
+                this.advance();
+
+                let call_node = new CallPropertyNode(result ? result : node_to_call, property_tok);
+
+                if (this.current_token.type === TokenType.LPAREN) {
+                    result = this.helper_call_func(call_node);
+                } else if (this.current_token.type === TokenType.LSQUARE) {
+                    result = this.helper_call_list(call_node)
+                } else {
+                    result = call_node;
+                }
+            }
+
+            if (this.current_token.type === TokenType.EQUALS) {
+                if (!(result instanceof CallPropertyNode)) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Unable to assign a new value for that call.",
+                    );
+                }
+                this.advance();
+                let value_node = this.expr();
+                return new AssignPropertyNode(result, value_node);
+            }
+
+            return result;
+        }
+
+        return node_to_call;
+    }
+
     call() {
+        if (this.current_token.matches(TokenType.KEYWORD, "new")) {
+            let pos_start = this.current_token.pos_start.copy();
+            this.advance();
+            if (this.current_token.type !== TokenType.IDENTIFIER) {
+                throw new InvalidSyntaxError(
+                    pos_start, this.current_token.pos_end,
+                    "Expected an identifier"
+                );
+            }
+            
+            let class_name_tok = this.current_token;
+            this.advance();
+            if (this.current_token.type !== TokenType.LPAREN) {
+                throw new InvalidSyntaxError(
+                    pos_start, this.current_token.pos_end,
+                    "Expected '('"
+                );
+            }
+
+            this.advance();
+            this.ignore_newlines();
+
+            let arg_nodes = [];
+            if (this.current_token.type === TokenType.RPAREN) {
+                this.advance();
+            } else {
+                arg_nodes.push(this.expr());
+                this.ignore_newlines();
+
+                while (this.current_token.type === TokenType.COMMA) {
+                    this.advance();
+                    this.ignore_newlines();
+                    arg_nodes.push(this.expr());
+                }
+
+                this.ignore_newlines();
+
+                if (this.current_token.type !== TokenType.RPAREN) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected ',' or ')'"
+                    );
+                }
+
+                this.advance();
+            }
+
+            return new ClassCallNode(class_name_tok, arg_nodes);
+        }
+
         let atom = this.atom();
         let pos_start = this.current_token.pos_start.copy();
         let result;
@@ -1109,7 +1379,7 @@ export class Parser {
         // after the "foreach" keyword,
         // we start with a loop
 
-        let list_node = this.call();
+        let list_node = this.prop();
 
         if (!this.current_token.matches(TokenType.KEYWORD, "as")) {
             throw new InvalidSyntaxError(

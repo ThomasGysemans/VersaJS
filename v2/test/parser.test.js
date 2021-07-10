@@ -1,7 +1,8 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode } from '../nodes.js';
+import { InvalidSyntaxError } from '../Exceptions.js';
 
 // npm run test
 
@@ -209,7 +210,7 @@ describe('Parser tests', () => {
         assert.deepStrictEqual(true, node.element_nodes[1] instanceof PrefixOperationNode);
     });
 
-    it('should work with a postifx operation (after)', () => {
+    it('should work with a postfix operation (after)', () => {
         const tokens = new Lexer("var a = 5; a++").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[1] instanceof PostfixOperationNode);
@@ -237,5 +238,88 @@ describe('Parser tests', () => {
         const tokens = new Lexer("foreach list as value: log(key)").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof ForeachNode);
+    });
+
+    it('should work with a property call (property)', () => {
+        const tokens = new Lexer("example.prop").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallPropertyNode);
+    });
+
+    it('should work with a property call (method)', () => {
+        const tokens = new Lexer("example.prop()").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallNode); // will call example.prop
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallPropertyNode);
+    });
+
+    it('should work with a property call (method and property)', () => {
+        const tokens = new Lexer("example.prop().another").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_call.node_to_call instanceof CallPropertyNode);
+    });
+
+    it('should work with a property call (list)', () => {
+        const tokens = new Lexer("example.prop[another.one]").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAccessNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].list_nodes[0] instanceof CallPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_access instanceof CallPropertyNode);
+    });
+
+    it('should work with a property call (complex list)', () => {
+        const tokens = new Lexer("example[0].prop[another.one]").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAccessNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_access instanceof CallPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_access.node_to_call instanceof ListAccessNode);
+    });
+
+    it('should work with a property call (3 props)', () => {
+        const tokens = new Lexer("prop1.prop2.prop3").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallPropertyNode);
+    });
+
+    it('should work with an instantiation', () => {
+        const tokens = new Lexer("new Person('thomas', 17)").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof ClassCallNode);
+    });
+
+    it('should work with an assignement to a property (list)', () => {
+        const tokens = new Lexer("person.names[] = 5").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAssignmentNode);
+    });
+
+    it('should work with an assignement to a property (method)', () => {
+        try {
+            const tokens = new Lexer("person.names() = 5").generate_tokens();
+            const node = new Parser(tokens).parse();
+        } catch(e) {
+            assert.deepStrictEqual(true, e instanceof InvalidSyntaxError)
+        }
+    });
+
+    it('should work with an assignement to a property (just property)', () => {
+        const tokens = new Lexer("person.names = 5").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof AssignPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].property instanceof CallPropertyNode);
+    });
+
+    it('should work with an assignement to a property (all)', () => {
+        const tokens = new Lexer("person.names().list[0].prop = 5").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof AssignPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].property instanceof CallPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].property.node_to_call instanceof ListAccessNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].property.node_to_call.node_to_access instanceof CallPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].property.node_to_call.node_to_access.node_to_call instanceof CallNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].property.node_to_call.node_to_access.node_to_call.node_to_call instanceof CallPropertyNode);
     });
 });

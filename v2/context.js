@@ -18,4 +18,24 @@ export class Context {
         /** @type {SymbolTable|null} */
         this.symbol_table = null;
     }
+
+    /**
+     * Checks if the current context is contained in another one.
+     * @param {string} context_name The name of the context we are searching for.
+     * @returns {boolean}
+     */
+    is_context_in(context_name) {
+        let parent = this.parent;
+        if (parent) {
+            while (parent) {
+                if (parent.display_name === context_name) {
+                    return true;
+                }
+                parent = parent.parent;
+            }
+            return false;
+        } else {
+            return this.display_name === context_name;
+        }
+    }
 }

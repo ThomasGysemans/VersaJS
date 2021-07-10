@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector } from '../nodes.js';
-import { DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode } from '../nodes.js';
+import { ClassValue, DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
 import { Context } from '../context.js'; // ok
@@ -1106,5 +1106,266 @@ describe('Interpreter', () => {
         } else {
             assert.strictEqual(DictionnaryValue, false);
         }
+    });
+
+    it('should work with a class', () => {
+        /*
+        class Person:
+            public property firstname
+            private property lastname
+            protected property fullname
+            protected property age
+            
+            method __init(firstname, lastname, age):
+                self.firstname = firstname
+                self.lastname = lastname
+                self.age = age
+                self.fullname = self.assemble()
+            end
+
+            protected method assemble() -> self.firstname + " " + self.lastname
+
+            get getFullname() -> self.fullname
+
+            set setFirstname(new_name):
+                self.firstname = new_name
+                self.fullname = self.assemble()
+            end
+
+            set setAge(new_age?=self.age+1) -> self.age = new_age
+        end
+
+        var person = new Person("Thomas", "CodoPixel", 17)
+        person.getFullname()
+        */
+        // tree = [(Class Person), (var person = (new IDENTIFIER:Person)), (call (prop (person).getFullname)(0 args))]
+        // expected result (for the last line) = "Thomas CodoPixel"
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("Person"),
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("firstname"),
+                            number(0),
+                            1
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("lastname"),
+                            number(0),
+                            0
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("fullname"),
+                            number(0),
+                            2
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("age"),
+                            number(0),
+                            2
+                        ),
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            identifier_tok("__init"),
+                            [
+                                identifier_tok("firstname"),
+                                identifier_tok("lastname"),
+                                identifier_tok("age"),
+                            ],
+                            [
+                                identifier_tok("firstname"),
+                                identifier_tok("lastname"),
+                                identifier_tok("age"),
+                            ],
+                            [],
+                            [],
+                            new ListNode(
+                                [
+                                    new AssignPropertyNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("firstname")
+                                        ),
+                                        new VarAccessNode(identifier_tok("firstname"))
+                                    ),
+                                    new AssignPropertyNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("lastname")
+                                        ),
+                                        new VarAccessNode(identifier_tok("lastname"))
+                                    ),
+                                    new AssignPropertyNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("age")
+                                        ),
+                                        new VarAccessNode(identifier_tok("age"))
+                                    ),
+                                    new AssignPropertyNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("fullname")
+                                        ),
+                                        new CallNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("assemble")
+                                            ),
+                                            []
+                                        )
+                                    ),
+                                ],
+                                null,
+                                null
+                            ),
+                            false,
+                            1
+                        ),
+                        // protected method assemble() -> self.firstname + " " + self.lastname
+                        new ClassMethodDefNode(
+                            identifier_tok("assemble"),
+                            [],
+                            [],
+                            [],
+                            [],
+                            new AddNode(
+                                new AddNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("firstname")
+                                    ),
+                                    str(" ")
+                                ),
+                                new CallPropertyNode(
+                                    new VarAccessNode(identifier_tok("self")),
+                                    identifier_tok("lastname")
+                                )
+                            ),
+                            true,
+                            2
+                        )
+                    ],
+                    [
+                        // get getFullname() -> self.fullname
+                        new FuncDefNode(
+                            identifier_tok("getFullname"),
+                            [],
+                            [],
+                            [],
+                            [],
+                            new CallPropertyNode(
+                                new VarAccessNode(identifier_tok("self")),
+                                identifier_tok("fullname")
+                            ),
+                            true
+                        )
+                    ],
+                    [
+                        // set setFirstname(new_name):
+                        //     self.firstname = new_name
+                        //     self.fullname = self.assemble()
+                        // end
+                        new FuncDefNode(
+                            identifier_tok("setFirstname"),
+                            [
+                                identifier_tok("new_name")
+                            ],
+                            [
+                                identifier_tok("new_name")
+                            ],
+                            [],
+                            [],
+                            new ListNode(
+                                [
+                                    new AssignPropertyNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("firstname")
+                                        ),
+                                        new VarAccessNode(identifier_tok("new_name"))
+                                    ),
+                                    new AssignPropertyNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("fullname")
+                                        ),
+                                        new CallNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("assemble")
+                                            ),
+                                            []
+                                        )
+                                    ),
+                                ],
+                                null,
+                                null
+                            ),
+                            false
+                        ),
+                        // set setAge(new_age?=self.age+1) -> self.age = new_age
+                        new FuncDefNode(
+                            identifier_tok("setAge"),
+                            [
+                                identifier_tok("new_age")
+                            ],
+                            [],
+                            [
+                                identifier_tok("new_age")
+                            ],
+                            [
+                                new AddNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("age")
+                                    ),
+                                    number(1)
+                                )
+                            ],
+                            new AssignPropertyNode(
+                                new CallPropertyNode(
+                                    new VarAccessNode(identifier_tok("self")),
+                                    identifier_tok("age")
+                                ),
+                                new VarAccessNode(identifier_tok("new_age"))
+                            ),
+                            true
+                        )
+                    ],
+                    null,
+                    null
+                ),
+                // var person = new Person("Thomas", "CodoPixel", 17)
+                new VarAssignNode(
+                    identifier_tok("person"),
+                    new ClassCallNode(
+                        identifier_tok("Person"),
+                        [
+                            str("Thomas"),
+                            str("CodoPixel"),
+                            number(17)
+                        ]
+                    )
+                ),
+                // person.getFullname()
+                new CallNode(
+                    new CallPropertyNode(
+                        new VarAccessNode(identifier_tok("person")),
+                        identifier_tok("getFullname")
+                    ),
+                    []
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = "Thomas CodoPixel";
+        const value = result.value.elements[2].value;
+        assert.deepStrictEqual(true, result.value.elements[1] instanceof ClassValue);
+        assert.deepStrictEqual(value, expected);
     });
 });

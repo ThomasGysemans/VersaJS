@@ -395,7 +395,7 @@ export class NotEqualsNode extends CustomNode {
     }
 
     toString() {
-        return `(${this.node_a} == ${this.node_b})`;
+        return `(${this.node_a} != ${this.node_b})`;
     }
 }
 
@@ -800,7 +800,7 @@ export class FuncDefNode extends CustomNode {
  */
 export class CallNode extends CustomNode {
     /**
-     * @constructs
+     * @constructs CallNode
      * @param {CustomNode} node_to_call The identifier that corresponds to the name of the function to be called.
      * @param {Array<CustomNode>} arg_nodes The list of arguments.
      */
@@ -914,5 +914,170 @@ export class DeleteNode extends CustomNode {
 
     toString() {
         return `(delete ${this.node_to_delete})`;
+    }
+}
+
+/**
+ * @classdesc Describes the call to a property (`example.property.method()`)
+ */
+export class CallPropertyNode extends CustomNode {
+    /**
+     * @constructs CallPropertyNode
+     * @param {CustomNode} node_to_call The node to call. Left
+     * @param {Token} property_tok The token of the property to be called.
+     */
+    constructor(node_to_call, property_tok) {
+        super();
+        this.node_to_call = node_to_call;
+        this.property_tok = property_tok;
+        this.pos_start = this.node_to_call.pos_start;
+        this.pos_end = this.property_tok.pos_end;
+    }
+
+    toString() {
+        return `(prop ${this.node_to_call}.${this.property_tok.value})`;
+    }
+}
+
+/**
+ * @classdesc Describes the declaration of a property in a class.
+ */
+export class ClassPropertyDefNode extends CustomNode {
+    /**
+     * @constructs ClassPropertyDefNode
+     * @param {Token} property_name_tok The name of the variable.
+     * @param {CustomNode} value_node The value of the variable. It might be an ElseAssignmentNode.
+     * @param {number} status 0 for private, 1 for public, 2 for protected.
+     */
+    constructor(property_name_tok, value_node, status) {
+        super();
+        this.property_name_tok = property_name_tok;
+        this.value_node = value_node;
+        this.status = status;
+        this.pos_start = this.property_name_tok.pos_start;
+        this.pos_end = this.value_node.pos_end;
+    }
+
+    toString() {
+        switch (this.status) {
+            case 0:
+                return `(private ${this.property_name_tok.value} = ${this.value_node})`;
+            case 1:
+                return `(public ${this.property_name_tok.value} = ${this.value_node})`;
+            case 2:
+                return `(protected ${this.property_name_tok.value} = ${this.value_node})`;
+        }
+    }
+}
+
+/**
+ * @classdesc Describes the declaration of a function.
+ */
+export class ClassMethodDefNode extends FuncDefNode {
+    /**
+     * @constructs ClassMethodDefNode
+     * @param {Token} var_name_tok The identifier that corresponds to the name of the function. Might be null for anonymous functions.
+     * @param {Array<Token>} arg_name_toks The arguments.
+     * @param {Array<Token>} mandatory_arg_name_toks The mandatory arguments.
+     * @param {Array<Token>} optional_arg_name_toks The optional arguments.
+     * @param {Array<CustomNode>} default_values_nodes The values of the optional arguments.
+     * @param {CustomNode} body_node The body of the function.
+     * @param {boolean} should_auto_return Should auto return? True if the function is an arrow function.
+     * @param {number} status 0 for private, 1 for public, 2 for protected.
+     */
+    constructor(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node, should_auto_return, status) {
+        super(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node, should_auto_return);
+        this.status = status;
+    }
+
+    toString() {
+        switch (this.status) {
+            case 0:
+                return `(private method ${this.var_name_tok.value})`;
+            case 1:
+                return `(public method ${this.var_name_tok.value})`;
+            case 2:
+                return `(protected method ${this.var_name_tok.value})`;
+        }
+    }
+}
+
+/**
+ * @classdesc Describes the declaration of a class.
+ */
+export class ClassDefNode extends CustomNode {
+    /**
+     * @constructs ClassDefNode
+     * @param {Token} class_name_tok The identifier that corresponds to the name of the class.
+     * @param {Array<ClassPropertyDefNode>} properties All the properties of the class.
+     * @param {Array<ClassMethodDefNode>} methods All the methods of the class.
+     * @param {Array<FuncDefNode>} getters All the getters of the class.
+     * @param {Array<FuncDefNode>} setters All the setters of the class.
+     * @param {Position} pos_start The starting position of the declaration (first line).
+     * @param {Position} pos_end The end position of the declaration (first line).
+     */
+    constructor(class_name_tok, properties, methods, getters, setters, pos_start, pos_end) {
+        super();
+        this.class_name_tok = class_name_tok;
+        this.properties = properties;
+        this.methods = methods;
+        this.getters = getters;
+        this.setters = setters;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `(Class ${this.class_name_tok.value})`;
+    }
+}
+
+/**
+ * @classdesc Describes the call to a class (new Class())
+ */
+export class ClassCallNode extends CustomNode {
+    /**
+     * @constructs ClassCallNode
+     * @param {Token} class_name_tok The identifier that corresponds to the name of the class to be called.
+     * @param {Array<CustomNode>} arg_nodes The list of arguments (for __init).
+     */
+    constructor(class_name_tok, arg_nodes) {
+        super();
+        this.class_name_tok = class_name_tok;
+        this.arg_nodes = arg_nodes;
+
+        this.pos_start = this.class_name_tok.pos_start;
+
+        if (this.arg_nodes.length > 0) {
+            this.pos_end = this.arg_nodes[this.arg_nodes.length - 1].pos_end;
+        } else {
+            this.pos_end = this.class_name_tok.pos_end;
+        }
+    }
+
+    toString() {
+        return `(new ${this.class_name_tok})`;
+    }
+}
+
+/**
+ * @classdesc Allows our program to modify the value of properties (`self.age = 17`)
+ */
+export class AssignPropertyNode extends CustomNode {
+    /**
+     * @constructs AssignPropertyNode
+     * @param {CallPropertyNode} property The property to be modified.
+     * @param {CustomNode} value_node The new value.
+     */
+    constructor(property, value_node) {
+        super();
+        this.property = property;
+        this.value_node = value_node;
+        this.pos_start = property.pos_start;
+        this.pos_end = property.pos_end;
+    }
+
+    toString() {
+        return `(${this.property} = ${this.value_node})`;
     }
 }

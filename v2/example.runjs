@@ -1,115 +1,31 @@
-# ceci est un commentaire
-# sur plusieurs lignes
-
-func test_foreach(list):
-    foreach list as key => value:
-        log("key = {key} and value = {value}")
-    end
-end
-
-var foreach_list = ["a", "b", "c", "d", "e"]
-var foreach_dico = { "age": 17, "prenom": "thomas", "dico": { "test": 5 } }
-var foreach_number = 5 # should raise an error
-
-# should work on several lines
-var dico_data = 5
-var dico_multilines = {
-    "age"
-    : 
-    17,
-    "name":
-        "thomas",
-    dico_data,
-}
-
-# should work on several lines
-var list_multilines = [
-    0
-    ,
-    [0,
-    1],
-    1,
-]
-
-define __VERSION__ = 0
-
-var hello = "HELLO"
-delete hello
-
-var example_of_a_list = [1, [[5, 8], 3], 3]
-delete example_of_a_list[1][0][-1] # delete the 8 in this list
-
-# just divide two numbers
-func divide(a, b):
-    if b <= 0:
-        log("WOW, tu essaies de diviser {a} par 0, t'es pas bien ti")
-        return 0
+class Person:
+    public property firstname
+    private property lastname
+    protected property fullname
+    protected property age
+    
+    method __init(firstname, lastname, age):
+        self.firstname = firstname
+        self.lastname = lastname
+        self.age = age
+        self.fullname = self.assemble()
     end
 
-    return # multiline :D
-        a / b
-end
-
-# should work on several lines
-log(
-    divide(
-        5
-        , 2
-    )
-)
-
-# we want to test if the variable declarations work fine in a for loop
-func average_grade(notes):
-    var somme = 0
-    var length = len(notes)
-
-    if length == 0:
-        log("WOW, t'as aucune note")
-        return 0
+    method __repr():
+        return self.assemble()
     end
 
-    for i to length:
-        var note = notes[i] # this variable only exists inside the loop
-        somme = somme + note # this variable doesn't exist inside the loop, then we look for the parent context (the func)
-    end # end for the loop
+    protected method assemble() -> self.firstname + " " + self.lastname
 
-    return somme / length
-end
+    get getFullname() -> self.fullname
 
-# we want to test the keywords "break" & "continue"
-func enumarate(list):
-    for i to len(list):
-        if list[i] == 0:
-            break
-            log("WOWOWOWO C PAS NORMAL CA")
-        end
-
-        if list[i] == 4:
-            continue
-        end
-
-        log(list[i])
+    set setFirstname(new_name):
+        self.firstname = new_name
+        self.fullname = self.assemble()
     end
 
-    return "alors ?"
+    set setAge(new_age?=self.age+1) -> self.age = new_age
 end
 
-func test_with_lists():
-    return for i to 10: i
-end
-
-# we want to test if the variable declarations work fine in a while loop, just like the for loop
-func test_with_while():
-    var i = 0
-    var test = 0
-
-    while i < 10:
-        var test = 5
-        i = i + 1
-    end
-
-    return i
-end
-
-var notes = [10, 11, 12]
-var moyenne = average_grade(notes) # should return 11 for [10, 11, 12]
+var person = new Person("Thomas", "CodoPixel", 17)
+log(person)
