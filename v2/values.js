@@ -350,6 +350,43 @@ export class ClassValue extends Value {
 }
 
 /**
+ * @classdesc A super() function inside a class.
+ */
+export class SuperFunctionValue extends Value {
+    /**
+     * @constructs SuperFunctionValue
+     * @param {FunctionValue} func The __init method of the parent class.
+     * @param {string} needed_context The context within which the function can be executed.
+     */
+    constructor(func, needed_context) {
+        super();
+        this.func = func;
+        this.needed_context = needed_context;
+        this.pos_start = this.func.pos_start;
+        this.pos_end = this.func.pos_end;
+    }
+
+    is_true() {
+        return true;
+    }
+
+    /**
+     * @override
+     * @return {SuperFunctionValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new SuperFunctionValue(this.func, this.needed_context);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `<super>`;
+    }
+}
+
+/**
  * @classdesc A function of the program.
  */
 export class FunctionValue extends BaseFunction {

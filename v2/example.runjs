@@ -1,31 +1,36 @@
-class Person:
-    public property firstname
-    private property lastname
-    protected property fullname
-    protected property age
-    
-    method __init(firstname, lastname, age):
-        self.firstname = firstname
-        self.lastname = lastname
-        self.age = age
-        self.fullname = self.assemble()
+class LivingThing:
+    property isalive = yes
+
+    method __init(isalive):
+        self.isalive = isalive
     end
 
-    method __repr():
-        return self.assemble()
-    end
-
-    protected method assemble() -> self.firstname + " " + self.lastname
-
-    get getFullname() -> self.fullname
-
-    set setFirstname(new_name):
-        self.firstname = new_name
-        self.fullname = self.assemble()
-    end
-
-    set setAge(new_age?=self.age+1) -> self.age = new_age
+    set die() -> self.isalive = no
+    set resuscitate() -> self.isalive = yes
 end
 
-var person = new Person("Thomas", "CodoPixel", 17)
-log(person)
+class Animal extends LivingThing:
+    property name = "name"
+    property type
+
+    method __init(name, type):
+        super(yes)
+        self.name = name
+        self.type = type
+    end
+
+    method walk() -> log(self.name + " walks")
+end
+
+class Wolf extends Animal:
+    method __init(name):
+        super(name, "Wolf")
+    end
+
+    override method walk() -> log(self.name + " runs")
+end
+
+var animal = new Animal("An animal", "cat")
+var wolf = new Wolf("Wolfy")
+animal.walk()
+wolf.walk()

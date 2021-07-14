@@ -71,7 +71,9 @@ const KEYWORDS = [
     "method",
     "by",
     "property",
-    "new"
+    "new",
+    "extends",
+    "override"
 ];
 
 export default KEYWORDS;

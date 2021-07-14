@@ -25,6 +25,7 @@ export class Context {
      * @returns {boolean}
      */
     is_context_in(context_name) {
+        if (this.display_name === context_name) return true;
         let parent = this.parent;
         if (parent) {
             while (parent) {

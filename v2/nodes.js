@@ -918,12 +918,12 @@ export class DeleteNode extends CustomNode {
 }
 
 /**
- * @classdesc Describes the call to a property (`example.property.method()`)
+ * @classdesc Describes the call to a property (`example.property`)
  */
 export class CallPropertyNode extends CustomNode {
     /**
      * @constructs CallPropertyNode
-     * @param {CustomNode} node_to_call The node to call. Left
+     * @param {CustomNode} node_to_call The node to call.
      * @param {Token} property_tok The token of the property to be called.
      */
     constructor(node_to_call, property_tok) {
@@ -940,6 +940,28 @@ export class CallPropertyNode extends CustomNode {
 }
 
 /**
+ * @classdesc Describes the call to a method (`example.property.method()`)
+ */
+export class CallMethodNode extends CustomNode {
+    /**
+     * @constructs CallMethodNode
+     * @param {CallNode} node_to_call The node to call.
+     * @param {CustomNode} origin The token of the property to be called.
+     */
+    constructor(node_to_call, origin) {
+        super();
+        this.node_to_call = node_to_call;
+        this.origin = origin;
+        this.pos_start = this.origin.pos_start;
+        this.pos_end = this.node_to_call.pos_end;
+    }
+
+    toString() {
+        return `(method ${this.origin}.${this.node_to_call})`;
+    }
+}
+
+/**
  * @classdesc Describes the declaration of a property in a class.
  */
 export class ClassPropertyDefNode extends CustomNode {
@@ -948,12 +970,14 @@ export class ClassPropertyDefNode extends CustomNode {
      * @param {Token} property_name_tok The name of the variable.
      * @param {CustomNode} value_node The value of the variable. It might be an ElseAssignmentNode.
      * @param {number} status 0 for private, 1 for public, 2 for protected.
+     * @param {number} override 1 for override, 0 otherwise.
      */
-    constructor(property_name_tok, value_node, status) {
+    constructor(property_name_tok, value_node, status, override) {
         super();
         this.property_name_tok = property_name_tok;
         this.value_node = value_node;
         this.status = status;
+        this.override = override;
         this.pos_start = this.property_name_tok.pos_start;
         this.pos_end = this.value_node.pos_end;
     }
@@ -961,11 +985,11 @@ export class ClassPropertyDefNode extends CustomNode {
     toString() {
         switch (this.status) {
             case 0:
-                return `(private ${this.property_name_tok.value} = ${this.value_node})`;
+                return `(private ${this.override ? 'override' : ''} ${this.property_name_tok.value} = ${this.value_node})`;
             case 1:
-                return `(public ${this.property_name_tok.value} = ${this.value_node})`;
+                return `(public ${this.override ? 'override' : ''} ${this.property_name_tok.value} = ${this.value_node})`;
             case 2:
-                return `(protected ${this.property_name_tok.value} = ${this.value_node})`;
+                return `(protected ${this.override ? 'override' : ''} ${this.property_name_tok.value} = ${this.value_node})`;
         }
     }
 }
@@ -973,31 +997,30 @@ export class ClassPropertyDefNode extends CustomNode {
 /**
  * @classdesc Describes the declaration of a function.
  */
-export class ClassMethodDefNode extends FuncDefNode {
+export class ClassMethodDefNode extends CustomNode {
     /**
      * @constructs ClassMethodDefNode
-     * @param {Token} var_name_tok The identifier that corresponds to the name of the function. Might be null for anonymous functions.
-     * @param {Array<Token>} arg_name_toks The arguments.
-     * @param {Array<Token>} mandatory_arg_name_toks The mandatory arguments.
-     * @param {Array<Token>} optional_arg_name_toks The optional arguments.
-     * @param {Array<CustomNode>} default_values_nodes The values of the optional arguments.
-     * @param {CustomNode} body_node The body of the function.
-     * @param {boolean} should_auto_return Should auto return? True if the function is an arrow function.
+     * @param {FuncDefNode} func The function itself.
      * @param {number} status 0 for private, 1 for public, 2 for protected.
+     * @param {number} override 1 for override, 0 otherwise.
      */
-    constructor(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node, should_auto_return, status) {
-        super(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node, should_auto_return);
+    constructor(func, status, override) {
+        super();
+        this.func = func;
         this.status = status;
+        this.override = override;
+        this.pos_start = this.func.pos_start;
+        this.pos_end = this.func.pos_end;
     }
 
     toString() {
         switch (this.status) {
             case 0:
-                return `(private method ${this.var_name_tok.value})`;
+                return `(private ${this.override ? 'override' : ''} method ${this.func.var_name_tok.value})`;
             case 1:
-                return `(public method ${this.var_name_tok.value})`;
+                return `(public ${this.override ? 'override' : ''} method ${this.func.var_name_tok.value})`;
             case 2:
-                return `(protected method ${this.var_name_tok.value})`;
+                return `(protected ${this.override ? 'override' : ''} method ${this.func.var_name_tok.value})`;
         }
     }
 }
@@ -1009,16 +1032,18 @@ export class ClassDefNode extends CustomNode {
     /**
      * @constructs ClassDefNode
      * @param {Token} class_name_tok The identifier that corresponds to the name of the class.
+     * @param {Token|null} parent_class_tok The identifier that corresponds to the name of the parent class.
      * @param {Array<ClassPropertyDefNode>} properties All the properties of the class.
      * @param {Array<ClassMethodDefNode>} methods All the methods of the class.
-     * @param {Array<FuncDefNode>} getters All the getters of the class.
-     * @param {Array<FuncDefNode>} setters All the setters of the class.
+     * @param {Array<ClassMethodDefNode>} getters All the getters of the class.
+     * @param {Array<ClassMethodDefNode>} setters All the setters of the class.
      * @param {Position} pos_start The starting position of the declaration (first line).
      * @param {Position} pos_end The end position of the declaration (first line).
      */
-    constructor(class_name_tok, properties, methods, getters, setters, pos_start, pos_end) {
+    constructor(class_name_tok, parent_class_tok, properties, methods, getters, setters, pos_start, pos_end) {
         super();
         this.class_name_tok = class_name_tok;
+        this.parent_class_tok = parent_class_tok;
         this.properties = properties;
         this.methods = methods;
         this.getters = getters;

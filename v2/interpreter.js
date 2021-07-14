@@ -1,11 +1,12 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, ClassMethodDefNode, CallPropertyNode, AssignPropertyNode } from './nodes.js';
-import { BaseFunction, ClassValue, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode } from './nodes.js';
+import { BaseFunction, ClassValue, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue, SuperFunctionValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
 import { LETTERS_DIGITS } from './lexer.js';
 import { CONSTANTS, SymbolTable } from './symbol_table.js';
 import { is_in } from './miscellaneous.js';
+import { Position } from './position.js';
 
 class BinarySelectorValues {
     /**
@@ -52,7 +53,12 @@ function array_equals(a, b) {
                 }
             } else if (a_element instanceof BaseFunction) {
                 return false; // two functions cannot be equal
+            } else if (a_element instanceof ClassValue) {
+                return false; // two classes cannot be equal
+            } else {
+                return false;
             }
+            // dictionnaries are handled by another function
             // todo: change here if there are new types
         }
     }
@@ -174,8 +180,6 @@ export class Interpreter {
             return this.visit_ForNode(node, context);
         } else if (node instanceof WhileNode) {
             return this.visit_WhileNode(node, context);
-        } else if (node instanceof ClassMethodDefNode) { // ClassMethodDefNode extends from FuncDefNode
-            return this.visit_ClassMethodDefNode(node, context);
         } else if (node instanceof FuncDefNode) {
             return this.visit_FuncDefNode(node, context);
         } else if (node instanceof CallNode) {
@@ -208,9 +212,24 @@ export class Interpreter {
             return this.visit_CallPropertyNode(node, context);
         } else if (node instanceof AssignPropertyNode) {
             return this.visit_AssignPropertyNode(node, context);
+        } else if (node instanceof CallMethodNode) {
+            return this.visit_CallMethodNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
+    }
+
+    /**
+     * Creates a new context.
+     * @param {Context} parent_context
+     * @param {string} context_name 
+     * @param {Position} pos_start 
+     * @returns {Context}
+     */
+    generate_new_context(parent_context, context_name, pos_start) {
+        let new_context = new Context(context_name, parent_context, pos_start);
+        new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
+        return new_context;
     }
 
     /**
@@ -1880,15 +1899,9 @@ export class Interpreter {
             condition = () => i > end_value.value;
         }
 
-        const generate_new_context = (parent_context) => {
-            let new_context = new Context("<for>", parent_context, node.pos_start);
-            new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
-            return new_context;
-        }
-
         while (condition()) {
             context.symbol_table.set(node.var_name_tok.value, new NumberValue(i));
-            const exec_ctx = generate_new_context(context);
+            const exec_ctx = this.generate_new_context(context, "<for>", node.pos_start);
             
             i += step_value.value;
 
@@ -1917,12 +1930,6 @@ export class Interpreter {
         let res = new RuntimeResult();
         let elements = []; // we want a loop to return by default a ListValue.
 
-        const generate_new_context = (parent_context) => {
-            let new_context = new Context("<foreach>", parent_context, node.pos_start);
-            new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
-            return new_context;
-        }
-
         let i = 0;
         let list = res.register(this.visit(node.list_node, context));
         if (res.should_return()) return res;
@@ -1950,7 +1957,7 @@ export class Interpreter {
                 context.symbol_table.set(node.value_name_tok.value, list.elements[i]);
             }
 
-            const exec_ctx = generate_new_context(context);
+            const exec_ctx = this.generate_new_context(context, "<foreach>", node.pos_start);
 
             let value = res.register(this.visit(node.body_node, exec_ctx));
             if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) return res;
@@ -1984,19 +1991,13 @@ export class Interpreter {
         let res = new RuntimeResult();
         let elements = []; // we want a loop to return a custom list by default.
 
-        const generate_new_context = (parent_context) => {
-            let new_context = new Context("<while>", parent_context, node.pos_start);
-            new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
-            return new_context;
-        }
-
         while (true) {
             let condition = res.register(this.visit(node.condition_node, context));
             if (res.should_return()) return res;
 
             if (!condition.is_true()) break;
 
-            const exec_ctx = generate_new_context(context);
+            const exec_ctx = this.generate_new_context(context, "<while>", node.pos_start);
 
             let value = res.register(this.visit(node.body_node, exec_ctx));
             if (res.should_return() && res.loop_should_continue === false && res.loop_should_break === false) return res;
@@ -2062,7 +2063,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets a function definition node.
+     * Interprets a function call.
      * @param {CallNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -2074,10 +2075,11 @@ export class Interpreter {
         let pos_start = node.pos_start;
         let pos_end = node.pos_end;
 
+        /** @type {FunctionValue|SuperFunctionValue|NativeFunction} */
         let value_to_call = res.register(this.visit(node.node_to_call, context));
         if (res.should_return()) return res;
 
-        if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof NativeFunction)) {
+        if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof SuperFunctionValue) && !(value_to_call instanceof NativeFunction)) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
                 "Cannot call a variable that is not a function.",
@@ -2087,12 +2089,26 @@ export class Interpreter {
 
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
 
+        // in case we have a super() function
+        // we must check if we have the right to use it
+        if (value_to_call instanceof SuperFunctionValue) {
+            if (context.display_name !== "<method __init>" && context.parent.display_name !== value_to_call.needed_context) {
+                throw new RuntimeError(
+                    value_to_call.pos_start, value_to_call.pos_end,
+                    "The super function cannot be called outside the __init method or in another context.",
+                    context
+                );
+            }
+        }
+
         for (let arg_node of node.arg_nodes) {
             args.push(res.register(this.visit(arg_node, context)));
             if (res.should_return()) return res;
         }
 
-        let return_value = res.register(value_to_call.execute(args, pos_start, pos_end));
+        // if we have a super() function
+        // this will call the __init method of the parent class.
+        let return_value = res.register(value_to_call instanceof SuperFunctionValue ? value_to_call.func.execute(args) : value_to_call.execute(args, pos_start, pos_end));
         if (res.should_return()) return res;
 
         return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
@@ -2703,52 +2719,6 @@ export class Interpreter {
     }
 
     /**
-     * Interprets a method.
-     * @param {ClassMethodDefNode} node The node.
-     * @param {Context} context The context to use.
-     * @returns {RuntimeResult}
-     */
-    visit_ClassMethodDefNode(node, context) {
-        let res = new RuntimeResult();
-        let method_name = node.var_name_tok.value;
-        let body_node = node.body_node;
-        let arg_names = [];
-        let optional_arg_names = [];
-        let mandatory_arg_names = [];
-
-        if (context.symbol_table.doesExist(method_name)) {
-            throw new RuntimeError(
-                node.var_name_tok.pos_start, node.var_name_tok.pos_end,
-                `The method '${method_name}' already exists.`,
-                context
-            );
-        }
-
-        for (let arg_name of node.arg_name_toks) arg_names.push(arg_name.value);
-        for (let optional_arg of node.optional_arg_name_toks) optional_arg_names.push(optional_arg.value);
-        for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg.value);
-
-        let method_value = new FunctionValue(
-            method_name,
-            body_node,
-            arg_names,
-            mandatory_arg_names,
-            optional_arg_names,
-            node.default_values_nodes,
-            node.should_auto_return)
-                .set_context(context)
-                .set_pos(node.pos_start, node.pos_end);
-        
-        // we want to invoke the function with its name
-        // so we use it as a variable in our symbole table
-        if (method_name) {
-            context.symbol_table.set(method_name, method_value);
-        }
-        
-        return res.success(method_value);
-    }
-
-    /**
      * Interprets a variable declaration.
      * @param {ClassPropertyDefNode} node The node.
      * @param {Context} context The context to use.
@@ -2783,6 +2753,8 @@ export class Interpreter {
     visit_ClassDefNode(node, context) {
         let res = new RuntimeResult();
         let class_name = node.class_name_tok.value;
+        let parent_class_name = node.parent_class_tok ? node.parent_class_tok.value : null;
+        let parent_class_value;
 
         if (context.symbol_table.doesExist(class_name)) {
             throw new RuntimeError(
@@ -2792,22 +2764,78 @@ export class Interpreter {
             );
         }
 
-        const generate_new_context = (parent_context, context_name) => {
-            let new_context = new Context(context_name, parent_context, node.pos_start);
-            new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
-            return new_context;
+        if (parent_class_name) {
+            parent_class_value = context.symbol_table.get(parent_class_name);
+            if (parent_class_value === null || parent_class_value === undefined) {
+                throw new RuntimeError(
+                    node.parent_class_tok.pos_start, node.parent_class_tok.pos_end,
+                    "Undefined class",
+                    context
+                );
+            }
+            if (!(parent_class_value instanceof ClassValue)) {
+                throw new RuntimeError(
+                    node.parent_class_tok.pos_start, node.parent_class_tok.pos_end,
+                    "A class must inherit from another class.",
+                    context
+                );
+            }
         }
 
-        let value = new ClassValue(class_name, new Map());
-        let exec_ctx = generate_new_context(context, value.context_name);
+        let value = new ClassValue(class_name, parent_class_value ? new Map(Array.from(parent_class_value.self.entries()).map((v) => v[1].status !== 0 ? v : null).filter((v) => v !== null)) : new Map()).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let exec_ctx = this.generate_new_context(context, value.context_name, node.pos_start);
         exec_ctx.symbol_table.set("self", value);
+
+        // we declare the super() function in the entire class
+        // because we cannot limit it to the __init method
+        // therefore we use a SuperFunctionValue that allows us
+        // to throw an error if we use it outside the __init method.
+        // See: `visit_CallNode`
+        if (parent_class_value) {
+            let __init_parent = parent_class_value.self.get("__init");
+            if (__init_parent) {
+                exec_ctx.symbol_table.set("super", new SuperFunctionValue(
+                    // @ts-ignore
+                    __init_parent.value.copy().set_context(exec_ctx), 
+                    value.context_name
+                ).set_context(exec_ctx));
+            } else {
+                // if the parent class didn't declare an __init method,
+                // we create our own because we might want to use an empty super() anyway
+                exec_ctx.symbol_table.set("super", new SuperFunctionValue(
+                    new FunctionValue(
+                        "super",
+                        NumberValue.none,
+                        [],
+                        [],
+                        [],
+                        [],
+                        true
+                    ).set_context(exec_ctx),
+                    value.context_name
+                ).set_context(exec_ctx));
+            }
+        }
+
+        // checks if a property/method/setter/getter already exists
+        // useful if we have a parent class (we don't want the child class to declare the same properties as its parent).
+        const check_if_already_exists = (name, type, pos_start, pos_end) => {
+            if (name === "__init" || name === "__repr") return;
+            if (value.self.has(name)) {
+                throw new RuntimeError(
+                    pos_start, pos_end,
+                    `The ${type} ${name} already exists.`,
+                    exec_ctx
+                );
+            }
+        };
 
         // Must be before properties
         // so that we can use methods inside properties.
         // Besides, we can use properties as default value for arguments :)
         for (let i = 0; i < node.methods.length; i++) {
             let method_node = node.methods[i];
-            let method_name = method_node.var_name_tok.value;
+            let method_name = method_node.func.var_name_tok.value;
             let method_status = method_node.status;
             if (method_name === "__init" || method_name === "__repr") {
                 if (method_status !== 1) {
@@ -2818,8 +2846,15 @@ export class Interpreter {
                         context
                     );
                 }
+                if (method_node.override) {
+                    throw new RuntimeError(
+                        method_node.pos_start, method_node.pos_end,
+                        `The ${method_name} method cannot be overwritten.`,
+                        context
+                    );
+                }
             }
-            let method = res.register(this.visit(method_node, exec_ctx));
+            let method = res.register(this.visit(method_node.func, exec_ctx));
             if (res.should_return()) return res;
             if (method_name === "__repr" && method.arg_names.length > 0) {
                 throw new RuntimeError(
@@ -2829,6 +2864,9 @@ export class Interpreter {
                 );
             }
             method.type_name = "method";
+            if (!method_node.override) {
+                check_if_already_exists(method_name, "method", method_node.pos_start, method_node.pos_end);
+            }
             value.self.set(method_name, { status: method_status, value: method });
         }
 
@@ -2845,12 +2883,15 @@ export class Interpreter {
             let property_status = property_node.status;
             let property = res.register(this.visit(property_node, exec_ctx));
             if (res.should_return()) return res;
+            if (!property_node.override) {
+                check_if_already_exists(property_name, "property", property_node.pos_start, property_node.pos_end);
+            }
             value.self.set(property_name, { status: property_status, value: property });
         }
 
         for (let i = 0; i < node.getters.length; i++) {
             let getter_node = node.getters[i];
-            let getter_name = getter_node.var_name_tok.value;
+            let getter_name = getter_node.func.var_name_tok.value;
             if (getter_name === "__init" || getter_name === "__repr") {
                 throw new RuntimeError(
                     getter_node.pos_start, getter_node.pos_end,
@@ -2858,15 +2899,25 @@ export class Interpreter {
                     context
                 );
             }
-            let getter = res.register(this.visit(getter_node, exec_ctx));
+            if (getter_node.status !== 1) {
+                throw new RuntimeError(
+                    getter_node.pos_start, getter_node.pos_end,
+                    `Invalid status for getter '${getter_name}'. Getters can only be public.`,
+                    context
+                );
+            }
+            let getter = res.register(this.visit(getter_node.func, exec_ctx));
             if (res.should_return()) return res;
             getter.type_name = "getter";
+            if (!getter_node.override) {
+                check_if_already_exists(getter_name, "getter", getter_node.pos_start, getter_node.pos_end);
+            }
             value.self.set(getter_name, { status: 1, value: getter });
         }
 
         for (let i = 0; i < node.setters.length; i++) {
             let setter_node = node.setters[i];
-            let setter_name = setter_node.var_name_tok.value;
+            let setter_name = setter_node.func.var_name_tok.value;
             if (setter_name === "__init" || setter_name === "__repr") {
                 throw new RuntimeError(
                     setter_node.pos_start, setter_node.pos_end,
@@ -2874,9 +2925,19 @@ export class Interpreter {
                     context
                 );
             }
-            let setter = res.register(this.visit(setter_node, exec_ctx));
+            if (setter_node.status !== 1) {
+                throw new RuntimeError(
+                    setter_node.pos_start, setter_node.pos_end,
+                    `Invalid status for setter '${setter_name}'. Setters can only be public.`,
+                    context
+                );
+            }
+            let setter = res.register(this.visit(setter_node.func, exec_ctx));
             if (res.should_return()) return res;
             setter.type_name = "setter";
+            if (!setter_node.override) {
+                check_if_already_exists(setter_name, "setter", setter_node.pos_start, setter_node.pos_end);
+            }
             value.self.set(setter_name, { status: 1, value: setter });
         }
 
@@ -2894,6 +2955,7 @@ export class Interpreter {
     visit_ClassCallNode(node, context) {
         let res = new RuntimeResult();
         let class_name = node.class_name_tok.value;
+        /** @type {ClassValue} */
         let value = context.symbol_table.get(class_name);
 
         if (value === undefined || value === null) {
@@ -2912,8 +2974,9 @@ export class Interpreter {
             );
         }
 
-        let __init = value.self.get("__init");
-
+        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries()))).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let __init = new_class_value.self.get("__init");
+        
         if (__init) {
             let method = __init.value;
             let args = [];
@@ -2923,12 +2986,13 @@ export class Interpreter {
                 args.push(value);
             }
 
+            method.context.symbol_table.set('self', new_class_value);
+            
             // @ts-ignore
             method.execute(args);
         }
 
-        value = value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
-        return res.success(value);
+        return res.success(new_class_value);
     }
 
     /**
@@ -2975,7 +3039,6 @@ export class Interpreter {
             // this means that we are outside the class
             if (prop.status === 0 || prop.status === 2) {
                 // this means that the property we are looking for is not public
-                // todo: what happens with `protected` if we are in a child class?
                 let status_string = prop.status === 0 ? "private" : "protected";
                 throw new RuntimeError(
                     node.property_tok.pos_start, node.property_tok.pos_end,
@@ -2983,7 +3046,7 @@ export class Interpreter {
                     context
                 );
             }
-        } 
+        }
 
         return res.success(value);
     }
@@ -3027,7 +3090,6 @@ export class Interpreter {
                 // this means that we are outside the class
                 if (status === 0 || status === 2) {
                     // this means that the property we are looking for is not public
-                    // todo: what happens with `protected` if we are in a child class?
                     let status_string = prop.status === 0 ? "private" : "protected";
                     throw new RuntimeError(
                         node.property.property_tok.pos_start, node.property.property_tok.pos_end,
@@ -3036,6 +3098,8 @@ export class Interpreter {
                     );
                 }
             } 
+        } else {
+            // todo: when we'll be able to extend from classes, I don't want to add new properties like that
         }
 
         new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
@@ -3043,5 +3107,62 @@ export class Interpreter {
         context.symbol_table.set(base.name, base);
 
         return res.success(new_value);
+    }
+
+    /**
+     * Interprets a method call.
+     * @param {CallMethodNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_CallMethodNode(node, context) {
+        let res = new RuntimeResult();
+        let args = [];
+        let pos_start = node.pos_start;
+        let pos_end = node.pos_end;
+        let node_to_call = node.node_to_call; // example.thing.prop(args)
+        let origin = node.origin; // example
+
+        // origin => self, in the execution context of the function
+
+        let origin_instance = res.register(this.visit(origin, context));
+        if (res.should_return()) return res;
+
+        if (!(origin_instance instanceof ClassValue)) {
+            throw new RuntimeError(
+                pos_start, pos_end,
+                "Cannot call a method from a non-class value.",
+                context
+            );
+        }
+
+        let exec_ctx = this.generate_new_context(context, origin_instance.context_name, node.pos_start);
+        exec_ctx.symbol_table.set("self", origin_instance);
+
+        /** @type {FunctionValue|NativeFunction} */
+        let value_to_call = res.register(this.visit(node_to_call.node_to_call, context));
+        if (res.should_return()) return res;
+
+        if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof NativeFunction)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Cannot call a variable that is not a function.",
+                context
+            );
+        }
+
+        value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
+
+        for (let arg_node of node_to_call.arg_nodes) {
+            args.push(res.register(this.visit(arg_node, context)));
+            if (res.should_return()) return res;
+        }
+
+        let return_value = res.register(value_to_call.set_context(exec_ctx).execute(args, pos_start, pos_end));
+        if (res.should_return()) return res;
+
+        return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
+
+        return res.success(return_value);
     }
 }

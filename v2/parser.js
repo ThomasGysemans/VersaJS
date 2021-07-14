@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode } from "./nodes.js";
 import { InvalidSyntaxError, RuntimeError } from "./Exceptions.js";
 import { NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
@@ -212,8 +212,21 @@ export class Parser {
         let methods = [];
         let getters = [];
         let setters = [];
+        let parent_class_tok;
 
         this.advance();
+
+        if (this.current_token.matches(TokenType.KEYWORD, "extends")) {
+            this.advance();
+            if (this.current_token.type !== TokenType.IDENTIFIER) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected an identifier"
+                );
+            }
+            parent_class_tok = this.current_token;
+            this.advance();
+        }
 
         if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
@@ -230,78 +243,64 @@ export class Parser {
         const is_public = () => this.current_token.matches(TokenType.KEYWORD, "public");
         const is_private = () => this.current_token.matches(TokenType.KEYWORD, "private");
         const is_protected = () => this.current_token.matches(TokenType.KEYWORD, "protected");
+        const is_override = () => this.current_token.matches(TokenType.KEYWORD, "override");
+        const is_property = () => this.current_token.matches(TokenType.KEYWORD, "property");
+        const is_method = () => this.current_token.matches(TokenType.KEYWORD, "method");
+        const is_setter = () => this.current_token.matches(TokenType.KEYWORD, "set");
+        const is_getter = () => this.current_token.matches(TokenType.KEYWORD, "get");
 
         while (
             is_private() ||
             is_public() ||
             is_protected() ||
-            this.current_token.matches(TokenType.KEYWORD, "property") ||
-            this.current_token.matches(TokenType.KEYWORD, "method") ||
-            this.current_token.matches(TokenType.KEYWORD, "set") ||
-            this.current_token.matches(TokenType.KEYWORD, "get")
+            is_override() ||
+            is_property() ||
+            is_method() ||
+            is_setter() ||
+            is_getter()
         ) {
             let status = 1;
             if (is_private()) status = 0;
             if (is_protected()) status = 2;
 
+            let override = is_override() ? 1 : 0;
+
             if (
                 is_private() ||
                 is_public() ||
-                is_protected()
+                is_protected() ||
+                is_override()
             ) {
                 this.advance();
             }
 
-            if (this.current_token.matches(TokenType.KEYWORD, "get")) { // getter
-                let get_pos_start = this.current_token.pos_start.copy();
-                let get_pos_end = this.current_token.pos_end.copy();
+            if (is_getter() || is_setter() || is_method()) {
+                let is_get = is_getter();
+                let is_set = is_setter();
+                let is_met = is_method();
+
+                let pos_start = this.current_token.pos_start.copy();
+                let pos_end = this.current_token.pos_end.copy();
                 let func_expr = this.func_expr();
                 if (func_expr.var_name_tok === null) {
                     throw new InvalidSyntaxError(
-                        get_pos_start, get_pos_end,
+                        pos_start, pos_end,
                         "Expected an identifier"
                     );
                 }
-                getters.push(func_expr);
-                this.advance()
-                this.ignore_newlines();
-            } else if (this.current_token.matches(TokenType.KEYWORD, "set")) { // setter
-                let set_pos_start = this.current_token.pos_start.copy();
-                let set_pos_end = this.current_token.pos_end.copy();
-                let func_expr = this.func_expr();
-                if (func_expr.var_name_tok === null) {
-                    throw new InvalidSyntaxError(
-                        set_pos_start, set_pos_end,
-                        "Expected an identifier"
-                    );
-                }
-                setters.push(func_expr);
-                this.advance()
-                this.ignore_newlines();
-            } else if (this.current_token.matches(TokenType.KEYWORD, "method")) {
-                let method_pos_start = this.current_token.pos_start.copy();
-                let method_pos_end = this.current_token.pos_end.copy();
-                let func_expr = this.func_expr();
-                if (func_expr.var_name_tok === null) {
-                    throw new InvalidSyntaxError(
-                        method_pos_start, method_pos_end,
-                        "Expected an identifier"
-                    );
-                }
-                let method_name = new ClassMethodDefNode(
-                    func_expr.var_name_tok,
-                    func_expr.arg_name_toks,
-                    func_expr.mandatory_arg_name_toks,
-                    func_expr.optional_arg_name_toks,
-                    func_expr.default_values_nodes,
-                    func_expr.body_node,
-                    func_expr.should_auto_return,
-                    status
+                let node = new ClassMethodDefNode(
+                    func_expr,
+                    status,
+                    override
                 );
-                methods.push(method_name);
-                this.advance();
+                if (is_get) getters.push(node);
+                if (is_set) setters.push(node);
+                if (is_met) methods.push(node);
+                this.advance()
                 this.ignore_newlines();
-            } else if (this.current_token.matches(TokenType.KEYWORD, "property")) { // property
+            }
+
+            if (is_property()) { // property
                 let property_pos_start = this.current_token.pos_start.copy();
                 this.advance();
                 if (this.current_token.type !== TokenType.IDENTIFIER) {
@@ -311,15 +310,16 @@ export class Parser {
                     );
                 }
                 let property_name_tok = this.current_token;
+                let property_pos_end = this.current_token.pos_end.copy();
                 this.advance();
                 let value_node;
                 if (this.current_token.type === TokenType.EQUALS) {
                     this.advance();
                     value_node = this.expr();
                 } else {
-                    value_node = new NumberNode(new Token(TokenType.NUMBER, NumberValue.none.value))
+                    value_node = new NumberNode(new Token(TokenType.NUMBER, NumberValue.none.value, property_pos_start, property_pos_end))
                 }
-                let property_def_node = new ClassPropertyDefNode(property_name_tok, value_node, status);
+                let property_def_node = new ClassPropertyDefNode(property_name_tok, value_node, status, override);
                 properties.push(property_def_node);
                 this.advance();
                 this.ignore_newlines();
@@ -337,6 +337,7 @@ export class Parser {
 
         return new ClassDefNode(
             class_name_tok,
+            parent_class_tok,
             properties,
             methods,
             getters,
@@ -651,7 +652,7 @@ export class Parser {
                 let call_node = new CallPropertyNode(result ? result : node_to_call, property_tok);
 
                 if (this.current_token.type === TokenType.LPAREN) {
-                    result = this.helper_call_func(call_node);
+                    result = new CallMethodNode(this.helper_call_func(call_node), node_to_call); // node_to_call will have to be an instance of ClassValue
                 } else if (this.current_token.type === TokenType.LSQUARE) {
                     result = this.helper_call_list(call_node)
                 } else {
