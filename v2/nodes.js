@@ -940,6 +940,28 @@ export class CallPropertyNode extends CustomNode {
 }
 
 /**
+ * @classdesc Describes the call to a static property (`example.property`)
+ */
+export class CallStaticPropertyNode extends CustomNode {
+    /**
+     * @constructs CallStaticPropertyNode
+     * @param {CustomNode} node_to_call The node to call.
+     * @param {Token} property_tok The token of the property to be called.
+     */
+    constructor(node_to_call, property_tok) {
+        super();
+        this.node_to_call = node_to_call;
+        this.property_tok = property_tok;
+        this.pos_start = this.node_to_call.pos_start;
+        this.pos_end = this.property_tok.pos_end;
+    }
+
+    toString() {
+        return `(prop ${this.node_to_call}::${this.property_tok.value})`;
+    }
+}
+
+/**
  * @classdesc Describes the call to a method (`example.property.method()`)
  */
 export class CallMethodNode extends CustomNode {
@@ -971,13 +993,15 @@ export class ClassPropertyDefNode extends CustomNode {
      * @param {CustomNode} value_node The value of the variable. It might be an ElseAssignmentNode.
      * @param {number} status 0 for private, 1 for public, 2 for protected.
      * @param {number} override 1 for override, 0 otherwise.
+     * @param {number} static_prop 1 for static, 0 otherwise.
      */
-    constructor(property_name_tok, value_node, status, override) {
+    constructor(property_name_tok, value_node, status, override, static_prop) {
         super();
         this.property_name_tok = property_name_tok;
         this.value_node = value_node;
         this.status = status;
         this.override = override;
+        this.static_prop = static_prop;
         this.pos_start = this.property_name_tok.pos_start;
         this.pos_end = this.value_node.pos_end;
     }
@@ -1003,12 +1027,14 @@ export class ClassMethodDefNode extends CustomNode {
      * @param {FuncDefNode} func The function itself.
      * @param {number} status 0 for private, 1 for public, 2 for protected.
      * @param {number} override 1 for override, 0 otherwise.
+     * @param {number} static_prop 1 for static, 0 otherwise.
      */
-    constructor(func, status, override) {
+    constructor(func, status, override, static_prop) {
         super();
         this.func = func;
         this.status = status;
         this.override = override;
+        this.static_prop = static_prop;
         this.pos_start = this.func.pos_start;
         this.pos_end = this.func.pos_end;
     }

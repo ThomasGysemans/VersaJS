@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode } from "./nodes.js";
 import { InvalidSyntaxError, RuntimeError } from "./Exceptions.js";
 import { NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
@@ -248,6 +248,7 @@ export class Parser {
         const is_method = () => this.current_token.matches(TokenType.KEYWORD, "method");
         const is_setter = () => this.current_token.matches(TokenType.KEYWORD, "set");
         const is_getter = () => this.current_token.matches(TokenType.KEYWORD, "get");
+        const is_static = () => this.current_token.matches(TokenType.KEYWORD, "static");
 
         while (
             is_private() ||
@@ -257,22 +258,26 @@ export class Parser {
             is_property() ||
             is_method() ||
             is_setter() ||
-            is_getter()
+            is_getter() ||
+            is_static()
         ) {
             let status = 1;
             if (is_private()) status = 0;
             if (is_protected()) status = 2;
 
-            let override = is_override() ? 1 : 0;
-
             if (
                 is_private() ||
                 is_public() ||
-                is_protected() ||
-                is_override()
+                is_protected()
             ) {
                 this.advance();
             }
+
+            let override = is_override() ? 1 : 0;
+            if (is_override()) this.advance()
+            
+            let static_prop = is_static() ? 1 : 0;
+            if (is_static()) this.advance();
 
             if (is_getter() || is_setter() || is_method()) {
                 let is_get = is_getter();
@@ -291,16 +296,15 @@ export class Parser {
                 let node = new ClassMethodDefNode(
                     func_expr,
                     status,
-                    override
+                    override,
+                    static_prop
                 );
                 if (is_get) getters.push(node);
                 if (is_set) setters.push(node);
                 if (is_met) methods.push(node);
                 this.advance()
                 this.ignore_newlines();
-            }
-
-            if (is_property()) { // property
+            } else if (is_property()) { // property
                 let property_pos_start = this.current_token.pos_start.copy();
                 this.advance();
                 if (this.current_token.type !== TokenType.IDENTIFIER) {
@@ -319,10 +323,21 @@ export class Parser {
                 } else {
                     value_node = new NumberNode(new Token(TokenType.NUMBER, NumberValue.none.value, property_pos_start, property_pos_end))
                 }
-                let property_def_node = new ClassPropertyDefNode(property_name_tok, value_node, status, override);
+                let property_def_node = new ClassPropertyDefNode(
+                    property_name_tok,
+                    value_node,
+                    status,
+                    override,
+                    static_prop
+                );
                 properties.push(property_def_node);
                 this.advance();
                 this.ignore_newlines();
+            } else {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "The right order is: private/protected/public? override? static? method/property/get/set"
+                );
             }
         }
 
@@ -619,26 +634,25 @@ export class Parser {
         // if we have a dot after our atom
         // that means we are calling the atom (and that this atom is a ClassValue)
 
-        if (this.current_token.type === TokenType.DOT) {
+        const is_dot = () => this.current_token.type === TokenType.DOT;
+        const is_static = () => this.current_token.type === TokenType.DOUBLE_COLON;
+
+        if (is_dot() || is_static()) {
+            let is_static_prop = is_static();
             let is_calling = false;
             let result;
 
             while (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
                 is_calling = false;
 
-                if (this.current_token.type === TokenType.DOT) is_calling = true;
+                if (is_dot()) is_calling = true;
+                if (is_static()) is_calling = true;
                 if (!is_calling) break;
-
                 
                 this.advance();
-                this.ignore_newlines();
+                if (!is_static_prop) this.ignore_newlines();
                 
-                if (this.current_token.type === TokenType.DOT) {
-                    throw new InvalidSyntaxError(
-                        this.current_token.pos_start, this.current_token.pos_end,
-                        "Cannot follow two dots in a row"
-                    );
-                } else if (this.current_token.type !== TokenType.IDENTIFIER) {
+                if (this.current_token.type !== TokenType.IDENTIFIER) {
                     throw new InvalidSyntaxError(
                         this.current_token.pos_start, this.current_token.pos_end,
                         "Expected identifier"
@@ -649,7 +663,7 @@ export class Parser {
 
                 this.advance();
 
-                let call_node = new CallPropertyNode(result ? result : node_to_call, property_tok);
+                let call_node = is_static_prop ? new CallStaticPropertyNode(result ? result : node_to_call, property_tok) : new CallPropertyNode(result ? result : node_to_call, property_tok);
 
                 if (this.current_token.type === TokenType.LPAREN) {
                     result = new CallMethodNode(this.helper_call_func(call_node), node_to_call); // node_to_call will have to be an instance of ClassValue

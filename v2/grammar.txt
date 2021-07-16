@@ -10,10 +10,10 @@ statement   : KEYWORD:RETURN expr?
             : expr
 
 class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON
-                (KEYWORD:private|KEYWORD:public|KEYWORD:protected) KEYWORD:property IDENTIFIER EQUALS expr
-                | (KEYWORD:PRIVATE|KEYWORD:public|KEYWORD:protected)? KEYWORD:method func_expr
-                | (KEYWORD:get) func_expr
-                | (KEYWORD:set) func_expr
+                (KEYWORD:private|KEYWORD:public|KEYWORD:protected)? (KEYWORD:override)? (KEYWORD:static)? KEYWORD:property IDENTIFIER EQUALS expr
+                | (KEYWORD:PRIVATE|KEYWORD:public|KEYWORD:protected)? (KEYWORD:override)? (KEYWORD:static)? KEYWORD:method IDENTIFIER call_func
+                | (KEYWORD:get) IDENTIFIER call_func
+                | (KEYWORD:set) IDENTIFIER call_func
                 # greedy
 
 expr        : KEYWORD:VAR IDENTIFIER EQUALS expr
@@ -33,7 +33,7 @@ factor      : (PLUS|MINUS) factor
             : (INC|DEC)* term
             : prop
 
-prop        : call (DOT IDENTIFIER call_func|call_list)*
+prop        : call (DOT|DOUBLE_COLON IDENTIFIER call_func|call_list)*
 
 call_func   : (LPAREN (expr (COMMA expr)*)? RPAREN)*
 

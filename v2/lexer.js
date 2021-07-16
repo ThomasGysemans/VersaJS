@@ -94,8 +94,7 @@ export class Lexer {
             } else if (this.current_char === '`') {
                 yield this.make_string();
             } else if (this.current_char === ":") {
-                this.advance();
-                yield new Token(TokenType.COLON, null, this.pos);
+                yield this.make_colon_or_doublecolon();
             } else if (this.current_char === "[") {
                 this.advance();
                 yield new Token(TokenType.LSQUARE, null, this.pos);
@@ -304,6 +303,19 @@ export class Lexer {
         if (this.current_char === "+") {
             this.advance();
             tok_type = TokenType.INC;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_colon_or_doublecolon() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.COLON;
+        this.advance();
+
+        if (this.current_char === ":") {
+            this.advance();
+            tok_type = TokenType.DOUBLE_COLON;
         }
 
         return new Token(tok_type, null, pos_start, this.pos);

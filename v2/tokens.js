@@ -21,6 +21,7 @@ export class TokenType {
     static GTE            = 'GREATER_THAN_OR_EQUAL'
     static ELSE_ASSIGN    = 'ELSE_ASSIGN' // "??"
     static COLON          = 'COLON'
+    static DOUBLE_COLON   = 'DOUBLE_COLON'
     static NEWLINE        = 'NEWLINE'
     // a semicolon represents a newline, except in certain cases
     // where we need to make the differencee between a newline and a semicolon
@@ -73,7 +74,8 @@ const KEYWORDS = [
     "property",
     "new",
     "extends",
-    "override"
+    "override",
+    "static"
 ];
 
 export default KEYWORDS;

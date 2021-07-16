@@ -310,15 +310,13 @@ export class ClassValue extends Value {
     /**
      * @constructs ClassValue
      * @param {string} name The name of the class.
-     * @param {Map<string, {status:number, value:Value}>} value The class that has been instantiated.
-     * @param {ClassValue|null} parent_class The parent class.
+     * @param {Map<string, {status:number, value:Value, static_prop:number}>} value The class that has been instantiated.
      */
-    constructor(name, value, parent_class) {
+    constructor(name, value) {
         super();
         this.name = name;
         this.context_name = `<Class ${this.name}>`; // we do it here because this name cannot be changed, it's very important
         this.self = value;
-        this.parent_class = parent_class;
     }
 
     is_true() {
@@ -330,7 +328,7 @@ export class ClassValue extends Value {
      * @return {ClassValue} A copy of that instance.
      */
     copy() {
-        let copy = new ClassValue(this.name, this.self, this.parent_class);
+        let copy = new ClassValue(this.name, this.self);
         copy.set_context(this.context);
         copy.set_pos(this.pos_start, this.pos_end);
         return copy;

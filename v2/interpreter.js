@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode } from './nodes.js';
 import { BaseFunction, ClassValue, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue, SuperFunctionValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -210,6 +210,8 @@ export class Interpreter {
             return this.visit_ClassPropertyDefNode(node, context);
         } else if (node instanceof CallPropertyNode) {
             return this.visit_CallPropertyNode(node, context);
+        } else if (node instanceof CallStaticPropertyNode) {
+            return this.visit_CallStaticPropertyNode(node, context);
         } else if (node instanceof AssignPropertyNode) {
             return this.visit_AssignPropertyNode(node, context);
         } else if (node instanceof CallMethodNode) {
@@ -2089,16 +2091,9 @@ export class Interpreter {
 
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
 
-        // console.log(`context.display_name = ${context.display_name}`);
-
         // in case we have a super() function
         // we must check if we have the right to use it
         if (value_to_call instanceof SuperFunctionValue) {
-            // console.group(`super (CallNode)`);
-            // console.log(`context.display_name === '${context.display_name}'`);
-            // console.log(`context.parent.display_name === '${context.parent.display_name}'`);
-            // console.log(`value_to_call.needed_context === '${value_to_call.needed_context}'`);
-            // console.groupEnd();
             if (!(context.display_name === "<method __init>" || context.display_name === "__init") && context.parent.display_name !== value_to_call.needed_context) {
                 throw new RuntimeError(
                     value_to_call.pos_start, value_to_call.pos_end,
@@ -2790,8 +2785,9 @@ export class Interpreter {
             }
         }
 
-        let value = new ClassValue(class_name, parent_class_value ? new Map(Array.from(parent_class_value.self.entries()).map((v) => v[1].status !== 0 ? v : null).filter((v) => v !== null)) : new Map(), parent_class_value).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let value = new ClassValue(class_name, parent_class_value ? new Map(Array.from(parent_class_value.self.entries()).map((v) => v[1].status !== 0 ? v : null).filter((v) => v !== null)) : new Map()).set_pos(node.pos_start, node.pos_end).set_context(context);
         let exec_ctx = this.generate_new_context(context, value.context_name, node.pos_start);
+        value.self.set('__name', { static_prop: 1, status: 1, value: new StringValue(class_name).set_context(exec_ctx) });
         exec_ctx.symbol_table.set("self", value);
 
         // we declare the super() function in the entire class
@@ -2845,6 +2841,13 @@ export class Interpreter {
             let method_node = node.methods[i];
             let method_name = method_node.func.var_name_tok.value;
             let method_status = method_node.status;
+            if (method_name === "__name") {
+                throw new RuntimeError(
+                    method_node.pos_start, method_node.pos_end,
+                    `The identifier '${method_name}' is already reserved.`,
+                    context
+                );
+            }
             if (method_name === "__init" || method_name === "__repr") {
                 if (method_status !== 1) {
                     let status_string = method_status === 0 ? "private" : "protected";
@@ -2858,6 +2861,13 @@ export class Interpreter {
                     throw new RuntimeError(
                         method_node.pos_start, method_node.pos_end,
                         `The ${method_name} method cannot be overwritten.`,
+                        context
+                    );
+                }
+                if (method_node.static_prop) {
+                    throw new RuntimeError(
+                        method_node.pos_start, method_node.pos_end,
+                        `The ${method_name} method cannot be static.`,
                         context
                     );
                 }
@@ -2875,12 +2885,19 @@ export class Interpreter {
             if (!method_node.override) {
                 check_if_already_exists(method_name, "method", method_node.pos_start, method_node.pos_end);
             }
-            value.self.set(method_name, { status: method_status, value: method });
+            value.self.set(method_name, { static_prop: method_node.static_prop, status: method_status, value: method });
         }
 
         for (let i = 0; i < node.properties.length; i++) {
             let property_node = node.properties[i];
             let property_name = property_node.property_name_tok.value;
+            if (property_name === "__name") {
+                throw new RuntimeError(
+                    property_node.pos_start, property_node.pos_end,
+                    `The identifier '${property_name}' is already reserved.`,
+                    context
+                );
+            }
             if (property_name === "__init" || property_name === "__repr") {
                 throw new RuntimeError(
                     property_node.pos_start, property_node.pos_end,
@@ -2894,12 +2911,19 @@ export class Interpreter {
             if (!property_node.override) {
                 check_if_already_exists(property_name, "property", property_node.pos_start, property_node.pos_end);
             }
-            value.self.set(property_name, { status: property_status, value: property });
+            value.self.set(property_name, { static_prop: property_node.static_prop, status: property_status, value: property });
         }
 
         for (let i = 0; i < node.getters.length; i++) {
             let getter_node = node.getters[i];
             let getter_name = getter_node.func.var_name_tok.value;
+            if (getter_name === "__name") {
+                throw new RuntimeError(
+                    getter_node.pos_start, getter_node.pos_end,
+                    `The identifier '${getter_name}' is already reserved.`,
+                    context
+                );
+            }
             if (getter_name === "__init" || getter_name === "__repr") {
                 throw new RuntimeError(
                     getter_node.pos_start, getter_node.pos_end,
@@ -2920,12 +2944,26 @@ export class Interpreter {
             if (!getter_node.override) {
                 check_if_already_exists(getter_name, "getter", getter_node.pos_start, getter_node.pos_end);
             }
-            value.self.set(getter_name, { status: 1, value: getter });
+            value.self.set(getter_name, { static_prop: getter_node.static_prop, status: 1, value: getter });
         }
 
         for (let i = 0; i < node.setters.length; i++) {
             let setter_node = node.setters[i];
             let setter_name = setter_node.func.var_name_tok.value;
+            if (setter_node.static_prop) {
+                throw new RuntimeError(
+                    setter_node.pos_start, setter_node.pos_end,
+                    `A setter cannot be static`,
+                    context
+                );
+            }
+            if (setter_name === "__name") {
+                throw new RuntimeError(
+                    setter_node.pos_start, setter_node.pos_end,
+                    `The identifier '${setter_name}' is already reserved.`,
+                    context
+                );
+            }
             if (setter_name === "__init" || setter_name === "__repr") {
                 throw new RuntimeError(
                     setter_node.pos_start, setter_node.pos_end,
@@ -2946,7 +2984,7 @@ export class Interpreter {
             if (!setter_node.override) {
                 check_if_already_exists(setter_name, "setter", setter_node.pos_start, setter_node.pos_end);
             }
-            value.self.set(setter_name, { status: 1, value: setter });
+            value.self.set(setter_name, { static_prop: 0, status: 1, value: setter });
         }
 
         context.symbol_table.set(class_name, value);
@@ -2982,8 +3020,7 @@ export class Interpreter {
             );
         }
 
-        let parent_class = value.parent_class;
-        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries())), parent_class).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries()))).set_pos(node.pos_start, node.pos_end).set_context(context);
         let __init = new_class_value.self.get("__init");
         
         if (__init) {
@@ -2996,49 +3033,6 @@ export class Interpreter {
             }
 
             method.context.symbol_table.set('self', new_class_value);
-
-            if (parent_class) {
-                // we want to get every __init method
-                // from the first parent to the last one
-                // i.e. we get __init from the parent of the current class, then the parent's of the parent etc.
-                let __init_methods = [];
-                let __init_names = [];
-                let parent = new_class_value.parent_class;
-                __init_methods.push(parent.self.get('__init').value);
-                __init_names.push(new_class_value.context_name);
-                __init_names.push(parent.context_name);
-
-                while (parent) {
-                    parent = parent.parent_class;
-                    if (!parent) break;
-                    let method = parent.self.get('__init');
-                    __init_methods.push(method ? method.value : null);
-                    __init_names.push(parent.context_name);
-                }
-
-                // now for each __init method,
-                // we set the self property to this instance
-                // and we set the super function as the __init method of the parent
-                for (let i = 0; i < __init_methods.length; i++) {
-                    let __init_method = __init_methods[i];
-                    let __init_name = __init_names[i];
-                    let next_init_method = __init_methods[i + 1];
-                    if (__init_method && next_init_method) {
-                        __init_method.context.symbol_table.set('self', method.context.symbol_table.get('self'));
-                        __init_method.context.symbol_table.set('super', new SuperFunctionValue(
-                            // @ts-ignore
-                            next_init_method, // the parent __init
-                            __init_name
-                        ));
-                    }
-                }
-
-                method.context.symbol_table.set('super', new SuperFunctionValue(
-                    // @ts-ignore
-                    __init_methods[0].copy(),
-                    new_class_value.name
-                ));
-            }
 
             // @ts-ignore
             method.execute(args);
@@ -3081,6 +3075,72 @@ export class Interpreter {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
                 "Undefined property",
+                context
+            );
+        }
+
+        let value = prop.value;
+
+        // cannot call a static property like that:
+        // self.static_property
+        if (prop.static_prop) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Cannot call the static property '${property_name}' like that. Use the appropriate syntax '::'`,
+                context
+            );
+        }
+
+        if (!context.is_context_in(base.context_name)) {
+            // this means that we are outside the class
+            if (prop.status === 0 || prop.status === 2) {
+                // this means that the property we are looking for is not public
+                let status_string = prop.status === 0 ? "private" : "protected";
+                throw new RuntimeError(
+                    node.property_tok.pos_start, node.property_tok.pos_end,
+                    `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
+                    context
+                );
+            }
+        }
+
+        return res.success(value);
+    }
+
+    /**
+     * Interprets a static property call (`self::name`)
+     * @param {CallStaticPropertyNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_CallStaticPropertyNode(node, context) {
+        let res = new RuntimeResult();
+        let base = res.register(this.visit(node.node_to_call, context));
+        if (res.should_return()) return res;
+        let property_name = node.property_tok.value;
+
+        if (!(base instanceof ClassValue)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Cannot call a property from a non-class value.",
+                context
+            );
+        }
+
+        let prop = base.self.get(property_name);
+        
+        if (prop === undefined || prop === null) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Undefined property",
+                context
+            );
+        }
+
+        if (!prop.static_prop) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `The property '${property_name}' is not static.`,
                 context
             );
         }
@@ -3155,7 +3215,7 @@ export class Interpreter {
         }
 
         new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
-        base.self.set(property_name, { status, value: new_value });
+        base.self.set(property_name, { static_prop: 0, status, value: new_value });
         context.symbol_table.set(base.name, base);
 
         return res.success(new_value);

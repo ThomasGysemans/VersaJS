@@ -401,6 +401,16 @@ describe('Lexer tests', () => {
         check_tokens(tokens, expected_tokens);
     });
 
+    it('should work with a static property call', () => {
+        const tokens = Array.from(new Lexer("self::name").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "self"),
+            new Token(TokenType.DOUBLE_COLON),
+            new Token(TokenType.IDENTIFIER, "name"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
     it('should work with a property call (_._)', () => {
         const tokens = Array.from(new Lexer("example_._1_prop").generate_tokens()); // might return a number instead of a DOT, that's why
         const expected_tokens = [

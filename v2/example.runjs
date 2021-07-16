@@ -1,31 +1,25 @@
-class Animal:
-    property name # = "name"
-    property type
+class Test:
+    static property static_property = "static property"
+    property test
 
-    method __init(name, type):
-        self.name = name
-        self.type = type
-        log(self)
+    static method get_name() -> self::static_property
+
+    method __init():
+        self.test = self::get_name()
     end
 
-    method __repr() -> "I am Animal"
+    static method static_method() -> "static method"
 
-    method walk() -> log(self.name + " walks")
-end
-
-class Wolf extends Animal:
-    method __init(name):
-        super(name, "Wolf")
-        log(self)
+    method __repr():
+        return "self.test = " + self.test
     end
 
-    method __repr() -> "I am Wolf in Animal"
-
-    override method walk() -> log(self.name + " runs")
+    static get getTest() -> self.test
 end
 
-var animal = new Animal("An animal", "cat")
-var wolf = new Wolf("Wolfy")
-var wolf2 = new Wolf("Wolfyy"); # ça prend la dernière valeure
-animal.walk() # animal devient Wolfyy, ça n'a aucun sens
-wolf.walk()
+var t = new Test()
+log(t)
+log(Test::getTest())
+log(Test::static_property)
+log(Test::static_method())
+log(Test::__name)

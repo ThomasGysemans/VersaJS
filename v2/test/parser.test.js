@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode } from '../nodes.js';
 import { InvalidSyntaxError } from '../Exceptions.js';
 
 // npm run test
@@ -251,8 +251,6 @@ describe('Parser tests', () => {
         const node = new Parser(tokens).parse();
         // assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallNode); // will call example.prop
         // assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallPropertyNode);
-        console.log(node.element_nodes[0].node_to_call);
-        console.log(node.element_nodes[0].origin);
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallMethodNode);
         assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallNode);
         assert.deepStrictEqual(true, node.element_nodes[0].origin instanceof VarAccessNode);
@@ -327,5 +325,21 @@ describe('Parser tests', () => {
         assert.deepStrictEqual(true, node.element_nodes[0].property.node_to_call.node_to_access instanceof CallPropertyNode);
         assert.deepStrictEqual(true, node.element_nodes[0].property.node_to_call.node_to_access.node_to_call instanceof CallMethodNode);
         assert.deepStrictEqual(true, node.element_nodes[0].property.node_to_call.node_to_access.node_to_call.node_to_call instanceof CallNode);
+    });
+
+    it('should work with a call to a static property', () => {
+        const tokens = new Lexer("self::name").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallStaticPropertyNode);
+    });
+
+    it('should work with a static property call (method)', () => {
+        const tokens = new Lexer("example::prop()").generate_tokens();
+        const node = new Parser(tokens).parse();
+        console.log(node.element_nodes[0]);
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallMethodNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].node_to_call.node_to_call instanceof CallStaticPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].origin instanceof VarAccessNode);
     });
 });
