@@ -2089,10 +2089,17 @@ export class Interpreter {
 
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
 
+        // console.log(`context.display_name = ${context.display_name}`);
+
         // in case we have a super() function
         // we must check if we have the right to use it
         if (value_to_call instanceof SuperFunctionValue) {
-            if (context.display_name !== "<method __init>" && context.parent.display_name !== value_to_call.needed_context) {
+            // console.group(`super (CallNode)`);
+            // console.log(`context.display_name === '${context.display_name}'`);
+            // console.log(`context.parent.display_name === '${context.parent.display_name}'`);
+            // console.log(`value_to_call.needed_context === '${value_to_call.needed_context}'`);
+            // console.groupEnd();
+            if (!(context.display_name === "<method __init>" || context.display_name === "__init") && context.parent.display_name !== value_to_call.needed_context) {
                 throw new RuntimeError(
                     value_to_call.pos_start, value_to_call.pos_end,
                     "The super function cannot be called outside the __init method or in another context.",
@@ -2753,6 +2760,7 @@ export class Interpreter {
     visit_ClassDefNode(node, context) {
         let res = new RuntimeResult();
         let class_name = node.class_name_tok.value;
+        /** @type {string|null} */
         let parent_class_name = node.parent_class_tok ? node.parent_class_tok.value : null;
         let parent_class_value;
 
@@ -2782,7 +2790,7 @@ export class Interpreter {
             }
         }
 
-        let value = new ClassValue(class_name, parent_class_value ? new Map(Array.from(parent_class_value.self.entries()).map((v) => v[1].status !== 0 ? v : null).filter((v) => v !== null)) : new Map()).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let value = new ClassValue(class_name, parent_class_value ? new Map(Array.from(parent_class_value.self.entries()).map((v) => v[1].status !== 0 ? v : null).filter((v) => v !== null)) : new Map(), parent_class_value).set_pos(node.pos_start, node.pos_end).set_context(context);
         let exec_ctx = this.generate_new_context(context, value.context_name, node.pos_start);
         exec_ctx.symbol_table.set("self", value);
 
@@ -2791,31 +2799,31 @@ export class Interpreter {
         // therefore we use a SuperFunctionValue that allows us
         // to throw an error if we use it outside the __init method.
         // See: `visit_CallNode`
-        if (parent_class_value) {
-            let __init_parent = parent_class_value.self.get("__init");
-            if (__init_parent) {
-                exec_ctx.symbol_table.set("super", new SuperFunctionValue(
-                    // @ts-ignore
-                    __init_parent.value.copy().set_context(exec_ctx), 
-                    value.context_name
-                ).set_context(exec_ctx));
-            } else {
-                // if the parent class didn't declare an __init method,
-                // we create our own because we might want to use an empty super() anyway
-                exec_ctx.symbol_table.set("super", new SuperFunctionValue(
-                    new FunctionValue(
-                        "super",
-                        NumberValue.none,
-                        [],
-                        [],
-                        [],
-                        [],
-                        true
-                    ).set_context(exec_ctx),
-                    value.context_name
-                ).set_context(exec_ctx));
-            }
-        }
+        // if (parent_class_value) {
+        //     let __init_parent = parent_class_value.self.get("__init");
+        //     if (__init_parent) {
+        //         exec_ctx.symbol_table.set("super", new SuperFunctionValue(
+        //             // @ts-ignore
+        //             __init_parent.value.copy().set_context(exec_ctx), 
+        //             value.context_name
+        //         ).set_context(exec_ctx));
+        //     } else {
+        //         // if the parent class didn't declare an __init method,
+        //         // we create our own because we might want to use an empty super() anyway
+        //         exec_ctx.symbol_table.set("super", new SuperFunctionValue(
+        //             new FunctionValue(
+        //                 "super",
+        //                 NumberValue.none,
+        //                 [],
+        //                 [],
+        //                 [],
+        //                 [],
+        //                 true
+        //             ).set_context(exec_ctx),
+        //             value.context_name
+        //         ).set_context(exec_ctx));
+        //     }
+        // }
 
         // checks if a property/method/setter/getter already exists
         // useful if we have a parent class (we don't want the child class to declare the same properties as its parent).
@@ -2974,7 +2982,8 @@ export class Interpreter {
             );
         }
 
-        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries()))).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let parent_class = value.parent_class;
+        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries())), parent_class).set_pos(node.pos_start, node.pos_end).set_context(context);
         let __init = new_class_value.self.get("__init");
         
         if (__init) {
@@ -2987,7 +2996,50 @@ export class Interpreter {
             }
 
             method.context.symbol_table.set('self', new_class_value);
-            
+
+            if (parent_class) {
+                // we want to get every __init method
+                // from the first parent to the last one
+                // i.e. we get __init from the parent of the current class, then the parent's of the parent etc.
+                let __init_methods = [];
+                let __init_names = [];
+                let parent = new_class_value.parent_class;
+                __init_methods.push(parent.self.get('__init').value);
+                __init_names.push(new_class_value.context_name);
+                __init_names.push(parent.context_name);
+
+                while (parent) {
+                    parent = parent.parent_class;
+                    if (!parent) break;
+                    let method = parent.self.get('__init');
+                    __init_methods.push(method ? method.value : null);
+                    __init_names.push(parent.context_name);
+                }
+
+                // now for each __init method,
+                // we set the self property to this instance
+                // and we set the super function as the __init method of the parent
+                for (let i = 0; i < __init_methods.length; i++) {
+                    let __init_method = __init_methods[i];
+                    let __init_name = __init_names[i];
+                    let next_init_method = __init_methods[i + 1];
+                    if (__init_method && next_init_method) {
+                        __init_method.context.symbol_table.set('self', method.context.symbol_table.get('self'));
+                        __init_method.context.symbol_table.set('super', new SuperFunctionValue(
+                            // @ts-ignore
+                            next_init_method, // the parent __init
+                            __init_name
+                        ));
+                    }
+                }
+
+                method.context.symbol_table.set('super', new SuperFunctionValue(
+                    // @ts-ignore
+                    __init_methods[0].copy(),
+                    new_class_value.name
+                ));
+            }
+
             // @ts-ignore
             method.execute(args);
         }

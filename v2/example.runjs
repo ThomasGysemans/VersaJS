@@ -1,23 +1,14 @@
-class LivingThing:
-    property isalive = yes
-
-    method __init(isalive):
-        self.isalive = isalive
-    end
-
-    set die() -> self.isalive = no
-    set resuscitate() -> self.isalive = yes
-end
-
-class Animal extends LivingThing:
-    property name = "name"
+class Animal:
+    property name # = "name"
     property type
 
     method __init(name, type):
-        super(yes)
         self.name = name
         self.type = type
+        log(self)
     end
+
+    method __repr() -> "I am Animal"
 
     method walk() -> log(self.name + " walks")
 end
@@ -25,12 +16,16 @@ end
 class Wolf extends Animal:
     method __init(name):
         super(name, "Wolf")
+        log(self)
     end
+
+    method __repr() -> "I am Wolf in Animal"
 
     override method walk() -> log(self.name + " runs")
 end
 
 var animal = new Animal("An animal", "cat")
 var wolf = new Wolf("Wolfy")
-animal.walk()
+var wolf2 = new Wolf("Wolfyy"); # ça prend la dernière valeure
+animal.walk() # animal devient Wolfyy, ça n'a aucun sens
 wolf.walk()

@@ -2270,4 +2270,108 @@ describe('Interpreter', () => {
         ];
         assert.deepStrictEqual(values, expected);
     });
+
+    it('should work with complex inheritance', () => {
+        /*
+        class LivingThing:
+            property isalive = yes
+
+            method __init(isalive):
+                self.isalive = isalive
+            end
+
+            set die() -> self.isalive = no
+            set resuscitate() -> self.isalive = yes
+        end
+
+        class Animal extends LivingThing:
+            property name = "name"
+            property type
+
+            method __init(name, type):
+                super(yes)
+                self.name = name
+                self.type = type
+            end
+
+            method walk() -> self.name + " walks"
+        end
+
+        class Wolf extends Animal:
+            method __init(name):
+                super(name, "Wolf")
+            end
+
+            override method walk() -> self.name + " runs"
+        end
+
+        var animal = new Animal("An animal", "cat")
+        var wolf = new Wolf("Wolfy")
+        animal.walk()
+        wolf.walk()
+        wolf.die()
+        wolf.isalive
+        animal.isalive
+        */
+        /*
+        tree = [
+            (Class LivingThing),
+            (Class Animal),
+            (Class Wolf),
+            (var animal = (new IDENTIFIER:Animal)),
+            (var wolf = (new IDENTIFIER:Wolf)),
+            (method (animal).(call (prop (animal).walk)(0 args))),
+            (method (wolf).(call (prop (wolf).walk)(0 args))),
+            (method (wolf).(call (prop (wolf).die)(0 args))),
+            (prop (wolf).isalive),
+            (prop (animal).isalive)
+        ]
+        */
+        // expected results:
+        // An animal walks
+        // Wolfy runs
+    });
 });
+
+/*
+class LivingThing:
+    property isalive = yes
+
+    method __init(isalive):
+        self.isalive = isalive
+    end
+
+    set die() -> self.isalive = no
+    set resuscitate() -> self.isalive = yes
+end
+
+class Animal extends LivingThing:
+    property name = "name"
+    property type
+
+    method __init(name, type):
+        super(yes)
+        self.name = name
+        self.type = type
+    end
+
+    method walk() -> if self.isalive: log(self.name + " walks") else: log(self.name + " is dead")
+end
+
+class Wolf extends Animal:
+    method __init(name):
+        super(name, "Wolf")
+    end
+
+    override method walk() -> if self.isalive: log(self.name + " runs") else: log(self.name + " is dead")
+end
+
+var animal = new Animal("An animal", "cat")
+var wolf = new Wolf("Wolfy")
+animal.walk() # An animal walks
+wolf.walk() # Wolfy runs
+
+var animal2 = new Animal("Another animal", "dog")
+animal2.die()
+animal2.walk() # Another animal is dead
+*/
