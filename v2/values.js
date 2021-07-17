@@ -397,6 +397,8 @@ export class FunctionValue extends BaseFunction {
         res.register(this.check_and_populate_args(this.arg_names, this.mandatory_arg_name_toks, this.optional_args, default_values, args, exec_ctx));
         if (res.should_return()) return res;
 
+        exec_ctx.symbol_table.set('arguments', new ListValue([...args]));
+
         let value = res.register(interpreter.visit(this.body_node, exec_ctx));
         if (res.should_return() && res.func_return_value == null) return res;
 

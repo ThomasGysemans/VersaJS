@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode } from '../nodes.js';
 import { ClassValue, DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
@@ -2940,6 +2940,49 @@ describe('Interpreter', () => {
             result.value.elements[9].value,
             result.value.elements[11].value,
         ];
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with the arguments keyword inside a function', () => {
+        /*
+        func test_arguments(arg1):
+            return arguments
+        end
+
+        test_arguments("yo")
+        */
+        const tree = new ListNode(
+            [
+                new FuncDefNode(
+                    identifier_tok("test_arguments"),
+                    [
+                        identifier_tok("arg1")
+                    ],
+                    [
+                        identifier_tok("arg1")
+                    ],
+                    [],
+                    [],
+                    new ReturnNode(
+                        new VarAccessNode(identifier_tok("arguments")),
+                        null,
+                        null
+                    ),
+                    false
+                ),
+                new CallNode(
+                    new VarAccessNode(identifier_tok("test_arguments")),
+                    [
+                        str("yo")
+                    ]
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = ["yo"];
+        const values = result.value.elements[1].elements.map((v) => v.value);
         assert.deepStrictEqual(values, expected);
     });
 });

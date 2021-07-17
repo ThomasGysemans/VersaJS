@@ -1,41 +1,5 @@
-class LivingThing:
-    property isalive = yes
-
-    method __init(isalive):
-        self.isalive = isalive
-    end
-
-    set die() -> self.isalive = no
-    set resuscitate() -> self.isalive = yes
+func test_arguments(arg1):
+    return arguments
 end
 
-class Animal extends LivingThing:
-    property name = "name"
-    property type
-
-    method __init(name, type):
-        super(yes)
-        self.name = name
-        self.type = type
-    end
-
-    method walk() -> if self.isalive: log(self.name + " walks") else: log(self.name + " is dead")
-end
-
-class Wolf extends Animal:
-    method __init(name):
-        super(name, "Wolf")
-    end
-
-    override method walk() -> if self.isalive: log(self.name + " runs") else: log(self.name + " is dead")
-end
-
-var wolf = new Wolf("Wolfy")
-var animal = new Animal("Animal", "Dog")
-var wolf2 = new Wolf("Wolf2");
-wolf.walk()
-wolf2.die()
-wolf2.walk()
-animal.walk()
-animal.isalive = no
-animal.walk()
+log(test_arguments("yo"))
