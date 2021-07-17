@@ -1,5 +1,5 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode } from './nodes.js';
-import { BaseFunction, ClassValue, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue, SuperFunctionValue } from './values.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode } from './nodes.js';
+import { BaseFunction, ClassValue, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
@@ -216,6 +216,8 @@ export class Interpreter {
             return this.visit_AssignPropertyNode(node, context);
         } else if (node instanceof CallMethodNode) {
             return this.visit_CallMethodNode(node, context);
+        } else if (node instanceof SuperNode) {
+            return this.visit_SuperNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -2077,11 +2079,11 @@ export class Interpreter {
         let pos_start = node.pos_start;
         let pos_end = node.pos_end;
 
-        /** @type {FunctionValue|SuperFunctionValue|NativeFunction} */
+        /** @type {FunctionValue|NativeFunction} */
         let value_to_call = res.register(this.visit(node.node_to_call, context));
         if (res.should_return()) return res;
 
-        if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof SuperFunctionValue) && !(value_to_call instanceof NativeFunction)) {
+        if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof NativeFunction)) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
                 "Cannot call a variable that is not a function.",
@@ -2091,26 +2093,12 @@ export class Interpreter {
 
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
 
-        // in case we have a super() function
-        // we must check if we have the right to use it
-        if (value_to_call instanceof SuperFunctionValue) {
-            if (!(context.display_name === "<method __init>" || context.display_name === "__init") && context.parent.display_name !== value_to_call.needed_context) {
-                throw new RuntimeError(
-                    value_to_call.pos_start, value_to_call.pos_end,
-                    "The super function cannot be called outside the __init method or in another context.",
-                    context
-                );
-            }
-        }
-
         for (let arg_node of node.arg_nodes) {
             args.push(res.register(this.visit(arg_node, context)));
             if (res.should_return()) return res;
         }
 
-        // if we have a super() function
-        // this will call the __init method of the parent class.
-        let return_value = res.register(value_to_call instanceof SuperFunctionValue ? value_to_call.func.execute(args) : value_to_call.execute(args, pos_start, pos_end));
+        let return_value = res.register(value_to_call.execute(args, pos_start, pos_end));
         if (res.should_return()) return res;
 
         return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
@@ -2785,41 +2773,11 @@ export class Interpreter {
             }
         }
 
-        let value = new ClassValue(class_name, parent_class_value ? new Map(Array.from(parent_class_value.self.entries()).map((v) => v[1].status !== 0 ? v : null).filter((v) => v !== null)) : new Map()).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let value = new ClassValue(class_name, parent_class_value ? new Map(Array.from(parent_class_value.self.entries()).map((v) => v[1].status !== 0 ? v : null).filter((v) => v !== null)) : new Map(), parent_class_value).set_pos(node.pos_start, node.pos_end).set_context(context);
         let exec_ctx = this.generate_new_context(context, value.context_name, node.pos_start);
         value.self.set('__name', { static_prop: 1, status: 1, value: new StringValue(class_name).set_context(exec_ctx) });
+        if (parent_class_value) value.self.set('__parent_name', { static_prop: 1, status: 1, value: new StringValue(parent_class_name) });
         exec_ctx.symbol_table.set("self", value);
-
-        // we declare the super() function in the entire class
-        // because we cannot limit it to the __init method
-        // therefore we use a SuperFunctionValue that allows us
-        // to throw an error if we use it outside the __init method.
-        // See: `visit_CallNode`
-        // if (parent_class_value) {
-        //     let __init_parent = parent_class_value.self.get("__init");
-        //     if (__init_parent) {
-        //         exec_ctx.symbol_table.set("super", new SuperFunctionValue(
-        //             // @ts-ignore
-        //             __init_parent.value.copy().set_context(exec_ctx), 
-        //             value.context_name
-        //         ).set_context(exec_ctx));
-        //     } else {
-        //         // if the parent class didn't declare an __init method,
-        //         // we create our own because we might want to use an empty super() anyway
-        //         exec_ctx.symbol_table.set("super", new SuperFunctionValue(
-        //             new FunctionValue(
-        //                 "super",
-        //                 NumberValue.none,
-        //                 [],
-        //                 [],
-        //                 [],
-        //                 [],
-        //                 true
-        //             ).set_context(exec_ctx),
-        //             value.context_name
-        //         ).set_context(exec_ctx));
-        //     }
-        // }
 
         // checks if a property/method/setter/getter already exists
         // useful if we have a parent class (we don't want the child class to declare the same properties as its parent).
@@ -3020,7 +2978,7 @@ export class Interpreter {
             );
         }
 
-        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries()))).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries())), value.parent_class).set_pos(node.pos_start, node.pos_end).set_context(context);
         let __init = new_class_value.self.get("__init");
         
         if (__init) {
@@ -3276,5 +3234,67 @@ export class Interpreter {
         return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
 
         return res.success(return_value);
+    }
+
+    /**
+     * Interprets a super method.
+     * @param {SuperNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_SuperNode(node, context) {
+        let res = new RuntimeResult();
+        let args = [];
+        
+        // the goal here is to give the __init method the right instance of self
+        // for that, we grab self from the current context
+        // and we look in the context in order to determin in which class we are
+        // We execute the __init method for each parent.
+        // just a little problem: self::__name (and other constants) will always be a reference to the first class that calls super()
+        // It was pretty complicated so the solution might be ugly
+
+        const err_outside = () => {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "The super function cannot be called outside the __init method or in another context.",
+                context
+            );
+        };
+
+        if (context.display_name !== "__init") err_outside();
+
+        /** @type {ClassValue} */
+        let class_value = context.symbol_table.get('self');
+        let parent_name = context.parent.display_name.replace('<Class', '').replace('>', '').trim();
+        
+        try {
+            parent_name = context.symbol_table.get(parent_name).parent_class.name;
+        } catch(e) {
+            err_outside();
+        }
+
+        if (!parent_name) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "The super function cannot be called if the class doesn't extend from another one.",
+                context
+            );
+        }
+
+        /** @type {ClassValue} */
+        // @ts-ignore
+        let parent_class = context.symbol_table.get(parent_name);
+
+        for (let arg_node of node.arg_nodes) {
+            args.push(res.register(this.visit(arg_node, context)));
+            if (res.should_return()) return res;
+        }
+
+        let __init_parent = parent_class.self.get('__init').value.copy();
+        __init_parent.context.symbol_table.set('self', class_value);
+        // @ts-ignore
+        __init_parent.execute(args);
+
+        return res.success(NumberValue.none);
     }
 }

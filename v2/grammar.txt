@@ -6,6 +6,7 @@ statements  : NEWLINE* statement (NEWLINE+ statement)* NEWLINE*
 statement   : KEYWORD:RETURN expr?
             : KEYWORD:CONTINUE
             : KEYWORD:BREAK
+            : KEYWORD:super call_func
             : class-expr
             : expr
 

@@ -1132,3 +1132,25 @@ export class AssignPropertyNode extends CustomNode {
         return `(${this.property} = ${this.value_node})`;
     }
 }
+
+/**
+ * @classdesc Describes a call to the __init method of a class' parent.
+ */
+export class SuperNode extends CustomNode {
+    /**
+     * @constructs SuperNode
+     * @param {Array<CustomNode>} arg_nodes The list of arguments.
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(arg_nodes, pos_start, pos_end) {
+        super();
+        this.arg_nodes = arg_nodes;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `(super (${this.arg_nodes.length} args))`;
+    }
+}

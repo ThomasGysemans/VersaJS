@@ -70,12 +70,12 @@ const KEYWORDS = [
     "get",
     "set",
     "method",
-    "by",
     "property",
     "new",
     "extends",
     "override",
-    "static"
+    "static",
+    "super",
 ];
 
 export default KEYWORDS;

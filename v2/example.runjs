@@ -1,25 +1,41 @@
-class Test:
-    static property static_property = "static property"
-    property test
+class LivingThing:
+    property isalive = yes
 
-    static method get_name() -> self::static_property
-
-    method __init():
-        self.test = self::get_name()
+    method __init(isalive):
+        self.isalive = isalive
     end
 
-    static method static_method() -> "static method"
-
-    method __repr():
-        return "self.test = " + self.test
-    end
-
-    static get getTest() -> self.test
+    set die() -> self.isalive = no
+    set resuscitate() -> self.isalive = yes
 end
 
-var t = new Test()
-log(t)
-log(Test::getTest())
-log(Test::static_property)
-log(Test::static_method())
-log(Test::__name)
+class Animal extends LivingThing:
+    property name = "name"
+    property type
+
+    method __init(name, type):
+        super(yes)
+        self.name = name
+        self.type = type
+    end
+
+    method walk() -> if self.isalive: log(self.name + " walks") else: log(self.name + " is dead")
+end
+
+class Wolf extends Animal:
+    method __init(name):
+        super(name, "Wolf")
+    end
+
+    override method walk() -> if self.isalive: log(self.name + " runs") else: log(self.name + " is dead")
+end
+
+var wolf = new Wolf("Wolfy")
+var animal = new Animal("Animal", "Dog")
+var wolf2 = new Wolf("Wolf2");
+wolf.walk()
+wolf2.die()
+wolf2.walk()
+animal.walk()
+animal.isalive = no
+animal.walk()

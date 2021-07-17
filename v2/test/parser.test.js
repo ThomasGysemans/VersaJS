@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode } from '../nodes.js';
 import { InvalidSyntaxError } from '../Exceptions.js';
 
 // npm run test
@@ -336,10 +336,15 @@ describe('Parser tests', () => {
     it('should work with a static property call (method)', () => {
         const tokens = new Lexer("example::prop()").generate_tokens();
         const node = new Parser(tokens).parse();
-        console.log(node.element_nodes[0]);
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallMethodNode);
         assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallNode);
         assert.deepStrictEqual(true, node.element_nodes[0].node_to_call.node_to_call instanceof CallStaticPropertyNode);
         assert.deepStrictEqual(true, node.element_nodes[0].origin instanceof VarAccessNode);
+    });
+
+    it('should work with a super() method', () => {
+        const tokens = new Lexer("super(1)").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof SuperNode);
     });
 });

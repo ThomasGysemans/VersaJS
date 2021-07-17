@@ -41,6 +41,7 @@ export class Value {
     }
 
     // meant to be overwritten
+    /** @return {Value} */
     copy() {
         throw new Error("No copy method defined.");
     }
@@ -311,10 +312,12 @@ export class ClassValue extends Value {
      * @constructs ClassValue
      * @param {string} name The name of the class.
      * @param {Map<string, {status:number, value:Value, static_prop:number}>} value The class that has been instantiated.
+     * @param {ClassValue} parent_class The parent class.
      */
-    constructor(name, value) {
+    constructor(name, value, parent_class) {
         super();
         this.name = name;
+        this.parent_class = parent_class;
         this.context_name = `<Class ${this.name}>`; // we do it here because this name cannot be changed, it's very important
         this.self = value;
     }
@@ -328,7 +331,7 @@ export class ClassValue extends Value {
      * @return {ClassValue} A copy of that instance.
      */
     copy() {
-        let copy = new ClassValue(this.name, this.self);
+        let copy = new ClassValue(this.name, this.self, this.parent_class);
         copy.set_context(this.context);
         copy.set_pos(this.pos_start, this.pos_end);
         return copy;
@@ -346,43 +349,6 @@ export class ClassValue extends Value {
             return return_value.toString();
         }
         return `<Class ${this.name}>`;
-    }
-}
-
-/**
- * @classdesc A super() function inside a class.
- */
-export class SuperFunctionValue extends Value {
-    /**
-     * @constructs SuperFunctionValue
-     * @param {FunctionValue} func The __init method of the parent class.
-     * @param {string} needed_context The context within which the function can be executed.
-     */
-    constructor(func, needed_context) {
-        super();
-        this.func = func;
-        this.needed_context = needed_context;
-        this.pos_start = this.func.pos_start;
-        this.pos_end = this.func.pos_end;
-    }
-
-    is_true() {
-        return true;
-    }
-
-    /**
-     * @override
-     * @return {SuperFunctionValue} A copy of that instance.
-     */
-    copy() {
-        let copy = new SuperFunctionValue(this.func, this.needed_context);
-        copy.set_context(this.context);
-        copy.set_pos(this.pos_start, this.pos_end);
-        return copy;
-    }
-
-    toString() {
-        return `<super>`;
     }
 }
 

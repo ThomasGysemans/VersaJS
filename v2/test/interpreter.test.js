@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode } from '../nodes.js';
 import { ClassValue, DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
@@ -1708,242 +1708,243 @@ describe('Interpreter', () => {
         assert.deepStrictEqual(values, expected);
     });
 
-    // it('should work with inheritance', () => {
-    //     /*
-    //     class Animal:
-    //         property name = "name"
-    //         property type
+    it('should work with inheritance', () => {
+        /*
+        class Animal:
+            property name = "name"
+            property type
 
-    //         method __init(name, type):
-    //             self.name = name
-    //             self.type = type
-    //         end
+            method __init(name, type):
+                self.name = name
+                self.type = type
+            end
 
-    //         method walk() -> self.name + " walks"
-    //     end
+            method walk() -> self.name + " walks"
+        end
 
-    //     class Wolf extends Animal:
-    //         method __init(name):
-    //             super(name, "Wolf")
-    //         end
+        class Wolf extends Animal:
+            method __init(name):
+                self::__super(name, "Wolf")
+            end
 
-    //         override method walk() -> self.name + " runs"
-    //     end
+            override method walk() -> self.name + " runs"
+        end
 
-    //     var animal = new Animal("An animal", "cat")
-    //     var wolf = new Wolf("Wolfy")
-    //     animal.walk()
-    //     wolf.walk()
-    //     */
-    //     /*
-    //     tree = [
-    //         (Class Animal),
-    //         (Class Wolf),
-    //         (var animal = (new IDENTIFIER:Animal)),
-    //         (var wolf = (new IDENTIFIER:Wolf)),
-    //         (method (animal).(call (prop (animal).walk)(0 args))),
-    //         (method (wolf).(call (prop (wolf).walk)(0 args)))
-    //     ]
-    //     */
-    //     // expected results:
-    //     // An animal walks
-    //     // Wolfy runs
-    //     const tree = new ListNode(
-    //         [
-    //             new ClassDefNode(
-    //                 identifier_tok("Animal"),
-    //                 null,
-    //                 [
-    //                     new ClassPropertyDefNode(
-    //                         identifier_tok("name"),
-    //                         str("name"),
-    //                         1,
-    //                         0,
-    //                         0
-    //                     ),
-    //                     new ClassPropertyDefNode(
-    //                         identifier_tok("type"),
-    //                         number(0),
-    //                         1,
-    //                         0,
-    //                         0
-    //                     ),
-    //                 ],
-    //                 [
-    //                     new ClassMethodDefNode(
-    //                         new FuncDefNode(
-    //                             identifier_tok("__init"),
-    //                             [
-    //                                 identifier_tok("name"),
-    //                                 identifier_tok("type"),
-    //                             ],
-    //                             [
-    //                                 identifier_tok("name"),
-    //                                 identifier_tok("type"),
-    //                             ],
-    //                             [],
-    //                             [],
-    //                             new ListNode(
-    //                                 [
-    //                                     new AssignPropertyNode(
-    //                                         new CallPropertyNode(
-    //                                             new VarAccessNode(identifier_tok("self")),
-    //                                             identifier_tok("name")
-    //                                         ),
-    //                                         new VarAccessNode(identifier_tok("name"))
-    //                                     ),
-    //                                     new AssignPropertyNode(
-    //                                         new CallPropertyNode(
-    //                                             new VarAccessNode(identifier_tok("self")),
-    //                                             identifier_tok("type")
-    //                                         ),
-    //                                         new VarAccessNode(identifier_tok("type"))
-    //                                     )
-    //                                 ],
-    //                                 null,
-    //                                 null,
-    //                             ),
-    //                             false
-    //                         ),
-    //                         1,
-    //                         0,
-    //                         0
-    //                     ),
-    //                     new ClassMethodDefNode(
-    //                         new FuncDefNode(
-    //                             identifier_tok("walk"),
-    //                             [],
-    //                             [],
-    //                             [],
-    //                             [],
-    //                             new AddNode(
-    //                                 new CallPropertyNode(
-    //                                     new VarAccessNode(identifier_tok("self")),
-    //                                     identifier_tok("name")
-    //                                 ),
-    //                                 str(" walks")
-    //                             ),
-    //                             true
-    //                         ),
-    //                         1,
-    //                         0,
-    //                         0
-    //                     )
-    //                 ],
-    //                 [],
-    //                 [],
-    //                 null,
-    //                 null
-    //             ),
-    //             new ClassDefNode(
-    //                 identifier_tok("Wolf"),
-    //                 identifier_tok("Animal"),
-    //                 [],
-    //                 [
-    //                     new ClassMethodDefNode(
-    //                         new FuncDefNode(
-    //                             identifier_tok("__init"),
-    //                             [
-    //                                 identifier_tok("name"),
-    //                             ],
-    //                             [
-    //                                 identifier_tok("name"),
-    //                             ],
-    //                             [],
-    //                             [],
-    //                             new CallNode(
-    //                                 new VarAccessNode(identifier_tok("super")),
-    //                                 [
-    //                                     new VarAccessNode(identifier_tok("name")),
-    //                                     str("Wolf")
-    //                                 ]
-    //                             ),
-    //                             false
-    //                         ),
-    //                         1,
-    //                         0,
-    //                         0
-    //                     ),
-    //                     new ClassMethodDefNode(
-    //                         new FuncDefNode(
-    //                             identifier_tok("walk"),
-    //                             [],
-    //                             [],
-    //                             [],
-    //                             [],
-    //                             new AddNode(
-    //                                 new CallPropertyNode(
-    //                                     new VarAccessNode(identifier_tok("self")),
-    //                                     identifier_tok("name")
-    //                                 ),
-    //                                 str(" runs")
-    //                             ),
-    //                             true
-    //                         ),
-    //                         1,
-    //                         1,
-    //                         0
-    //                     )
-    //                 ],
-    //                 [],
-    //                 [],
-    //                 null,
-    //                 null
-    //             ),
-    //             new VarAssignNode(
-    //                 identifier_tok("animal"),
-    //                 new ClassCallNode(
-    //                     identifier_tok("Animal"),
-    //                     [
-    //                         str("An animal"),
-    //                         str("cat")
-    //                     ]
-    //                 )
-    //             ),
-    //             new VarAssignNode(
-    //                 identifier_tok("wolf"),
-    //                 new ClassCallNode(
-    //                     identifier_tok("Wolf"),
-    //                     [
-    //                         str("Wolfy"),
-    //                     ]
-    //                 )
-    //             ),
-    //             new CallMethodNode(
-    //                 new CallNode(
-    //                     new CallPropertyNode(
-    //                         new VarAccessNode(identifier_tok("animal")),
-    //                         identifier_tok("walk")
-    //                     ),
-    //                     []
-    //                 ),
-    //                 new VarAccessNode(identifier_tok("animal"))
-    //             ),
-    //             new CallMethodNode(
-    //                 new CallNode(
-    //                     new CallPropertyNode(
-    //                         new VarAccessNode(identifier_tok("wolf")),
-    //                         identifier_tok("walk")
-    //                     ),
-    //                     []
-    //                 ),
-    //                 new VarAccessNode(identifier_tok("wolf"))
-    //             )
-    //         ],
-    //         null,
-    //         null
-    //     );
-    //     const result = new Interpreter().visit(tree, context);
-    //     const expected = [
-    //         "An animal walks",
-    //         "Wolfy runs"
-    //     ];
-    //     const values = [
-    //         result.value.elements[4].value,
-    //         result.value.elements[5].value
-    //     ];
-    //     assert.deepStrictEqual(values, expected);
-    // });
+        var animal = new Animal("An animal", "cat")
+        var wolf = new Wolf("Wolfy")
+        animal.walk()
+        wolf.walk()
+        */
+        /*
+        tree = [
+            (Class Animal),
+            (Class Wolf),
+            (var animal = (new IDENTIFIER:Animal)),
+            (var wolf = (new IDENTIFIER:Wolf)),
+            (method (animal).(call (prop (animal).walk)(0 args))),
+            (method (wolf).(call (prop (wolf).walk)(0 args)))
+        ]
+        */
+        // expected results:
+        // An animal walks
+        // Wolfy runs
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("Animal"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("name"),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("type"),
+                            number(0),
+                            1,
+                            0,
+                            0
+                        ),
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [
+                                    identifier_tok("name"),
+                                    identifier_tok("type"),
+                                ],
+                                [
+                                    identifier_tok("name"),
+                                    identifier_tok("type"),
+                                ],
+                                [],
+                                [],
+                                new ListNode(
+                                    [
+                                        new AssignPropertyNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("name")
+                                            ),
+                                            new VarAccessNode(identifier_tok("name"))
+                                        ),
+                                        new AssignPropertyNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("type")
+                                            ),
+                                            new VarAccessNode(identifier_tok("type"))
+                                        )
+                                    ],
+                                    null,
+                                    null,
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("walk"),
+                                [],
+                                [],
+                                [],
+                                [],
+                                new AddNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("name")
+                                    ),
+                                    str(" walks")
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new ClassDefNode(
+                    identifier_tok("Wolf"),
+                    identifier_tok("Animal"),
+                    [],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [
+                                    identifier_tok("name"),
+                                ],
+                                [
+                                    identifier_tok("name"),
+                                ],
+                                [],
+                                [],
+                                new SuperNode(
+                                    [
+                                        new VarAccessNode(identifier_tok("name")),
+                                        str("Wolf")
+                                    ],
+                                    null,
+                                    null
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("walk"),
+                                [],
+                                [],
+                                [],
+                                [],
+                                new AddNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("name")
+                                    ),
+                                    str(" runs")
+                                ),
+                                true
+                            ),
+                            1,
+                            1,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new VarAssignNode(
+                    identifier_tok("animal"),
+                    new ClassCallNode(
+                        identifier_tok("Animal"),
+                        [
+                            str("An animal"),
+                            str("cat")
+                        ]
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("wolf"),
+                    new ClassCallNode(
+                        identifier_tok("Wolf"),
+                        [
+                            str("Wolfy"),
+                        ]
+                    )
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("animal")),
+                            identifier_tok("walk")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("animal"))
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("wolf")),
+                            identifier_tok("walk")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("wolf"))
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [
+            "An animal walks",
+            "Wolfy runs"
+        ];
+        const values = [
+            result.value.elements[4].value,
+            result.value.elements[5].value
+        ];
+        assert.deepStrictEqual(values, expected);
+    });
 
     it('should work with a method call in the properties of a class', () => {
         /*
@@ -2506,104 +2507,439 @@ describe('Interpreter', () => {
     it('should work with complex inheritance', () => {
         /*
         class LivingThing:
-            property isalive = yes
+            property isalive = 1
 
             method __init(isalive):
                 self.isalive = isalive
             end
 
-            set die() -> self.isalive = no
-            set resuscitate() -> self.isalive = yes
+            set die() -> self.isalive = 0
+            set resuscitate() -> self.isalive = 1
         end
 
-        class Animal extends LivingThing:
+        class _Animal extends LivingThing:
             property name = "name"
             property type
 
             method __init(name, type):
-                super(yes)
+                super(1)
                 self.name = name
                 self.type = type
             end
 
-            method walk() -> self.name + " walks"
+            method walk() -> if self.isalive: self.name + " walks" else: self.name + " is dead"
         end
 
-        class Wolf extends Animal:
+        class _Wolf extends _Animal:
             method __init(name):
-                super(name, "Wolf")
+                super(name, "_Wolf")
             end
 
-            override method walk() -> self.name + " runs"
+            override method walk() -> if self.isalive: self.name + " runs" else: self.name + " is dead"
         end
 
-        var animal = new Animal("An animal", "cat")
-        var wolf = new Wolf("Wolfy")
-        animal.walk()
-        wolf.walk()
-        wolf.die()
-        wolf.isalive
-        animal.isalive
+        var _wolf = new _Wolf("Wolfy")
+        var _animal = new _Animal("Animal", "Dog")
+        var _wolf2 = new _Wolf("Wolf2");
+        _wolf.walk()
+        _wolf2.die()
+        _wolf2.walk()
+        _animal.walk()
+        _animal.isalive = 0
+        _animal.walk()
         */
         /*
         tree = [
             (Class LivingThing),
-            (Class Animal),
-            (Class Wolf),
-            (var animal = (new IDENTIFIER:Animal)),
-            (var wolf = (new IDENTIFIER:Wolf)),
-            (method (animal).(call (prop (animal).walk)(0 args))),
-            (method (wolf).(call (prop (wolf).walk)(0 args))),
-            (method (wolf).(call (prop (wolf).die)(0 args))),
-            (prop (wolf).isalive),
-            (prop (animal).isalive)
+            (Class _Animal),
+            (Class _Wolf),
+            (var _wolf = (new IDENTIFIER:_Wolf)),
+            (var _animal = (new IDENTIFIER:_Animal)),
+            (var _wolf2 = (new IDENTIFIER:_Wolf)),
+            (method (_wolf).(call (prop (_wolf).walk)(0 args))),
+            (method (_wolf2).(call (prop (_wolf2).die)(0 args))),
+            (method (_wolf2).(call (prop (_wolf2).walk)(0 args))),
+            (method (_animal).(call (prop (_animal).walk)(0 args))),
+            ((prop (_animal).isalive) = 0),
+            (method (_animal).(call (prop (_animal).walk)(0 args))),
         ]
         */
         // expected results:
-        // An animal walks
         // Wolfy runs
+        // Wolf2 is dead
+        // Animal walks
+        // Animal is dead
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("LivingThing"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("isalive"),
+                            number(1),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [
+                                    identifier_tok("isalive")
+                                ],
+                                [
+                                    identifier_tok("isalive")
+                                ],
+                                [],
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("isalive")
+                                    ),
+                                    new VarAccessNode(identifier_tok("isalive"))
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("die"),
+                                [],
+                                [],
+                                [],
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("isalive")
+                                    ),
+                                    number(0)
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("resuscitate"),
+                                [],
+                                [],
+                                [],
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("isalive")
+                                    ),
+                                    number(1)
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    null,
+                    null
+                ),
+                new ClassDefNode(
+                    identifier_tok("_Animal"),
+                    identifier_tok("LivingThing"),
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("name"),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("type"),
+                            number(0),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [
+                                    identifier_tok("name"),
+                                    identifier_tok("type"),
+                                ],
+                                [
+                                    identifier_tok("name"),
+                                    identifier_tok("type"),
+                                ],
+                                [],
+                                [],
+                                new ListNode(
+                                    [
+                                        new SuperNode([number(1)], null, null),
+                                        new AssignPropertyNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("name")
+                                            ),
+                                            new VarAccessNode(identifier_tok("name"))
+                                        ),
+                                        new AssignPropertyNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("type")
+                                            ),
+                                            new VarAccessNode(identifier_tok("type"))
+                                        )
+                                    ],
+                                    null,
+                                    null
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("walk"),
+                                [],
+                                [],
+                                [],
+                                [],
+                                // if self.isalive: self.name + " walks" else: self.name + " is dead"
+                                new IfNode(
+                                    [
+                                        [
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("isalive")
+                                            ),
+                                            new AddNode(
+                                                new CallPropertyNode(
+                                                    new VarAccessNode(identifier_tok("self")),
+                                                    identifier_tok("name")
+                                                ),
+                                                str(" walks")
+                                            ),
+                                            false
+                                        ]
+                                    ],
+                                    { code: new AddNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("name")
+                                        ),
+                                        str(" is dead")
+                                    ), should_return_null: false },
+                                    null,
+                                    null
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new ClassDefNode(
+                    identifier_tok("_Wolf"),
+                    identifier_tok("_Animal"),
+                    [],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [
+                                    identifier_tok("name")
+                                ],
+                                [
+                                    identifier_tok("name")
+                                ],
+                                [],
+                                [],
+                                new SuperNode(
+                                    [
+                                        new VarAccessNode(identifier_tok("name")),
+                                        str("Wolf")
+                                    ],
+                                    null,
+                                    null
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("walk"),
+                                [],
+                                [],
+                                [],
+                                [],
+                                new IfNode(
+                                    [
+                                        [
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("isalive")
+                                            ),
+                                            new AddNode(
+                                                new CallPropertyNode(
+                                                    new VarAccessNode(identifier_tok("self")),
+                                                    identifier_tok("name")
+                                                ),
+                                                str(" runs")
+                                            ),
+                                            false
+                                        ]
+                                    ],
+                                    { code: new AddNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("name")
+                                        ),
+                                        str(" is dead")
+                                    ), should_return_null: false },
+                                    null,
+                                    null
+                                ),
+                                true
+                            ),
+                            1,
+                            1,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new VarAssignNode(
+                    identifier_tok("_wolf"),
+                    new ClassCallNode(
+                        identifier_tok("_Wolf"),
+                        [
+                            str("Wolfy")
+                        ]
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("_animal"),
+                    new ClassCallNode(
+                        identifier_tok("_Animal"),
+                        [
+                            str("Animal"),
+                            str("Dog")
+                        ]
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("_wolf2"),
+                    new ClassCallNode(
+                        identifier_tok("_Wolf"),
+                        [
+                            str("Wolf2")
+                        ]
+                    )
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("_wolf")),
+                            identifier_tok("walk")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("_wolf"))
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("_wolf2")),
+                            identifier_tok("die")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("_wolf2"))
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("_wolf2")),
+                            identifier_tok("walk")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("_wolf2"))
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("_animal")),
+                            identifier_tok("walk")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("_animal"))
+                ),
+                new AssignPropertyNode(
+                    new CallPropertyNode(
+                        new VarAccessNode(identifier_tok("_animal")),
+                        identifier_tok("isalive")
+                    ),
+                    number(0)
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("_animal")),
+                            identifier_tok("walk")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("_animal"))
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [
+            "Wolfy runs",
+            "Wolf2 is dead",
+            "Animal walks",
+            "Animal is dead"
+        ];
+        const values = [
+            result.value.elements[6].value,
+            result.value.elements[8].value,
+            result.value.elements[9].value,
+            result.value.elements[11].value,
+        ];
+        assert.deepStrictEqual(values, expected);
     });
 });
-
-/*
-class LivingThing:
-    property isalive = yes
-
-    method __init(isalive):
-        self.isalive = isalive
-    end
-
-    set die() -> self.isalive = no
-    set resuscitate() -> self.isalive = yes
-end
-
-class Animal extends LivingThing:
-    property name = "name"
-    property type
-
-    method __init(name, type):
-        super(yes)
-        self.name = name
-        self.type = type
-    end
-
-    method walk() -> if self.isalive: log(self.name + " walks") else: log(self.name + " is dead")
-end
-
-class Wolf extends Animal:
-    method __init(name):
-        super(name, "Wolf")
-    end
-
-    override method walk() -> if self.isalive: log(self.name + " runs") else: log(self.name + " is dead")
-end
-
-var animal = new Animal("An animal", "cat")
-var wolf = new Wolf("Wolfy")
-animal.walk() # An animal walks
-wolf.walk() # Wolfy runs
-
-var animal2 = new Animal("Another animal", "dog")
-animal2.die()
-animal2.walk() # Another animal is dead
-*/
