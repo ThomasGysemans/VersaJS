@@ -58,6 +58,7 @@ atom        : NUMBER|(f)?STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POW
             : foreach-expr
             : while-expr
             : func-def
+            : switch-expr
 
 list-expr   : LSQUARE (expr (COMMA expr)*)? RSQUARE
 
@@ -91,5 +92,10 @@ func-def    : KEYWORD:FUNC IDENTIFIER?
                 LPAREN (IDENTIFIER (COMMA IDENTIFIER)*|TRIPLE_DOTS IDENTIFIER)? RPAREN
                 (ARROW expr)
                 | (COLON statements KEYWORD:END)
+
+switch-expr : KEYWORD:switch LPAREN expr RPAREN COLON
+                (KEYWORD:case expr (COMMA expr)* COLON statements)* # the comma means "or"
+                (KEYWORD:default COLON statements)? # default means the end of the switch statement
+                (KEYWORD:end)
 
 concatenation = f"I am $age years old"

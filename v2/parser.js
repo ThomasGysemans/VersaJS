@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode } from "./nodes.js";
 import { InvalidSyntaxError, RuntimeError } from "./Exceptions.js";
 import { NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
@@ -146,6 +146,12 @@ export class Parser {
             } else if (this.current_token.matches(TokenType.KEYWORD, "end")) {
                 more_statements = false;
                 continue;
+            } else if (this.current_token.matches(TokenType.KEYWORD, "case")) { // we don't use `break` for the end of a case in a switch
+                more_statements = false;
+                continue;
+            } else if (this.current_token.matches(TokenType.KEYWORD, "default")) { // we don't use `break` for the end of a case in a switch
+                more_statements = false;
+                continue;
             } else {
                 statement = this.statement();
 
@@ -210,6 +216,11 @@ export class Parser {
             let enum_expr = this.enum_expr();
             return enum_expr;
         }
+
+        // if (this.current_token.matches(TokenType.KEYWORD, "switch")) {
+        //     let switch_expr = this.switch_expr();
+        //     return switch_expr;
+        // }
 
         return this.expr();
     }
@@ -1075,6 +1086,9 @@ export class Parser {
         } else if (this.current_token.matches(TokenType.KEYWORD, "func")) {
             let func_expr = this.func_expr();
             return func_expr;
+        } else if (this.current_token.matches(TokenType.KEYWORD, "switch")) {
+            let switch_expr = this.switch_expr();
+            return switch_expr;
         } else {
             this.advance();
             let pos_end = pos_start.copy();
@@ -1847,6 +1861,128 @@ export class Parser {
             all_args,
             body,
             false // should auto return? False because we need a `return` keyword for a several-lines function 
+        );
+    }
+
+    switch_expr() {
+        let pos_start = this.current_token.pos_start.copy();
+        this.advance();
+
+        if (this.current_token.type !== TokenType.LPAREN) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected a parenthesis '('"
+            );
+        }
+
+        this.advance();
+        this.ignore_newlines();
+
+        let primary_value = this.expr();
+
+        this.ignore_newlines();
+
+        if (this.current_token.type !== TokenType.RPAREN) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected a parenthesis ')'"
+            );
+        }
+
+        this.advance();
+
+        if (this.current_token.type !== TokenType.COLON) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected a colon ':'"
+            );
+        }
+
+        this.advance();
+        this.ignore_newlines();
+
+        /** @type {Array<{conditions:Array<CustomNode>,body:CustomNode}>} */
+        let cases = [];
+        /** @type {CustomNode|null} */
+        let default_case = null;
+
+        if (!this.current_token.matches(TokenType.KEYWORD, "case") && !this.current_token.matches(TokenType.KEYWORD, "default")) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected cases or default case."
+            );
+        }
+
+        const search_for_case = () => {
+            if (this.current_token.matches(TokenType.KEYWORD, "case")) {
+                this.advance();
+                this.ignore_newlines();
+                let expr = this.expr();
+                let conditions = [new EqualsNode(primary_value, expr)];
+                this.ignore_newlines();
+                if (this.current_token.type === TokenType.COMMA) {
+                    while (this.current_token.type === TokenType.COMMA) {
+                        this.advance();
+                        this.ignore_newlines();
+                        conditions.push(new EqualsNode(primary_value, this.expr()));
+                        this.ignore_newlines();
+                    }
+                }
+                if (this.current_token.type !== TokenType.COLON) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected a colon ':'"
+                    );
+                }
+                this.advance();
+                this.ignore_newlines();
+                let body = this.statements();
+                cases.push({conditions, body});
+            } else if (this.current_token.matches(TokenType.KEYWORD, "default")) {
+                this.advance();
+                if (this.current_token.type !== TokenType.COLON) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected a colon ':'"
+                    );
+                }
+                this.advance();
+                this.ignore_newlines();
+                let body = this.statements();
+                default_case = body;
+            }
+        };
+
+        search_for_case();
+
+        while (this.current_token.matches(TokenType.KEYWORD, "case") || this.current_token.matches(TokenType.KEYWORD, "default")) {
+            // there has been a default case
+            // but we're still in the loop
+            // that mens that a `case` or another default case has been detected
+            if (default_case) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "The default case must be the last case of a switch statement."
+                );
+            }
+            search_for_case();
+        }
+
+        if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected 'end'"
+            );
+        }
+
+        this.advance();
+
+        return new SwitchNode(
+            primary_value,
+            cases,
+            default_case,
+            pos_start,
+            this.current_token.pos_end
         );
     }
 }

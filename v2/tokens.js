@@ -78,6 +78,9 @@ const KEYWORDS = [
     "static",
     "super",
     "enum",
+    "switch",
+    "case",
+    "default",
 ];
 
 export default KEYWORDS;

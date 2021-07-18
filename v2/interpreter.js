@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode } from './nodes.js';
 import { BaseFunction, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -220,6 +220,8 @@ export class Interpreter {
             return this.visit_SuperNode(node, context);
         } else if (node instanceof EnumNode) {
             return this.visit_EnumNode(node, context);
+        } else if (node instanceof SwitchNode) {
+            return this.visit_SwitchNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -3328,5 +3330,48 @@ export class Interpreter {
         CONSTANTS[enum_name] = value; // so that we cannot modify it later
 
         return new RuntimeResult().success(NumberValue.none);
+    }
+
+    /**
+     * Interprets a switch statement.
+     * @param {SwitchNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_SwitchNode(node, context) {
+        let res = new RuntimeResult();
+        let cases = node.cases;
+        let default_case = node.default_case;
+
+        for (let cas of cases) {
+            let conditions = cas.conditions;
+            let body = cas.body;
+            let pass = false;
+
+            for (let cond of conditions) {
+                let condition_value = res.register(this.visit(cond, context));
+                if (res.should_return()) return res;
+                if (condition_value.is_true()) { // we just want one of the conditions to be true
+                    pass = true;
+                    break;
+                }
+            }
+
+            if (pass) {
+                const exec_ctx = this.generate_new_context(context, "<switch>", body.pos_start);
+                let body_value = res.register(this.visit(body, exec_ctx));
+                if (res.should_return()) return res;
+                return res.success(body_value);
+            }
+        }
+
+        if (default_case) {
+            const exec_ctx = this.generate_new_context(context, "<switch>", default_case.pos_start);
+            let body_value = res.register(this.visit(default_case, exec_ctx));
+            if (res.should_return()) return res;
+            return res.success(body_value);
+        }
+
+        return res.success(NumberValue.none);
     }
 }

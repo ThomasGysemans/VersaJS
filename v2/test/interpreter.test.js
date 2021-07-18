@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode } from '../nodes.js';
 import { ClassValue, DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
@@ -2960,6 +2960,243 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context);
         const expected = [0, 1];
         const values = [result.value.elements[1].value, result.value.elements[2].value];
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with a switch statement (basic without default)', () => {
+        /*
+        var value = 5
+        var response = -1
+
+        switch (value):
+            case 4:
+                response = "4"
+            
+            case 5:
+                response = "5"
+        end
+
+        response
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("value"),
+                    number(5)
+                ),
+                new VarAssignNode(
+                    identifier_tok("response"),
+                    number(-1)
+                ),
+                new SwitchNode(
+                    new VarAccessNode(identifier_tok("value")),
+                    [
+                        {
+                            conditions: [new EqualsNode(new VarAccessNode(identifier_tok("value")), number(4))],
+                            body: new VarModifyNode(identifier_tok("response"), str("4"))
+                        },
+                        {
+                            conditions: [new EqualsNode(new VarAccessNode(identifier_tok("value")), number(5))],
+                            body: new VarModifyNode(identifier_tok("response"), str("5"))
+                        }
+                    ],
+                    null,
+                ),
+                new VarAccessNode(identifier_tok("response"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = "5";
+        const values = result.value.elements[3].value;
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with a switch statement (with default)', () => {
+        /*
+        var _value = 0
+        var _response = -1
+
+        switch (_value):
+            case 4:
+                _response = "4"
+            
+            case 5:
+                _response = "5"
+            
+            default:
+                _response = "default"
+        end
+
+        _response
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("_value"),
+                    number(0)
+                ),
+                new VarAssignNode(
+                    identifier_tok("_response"),
+                    number(-1)
+                ),
+                new SwitchNode(
+                    new VarAccessNode(identifier_tok("_value")),
+                    [
+                        {
+                            conditions: [new EqualsNode(new VarAccessNode(identifier_tok("_value")), number(4))],
+                            body: new VarModifyNode(identifier_tok("_response"), str("4"))
+                        },
+                        {
+                            conditions: [new EqualsNode(new VarAccessNode(identifier_tok("_value")), number(5))],
+                            body: new VarModifyNode(identifier_tok("_response"), str("5"))
+                        }
+                    ],
+                    new VarModifyNode(identifier_tok("_response"), str("default")),
+                ),
+                new VarAccessNode(identifier_tok("_response"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = "default";
+        const values = result.value.elements[3].value;
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with complex cases on switch statement', () => {
+        /*
+        var __value = 3
+        var __response = -1
+
+        switch (__value):
+            case 4,3:
+                __response = "4 or 3"
+            
+            default:
+                __response = "default"
+        end
+
+        __response
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("__value"),
+                    number(3)
+                ),
+                new VarAssignNode(
+                    identifier_tok("__response"),
+                    number(-1)
+                ),
+                new SwitchNode(
+                    new VarAccessNode(identifier_tok("__value")),
+                    [
+                        {
+                            conditions: [
+                                new EqualsNode(new VarAccessNode(identifier_tok("__value")), number(4)),
+                                new EqualsNode(new VarAccessNode(identifier_tok("__value")), number(3))
+                            ],
+                            body: new VarModifyNode(identifier_tok("__response"), str("4 or 3"))
+                        }
+                    ],
+                    new VarModifyNode(identifier_tok("__response"), str("default")),
+                ),
+                new VarAccessNode(identifier_tok("__response"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = "4 or 3";
+        const values = result.value.elements[3].value;
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with a switch statement and an enum', () => {
+        /*
+        enum State:
+            stopped,
+            paused,
+            running
+        end
+
+        var state = State.paused
+        var switch_enum_response = none
+
+        switch (state):
+            case State.stopped: switch_enum_response = "stopped"
+            case State.paused: switch_enum_response = "paused"
+            case State.running: switch_enum_response = "running"
+            default: switch_enum_response = no
+        end
+
+        switch_enum_response
+        */
+        const tree = new ListNode(
+            [
+                new EnumNode(
+                    identifier_tok("State"),
+                    [
+                        identifier_tok("stopped"),
+                        identifier_tok("paused"),
+                        identifier_tok("running"),
+                    ],
+                ),
+                new VarAssignNode(
+                    identifier_tok("state"),
+                    new CallPropertyNode(
+                        new VarAccessNode(identifier_tok("State")),
+                        identifier_tok("paused")
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("switch_enum_response"),
+                    number(0)
+                ),
+                new SwitchNode(
+                    new VarAccessNode(identifier_tok("state")),
+                    [
+                        {
+                            conditions: [
+                                new CallPropertyNode(
+                                    new VarAccessNode(identifier_tok("State")),
+                                    identifier_tok("stopped")
+                                )
+                            ],
+                            body: new VarModifyNode(identifier_tok("switch_enum_response"), str("stopped"))
+                        },
+                        {
+                            conditions: [
+                                new CallPropertyNode(
+                                    new VarAccessNode(identifier_tok("State")),
+                                    identifier_tok("paused")
+                                )
+                            ],
+                            body: new VarModifyNode(identifier_tok("switch_enum_response"), str("paused"))
+                        },
+                        {
+                            conditions: [
+                                new CallPropertyNode(
+                                    new VarAccessNode(identifier_tok("State")),
+                                    identifier_tok("running")
+                                )
+                            ],
+                            body: new VarModifyNode(identifier_tok("switch_enum_response"), str("running"))
+                        }
+                    ],
+                    new VarModifyNode(identifier_tok("switch_enum_response"), number(0)),
+                ),
+                new VarAccessNode(identifier_tok("switch_enum_response"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = "paused";
+        const values = result.value.elements[4].value;
         assert.deepStrictEqual(values, expected);
     });
 });

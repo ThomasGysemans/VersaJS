@@ -1,9 +1,17 @@
-enum Status:
-    running,
+enum State:
+    stopped,
     paused,
+    running
 end
 
-var st = Status.running;
-log(st)
-st = Status.paused
-log(st)
+var state = State.paused
+var response = none
+
+switch (state):
+    case State.stopped: response = "stopped"
+    case State.paused: response = "paused"
+    case State.running: response = "running"
+    default: response = no
+end
+
+log(response)

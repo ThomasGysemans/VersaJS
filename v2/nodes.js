@@ -1202,3 +1202,27 @@ export class EnumNode extends CustomNode {
         this.pos_end = pos_end ? pos_end : this.properties[this.properties.length - 1].pos_end;
     }
 }
+
+export class SwitchNode extends CustomNode {
+    /**
+     * @constructs SwitchNode
+     * @param {CustomNode} primary_value The value being tested.
+     * @param {Array<{conditions:Array<CustomNode>, body:CustomNode}>} cases The cases with their condition and statements.
+     * @param {CustomNode|null} default_case The statements of the default case.
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(primary_value, cases, default_case, pos_start=null, pos_end=null) {
+        super();
+        this.primary_value = primary_value;
+        this.cases = cases;
+        this.default_case = default_case;
+        
+        this.pos_start = pos_start ? pos_start : this.primary_value.pos_start;
+        this.pos_end = pos_end ? pos_end : (this.default_case ? this.default_case.pos_end : this.cases[this.cases.length - 1].body.pos_end);
+    }
+
+    toString() {
+        return `(switch (${this.primary_value})(${this.cases.length + (this.default_case ? 1 : 0)} case${this.cases.length + (this.default_case ? 1 : 0) > 1 ? 's' : ''}))`;
+    }
+}
