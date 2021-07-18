@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode } from '../nodes.js';
 import { ClassValue, DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
@@ -34,7 +34,7 @@ const str = (string, allow_concatenation=true) => {
 };
 
 const identifier_tok = (string) => {
-    return new Token(TokenType.IDENTIFIER, string);
+    return new Token(TokenType.IDENTIFIER, string, null, null);
 }
 
 describe('Interpreter', () => {
@@ -2917,6 +2917,49 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context);
         const expected = 11;
         const values = result.value.elements[1].value;
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with an enum', () => {
+        /*
+        enum Status:
+            running,
+            paused,
+        end
+
+        var st = Status.running;
+        st = Status.paused
+        */
+        const tree = new ListNode(
+            [
+                new EnumNode(
+                    identifier_tok("Status"),
+                    [
+                        identifier_tok("running"),
+                        identifier_tok("paused")
+                    ]
+                ),
+                new VarAssignNode(
+                    identifier_tok("st"),
+                    new CallPropertyNode(
+                        new VarAccessNode(identifier_tok("Status")),
+                        identifier_tok("running")
+                    )
+                ),
+                new VarModifyNode(
+                    identifier_tok("st"),
+                    new CallPropertyNode(
+                        new VarAccessNode(identifier_tok("Status")),
+                        identifier_tok("paused")
+                    )
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = [0, 1];
+        const values = [result.value.elements[1].value, result.value.elements[2].value];
         assert.deepStrictEqual(values, expected);
     });
 });

@@ -77,6 +77,7 @@ const KEYWORDS = [
     "override",
     "static",
     "super",
+    "enum",
 ];
 
 export default KEYWORDS;

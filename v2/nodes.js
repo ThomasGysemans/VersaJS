@@ -1184,3 +1184,21 @@ export class ArgumentNode extends CustomNode {
         return `(${this.is_rest ? '...' : ''}${this.arg_name_tok.value}${this.is_optional ? '?' : ''}${this.default_value_node ? '=' + this.default_value_node : ''})`;
     }
 }
+
+/**
+ * @classdesc Describes an Enum
+ */
+export class EnumNode extends CustomNode {
+    /**
+     * @constructs EnumNode
+     * @param {Token} enum_name_tok The name of the enum
+     * @param {Array<Token>} properties The names of the properties
+     */
+    constructor(enum_name_tok, properties, pos_start=null, pos_end=null) {
+        super();
+        this.enum_name_tok = enum_name_tok;
+        this.properties = properties;
+        this.pos_start = pos_start ? pos_start : this.enum_name_tok.pos_start;
+        this.pos_end = pos_end ? pos_end : this.properties[this.properties.length - 1].pos_end;
+    }
+}

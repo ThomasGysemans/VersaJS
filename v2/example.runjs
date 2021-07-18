@@ -1,10 +1,9 @@
-func average_grade(...marks):
-    var s = 0
-    var length = len(marks);
-    for i to length:
-        s += marks[i]
-    end
-    return s / length
+enum Status:
+    running,
+    paused,
 end
 
-log(average_grade(10, 11, 12))
+var st = Status.running;
+log(st)
+st = Status.paused
+log(st)

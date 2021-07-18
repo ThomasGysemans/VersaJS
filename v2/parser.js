@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode } from "./nodes.js";
 import { InvalidSyntaxError, RuntimeError } from "./Exceptions.js";
 import { NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
@@ -206,7 +206,80 @@ export class Parser {
             return new SuperNode(call_node.arg_nodes, pos_start, this.current_token.pos_end);
         }
 
+        if (this.current_token.matches(TokenType.KEYWORD, "enum")) {
+            let enum_expr = this.enum_expr();
+            return enum_expr;
+        }
+
         return this.expr();
+    }
+
+    enum_expr() {
+        let pos_start = this.current_token.pos_start.copy();
+        this.advance();
+        
+        if (this.current_token.type !== TokenType.IDENTIFIER) {
+            throw new InvalidSyntaxError(
+                pos_start, this.current_token.pos_end,
+                "Expected an identifier"
+            );
+        }
+
+        let enum_name_tok = this.current_token;
+        let properties = [];
+
+        this.advance();
+
+        if (this.current_token.type !== TokenType.COLON) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected a colon ':'"
+            );
+        }
+
+        this.advance();
+        this.ignore_newlines();
+
+        if (this.current_token.type !== TokenType.IDENTIFIER) {
+            throw new InvalidSyntaxError(
+                pos_start, this.current_token.pos_end,
+                "Expected an identifier"
+            );
+        }
+
+        properties.push(this.current_token);
+        this.advance();
+        this.ignore_newlines();
+
+        while (this.current_token.type === TokenType.COMMA) {
+            this.advance();
+            this.ignore_newlines();
+            if (this.current_token.type === TokenType.IDENTIFIER) {
+                properties.push(this.current_token);
+                this.advance();
+                this.ignore_newlines();
+            } else {
+                break;
+            }
+        }
+
+        if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+            if (this.current_token.type !== TokenType.IDENTIFIER) {
+                throw new InvalidSyntaxError(
+                    pos_start, this.current_token.pos_end,
+                    "Expected 'end'"
+                );
+            }
+        }
+
+        this.advance();
+
+        return new EnumNode(
+            enum_name_tok,
+            properties,
+            pos_start,
+            this.current_token.pos_end
+        );
     }
     
     class_expr() {

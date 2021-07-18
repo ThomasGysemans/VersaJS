@@ -8,7 +8,12 @@ statement   : KEYWORD:RETURN expr?
             : KEYWORD:BREAK
             : KEYWORD:super call_func
             : class-expr
+            : enum-expr
             : expr
+
+enum-expr   : KEYWORD:enum IDENTIFIER COLON
+                (IDENTIFIER COMMA)*
+                (KEYWORD:end)
 
 class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON
                 (KEYWORD:private|KEYWORD:public|KEYWORD:protected)? (KEYWORD:override)? (KEYWORD:static)? KEYWORD:property IDENTIFIER EQUALS expr

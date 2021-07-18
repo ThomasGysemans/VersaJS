@@ -575,3 +575,35 @@ export class NativeFunction extends BaseFunction {
         return `<native-function ${this.name}>`;
     }
 }
+
+export class EnumValue extends Value {
+    /**
+     * @constructs EnumValue
+     * @param {string} name The name of the enum.
+     * @param {Map<string, NumberValue>} properties The properties of the enum.
+     */
+    constructor(name, properties) {
+        super();
+        this.name = name;
+        this.properties = properties;
+    }
+
+    is_true() {
+        return true;
+    }
+
+    /**
+     * @override
+     * @return {EnumValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new EnumValue(this.name, this.properties);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `<Enum ${this.name}>`;
+    }
+}

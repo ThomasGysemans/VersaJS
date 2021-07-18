@@ -1,5 +1,5 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode } from './nodes.js';
-import { BaseFunction, ClassValue, DictionnaryValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode } from './nodes.js';
+import { BaseFunction, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
@@ -218,6 +218,8 @@ export class Interpreter {
             return this.visit_CallMethodNode(node, context);
         } else if (node instanceof SuperNode) {
             return this.visit_SuperNode(node, context);
+        } else if (node instanceof EnumNode) {
+            return this.visit_EnumNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -3014,50 +3016,60 @@ export class Interpreter {
             );
         }
 
-        if (!(base instanceof ClassValue)) {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Cannot call a property from a non-class value.",
-                context
-            );
-        }
+        if (base instanceof ClassValue) {
+            let prop = base.self.get(property_name);
 
-        let prop = base.self.get(property_name);
-
-        if (prop === undefined || prop === null) {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Undefined property",
-                context
-            );
-        }
-
-        let value = prop.value;
-
-        // cannot call a static property like that:
-        // self.static_property
-        if (prop.static_prop) {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                `Cannot call the static property '${property_name}' like that. Use the appropriate syntax '::'`,
-                context
-            );
-        }
-
-        if (!context.is_context_in(base.context_name)) {
-            // this means that we are outside the class
-            if (prop.status === 0 || prop.status === 2) {
-                // this means that the property we are looking for is not public
-                let status_string = prop.status === 0 ? "private" : "protected";
+            if (prop === undefined || prop === null) {
                 throw new RuntimeError(
-                    node.property_tok.pos_start, node.property_tok.pos_end,
-                    `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
+                    node.pos_start, node.pos_end,
+                    "Undefined property",
                     context
                 );
             }
-        }
 
-        return res.success(value);
+            let value = prop.value;
+
+            // cannot call a static property like that:
+            // self.static_property
+            if (prop.static_prop) {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    `Cannot call the static property '${property_name}' like that. Use the appropriate syntax '::'`,
+                    context
+                );
+            }
+
+            if (!context.is_context_in(base.context_name)) {
+                // this means that we are outside the class
+                if (prop.status === 0 || prop.status === 2) {
+                    // this means that the property we are looking for is not public
+                    let status_string = prop.status === 0 ? "private" : "protected";
+                    throw new RuntimeError(
+                        node.property_tok.pos_start, node.property_tok.pos_end,
+                        `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
+                        context
+                    );
+                }
+            }
+
+            return res.success(value);
+        } else if (base instanceof EnumValue) {
+            let prop = base.properties.get(property_name);
+            if (prop === undefined || prop === null) {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "Undefined property",
+                    context
+                );
+            }
+            return res.success(prop);
+        } else {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Cannot call a property from this type of value.",
+                context
+            );
+        }
     }
 
     /**
@@ -3291,5 +3303,30 @@ export class Interpreter {
         __init_parent.execute(args);
 
         return res.success(NumberValue.none);
+    }
+
+    /**
+     * Interprets an enum declaration.
+     * @param {EnumNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_EnumNode(node, context) {
+        let enum_name = node.enum_name_tok.value;
+        let properties = new Map(node.properties.map((v, i) => [v.value, new NumberValue(i)]));
+
+        if (context.symbol_table.doesConstantExist(enum_name)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                `Constant "${enum_name}" already exists`,
+                context
+            );
+        }
+
+        let value = new EnumValue(enum_name, properties);
+        context.symbol_table.define_constant(enum_name, value);
+        CONSTANTS[enum_name] = value; // so that we cannot modify it later
+
+        return new RuntimeResult().success(NumberValue.none);
     }
 }
