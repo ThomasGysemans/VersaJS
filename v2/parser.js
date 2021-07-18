@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode } from "./nodes.js";
 import { InvalidSyntaxError, RuntimeError } from "./Exceptions.js";
 import { NumberValue } from "./values.js";
 import { is_in } from "./miscellaneous.js";
@@ -1564,10 +1564,34 @@ export class Parser {
         let is_optional = false; // once there is an optional argument, this goes to true
         // indeed, we cannot have a mandatory argument after an optional one.
 
-        let arg_name_toks = []; // all the args
-        let mandatory_arg_name_toks = []; // the mandatory args
-        let optional_name_toks = []; // the optional args
-        let default_values_nodes = []; // the tokens for the default value
+        let all_args = []; // all the args
+
+        const error_rest_parameter = () => {
+            // customisation of the error message
+            if (this.current_token.type === TokenType.COMMA) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Invalid parameter after rest parameter."
+                );
+            }
+            if (this.current_token.type === TokenType.QMARK) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Rest parameter does not support default value."
+                );
+            }
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected a parenthesis ')'"
+            );
+        };
+
+        let is_rest = false;
+
+        if (this.current_token.type === TokenType.TRIPLE_DOTS) {
+            this.advance();
+            is_rest = true;
+        }
 
         if (this.current_token.type === TokenType.IDENTIFIER) {
             // there is an identifier
@@ -1576,81 +1600,113 @@ export class Parser {
             // if there is a question mark, check if there is an equal sign
             // if there is an equal sign, advance and get the default value (an expr)
 
-            const check_for_optional_args = () => {
+            // just in case we begin with a rest parameter
+            if (is_rest) {
                 let identifier_token = this.current_token;
-                arg_name_toks.push(identifier_token);
+                all_args.push(new ArgumentNode(identifier_token, is_rest, is_optional));
                 this.advance();
-
-                // there might be a question mark
-                // optional
-
-                if (this.current_token.type === TokenType.QMARK) {
-                    is_optional = true;
-                    let question_mark_token = this.current_token;
-                    optional_name_toks.push(identifier_token);
+                // there cannot be any more arguments after a rest parameter
+                if (this.current_token.type !== TokenType.RPAREN) {
+                    error_rest_parameter();
+                }
+            } else {
+                const check_for_optional_args = () => {
+                    let identifier_token = this.current_token;
                     this.advance();
 
-                    // there might be an equal sign
-                    // to customise the default value
-                    // which is null by default
-                    if (this.current_token.type === TokenType.EQUALS) {
-                        this.advance();
-
-                        try {
-                            let node_default_value = this.expr();
-                            default_values_nodes.push(node_default_value);
-                        } catch(e) {
+                    if (is_rest) {
+                        if (is_optional) {
                             throw new InvalidSyntaxError(
                                 this.current_token.pos_start, this.current_token.pos_end,
-                                "Expected default value for the argument."
+                                "There cannot be a rest parameter after optional arguments."
                             );
                         }
-                    } else {
-                        let df = new NumberNode(new Token(TokenType.NUMBER, NumberValue.none.value, question_mark_token.pos_start, question_mark_token.pos_end));
-                        default_values_nodes.push(df);
+                        // there cannot be any more arguments after a rest parameter
+                        if (this.current_token.type !== TokenType.RPAREN) {
+                            error_rest_parameter();
+                        }
+                        all_args.push(new ArgumentNode(identifier_token, is_rest, is_optional));
+                        return;
                     }
-                } else { // mandatory with no default value
-                    // there was an optional argument already
-                    // so there is a mandatory argument after an optional one
-                    // that's not good
-                    if (is_optional) {
-                        throw new InvalidSyntaxError(
-                            identifier_token.pos_start, identifier_token.pos_end,
-                            "Expected an optional argument"
-                        );
-                    } else {
-                        mandatory_arg_name_toks.push(identifier_token);
+
+                    // there might be a question mark
+                    // (optional arg)
+
+                    if (this.current_token.type === TokenType.QMARK) {
+                        is_optional = true;
+                        let question_mark_token = this.current_token;
+                        let default_value = new NumberNode(new Token(TokenType.NUMBER, NumberValue.none.value, question_mark_token.pos_start, question_mark_token.pos_end));
+                        this.advance();
+
+                        // there might be an equal sign
+                        // to customise the default value
+                        // which is null by default
+                        if (this.current_token.type === TokenType.EQUALS) {
+                            this.advance();
+
+                            try {
+                                let node_default_value = this.expr();
+                                default_value = node_default_value;
+                            } catch(e) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "Expected default value for the argument."
+                                );
+                            }
+                        }
+
+                        all_args.push(new ArgumentNode(identifier_token, is_rest, is_optional, default_value));
+                    } else { // mandatory with no default value
+                        // there was an optional argument already
+                        // so there is a mandatory argument after an optional one
+                        // that's not good
+                        if (is_optional) {
+                            throw new InvalidSyntaxError(
+                                identifier_token.pos_start, identifier_token.pos_end,
+                                "Expected an optional argument"
+                            );
+                        } else {
+                            all_args.push(new ArgumentNode(identifier_token, is_rest, is_optional));
+                        }
                     }
-                }
-            };
-
-            check_for_optional_args();
-
-            // there are arguments, how many?
-            // we want them all
-
-            while (this.current_token.type === TokenType.COMMA) {
-                this.advance();
-
-                // there must be an identifier after the comma (= the arg)
-                if (this.current_token.type !== TokenType.IDENTIFIER) {
-                    throw new InvalidSyntaxError(
-                        this.current_token.pos_start, this.current_token.pos_end,
-                        "Expected identifier"
-                    );
-                }
+                };
 
                 check_for_optional_args();
-            }
 
-            // we have all the args,
-            // now there must be a right parenthesis
+                // there are arguments, how many?
+                // we want them all
 
-            if (this.current_token.type !== TokenType.RPAREN) {
-                throw new InvalidSyntaxError(
-                    this.current_token.pos_start, this.current_token.pos_end,
-                    "Expected ',' or ')'"
-                );
+                while (this.current_token.type === TokenType.COMMA) {
+                    this.advance();
+
+                    // there might be '...' before an identifier (a rest parameter)
+                    if (this.current_token.type === TokenType.TRIPLE_DOTS) {
+                        this.advance();
+                        is_rest = true;
+                    }
+
+                    // there must be an identifier after a comma or triple dots
+                    if (this.current_token.type !== TokenType.IDENTIFIER) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected identifier"
+                        );
+                    }
+
+                    check_for_optional_args();
+
+                    if (is_rest) break;
+                }
+
+                // we have all the args,
+                // now there must be a right parenthesis
+
+                if (this.current_token.type !== TokenType.RPAREN) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected ',' or ')'"
+                    );
+                }
             }
         } else {
             // there is no identifier (no args)
@@ -1678,10 +1734,7 @@ export class Parser {
 
             return new FuncDefNode(
                 var_name_token, // the name
-                arg_name_toks, // all the arguments
-                mandatory_arg_name_toks, // the mandatory arguments
-                optional_name_toks, // the optional arguments
-                default_values_nodes, // their default values
+                all_args, // all the arguments
                 node_to_return, // the body,
                 true // should auto return? True because the arrow behaves like the `return` keyword.
             );
@@ -1718,10 +1771,7 @@ export class Parser {
 
         return new FuncDefNode(
             var_name_token,
-            arg_name_toks,
-            mandatory_arg_name_toks,
-            optional_name_toks,
-            default_values_nodes,
+            all_args,
             body,
             false // should auto return? False because we need a `return` keyword for a several-lines function 
         );

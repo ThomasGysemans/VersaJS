@@ -1,5 +1,10 @@
-func test_arguments(arg1):
-    return arguments
+func average_grade(...marks):
+    var s = 0
+    var length = len(marks);
+    for i to length:
+        s += marks[i]
+    end
+    return s / length
 end
 
-log(test_arguments("yo"))
+log(average_grade(10, 11, 12))

@@ -39,6 +39,7 @@ export class TokenType {
     static DEC            = 'DEC'
     static QMARK          = 'QUESTION_MARK'
     static DOT            = 'DOT'
+    static TRIPLE_DOTS    = 'TRIPLE_DOTS'
     static EOF            = 'EOF'
 }
 

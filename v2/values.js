@@ -5,8 +5,9 @@ import { Context } from "./context.js";
 import { SymbolTable } from "./symbol_table.js";
 import { RuntimeResult } from "./runtime.js";
 import { RuntimeError } from "./Exceptions.js";
-import { CustomNode } from "./nodes.js";
+import { ArgumentNode, CustomNode } from "./nodes.js";
 import { Interpreter } from "./interpreter.js";
+import { Token, TokenType } from './tokens.js';
 
 export class Value {
     constructor() {
@@ -223,29 +224,43 @@ export class BaseFunction extends Value {
     }
 
     /**
+     * Checks if one of the arguments is a rest parameter.
+     * @param {Array<ArgumentNode>} args 
+     */
+    has_rest_arg(args) {
+        for (let a of args) {
+            if (a.is_rest) return true;
+        }
+        return false;
+    }
+
+    /**
      * Checks if the number of arguments correspond.
-     * @param {Array<string>} arg_names The names of the arguments.
-     * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
+     * @param {Array<ArgumentNode>} args The names of the arguments.
      * @param {Array<Value>} given_args The values of the given arguments (the function has been called by the user).
      * @return {RuntimeResult}
      */
-    check_args(arg_names, mandatory_arg_names, given_args) {
+    check_args(args, given_args) {
         let res = new RuntimeResult();
 
         // too many arguments
-        if (given_args.length > arg_names.length) {
-            throw new RuntimeError(
-                this.pos_start, this.pos_end,
-                `(${given_args.length - arg_names.length}) too many args passed into '${this.name}'`,
-                this.context
-            );
+        if (!this.has_rest_arg(args)) { // just if there is no rest parameter
+            if (given_args.length > args.length) {
+                throw new RuntimeError(
+                    this.pos_start, this.pos_end,
+                    `(${given_args.length - args.length}) too many args passed into '${this.name}'`,
+                    this.context
+                );
+            }
         }
 
+        const mandatory_args = args.filter((v) => v.is_optional === true && v.is_rest === true);
+
         // too few arguments
-        if (given_args.length < mandatory_arg_names.length) {
+        if (given_args.length < mandatory_args.length) {
             throw new RuntimeError(
                 this.pos_start, this.pos_end,
-                `(${mandatory_arg_names.length - given_args.length}) too few args passed into '${this.name}'`,
+                `(${mandatory_args.length - given_args.length}) too few args passed into '${this.name}'`,
                 this.context
             );
         }
@@ -255,54 +270,60 @@ export class BaseFunction extends Value {
 
     /**
      * Puts the arguments in the symbol table (gives the values to their identifier).
-     * @param {Array<string>} arg_names The names of the arguments.
-     * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
-     * @param {Array<string>} optional_arg_names The names of the optional arguments.
-     * @param {Array} default_values The default values of the optional arguments.
+     * @param {Array<ArgumentNode>} args The names of the arguments.
+     * @param {Array<Value>} default_values The default values of the optional arguments.
      * @param {Array<Value>} given_args The values of the arguments.
      * @param {Context} exec_ctx The context.
      */
-    populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx) {
+    populate_args(args, default_values, given_args, exec_ctx) {
         // we have the names of the arguments,
         // we get the values of our arguments
 
-        for (let i = 0; i < given_args.length; i++) {
-            let arg_name = arg_names[i];
-            let arg_value = given_args[i];
-            arg_value.set_context(exec_ctx);
-            exec_ctx.symbol_table.set(arg_name, arg_value); // create the variables (= args)
-        }
-
-        // there cannot be any optional arguments after mandatory arguments
-        let total_of_possible_arguments = optional_arg_names.length + mandatory_arg_names.length;
-        if (given_args.length < total_of_possible_arguments) {
-            // optional_arg_names.length === default_values.length
-            // Avoid replacing default values because both arrays (mandatory args & optional args) don't start at the same index
-            let index_start = given_args.length - mandatory_arg_names.length;
-            for (let i = index_start; i < optional_arg_names.length; i++) {
-                let arg_name = optional_arg_names[i];
-                let arg_value = default_values[i];
+        for (let i = 0, e = 0; i < args.length; i++) {
+            if (args[i].is_rest) {
+                let arg_name = args[i].arg_name_tok.value;
+                let arg_value = new ListValue(given_args.slice(i)); // all the given arguments from here
                 arg_value.set_context(exec_ctx);
+                arg_value.set_pos(given_args[i].pos_start, given_args[given_args.length - 1].pos_end);
                 exec_ctx.symbol_table.set(arg_name, arg_value);
+                break; // the rest parameter is the last argument
+            }
+
+            // while there are given arguments
+            if (i < given_args.length) {
+                let arg_name = args[i].arg_name_tok.value;
+                let arg_value = given_args[i];
+                arg_value.set_context(exec_ctx);
+                exec_ctx.symbol_table.set(arg_name, arg_value); // create the variables (= args)
+            } else {
+                // there is more arguments
+                // than the given arguments
+                // so there are two options: rest parameter or optional arguments
+                // however, rest parameter is already handled above
+                if (args[i].is_optional) {
+                    let arg_name = args[i].arg_name_tok.value;
+                    let arg_value = default_values[e];
+                    arg_value.set_context(exec_ctx);
+                    exec_ctx.symbol_table.set(arg_name, arg_value); // create the variables (with their default value)
+                    e++;
+                }
             }
         }
     }
 
     /**
      * Checks the arguments & puts them in the symbol table (gives the values to their identifier).
-     * @param {Array<string>} arg_names The names of the arguments.
-     * @param {Array<string>} mandatory_arg_names The names of the mandatory arguments.
-     * @param {Array<string>} optional_arg_names The names of the optional arguments.
+     * @param {Array<ArgumentNode>} args The names of the arguments.
      * @param {Array<Value>} default_values The values of the optional arguments.
      * @param {Array} given_args The values of the arguments.
      * @param {Context} exec_ctx The context.
      */
-    check_and_populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx) {
+    check_and_populate_args(args, default_values, given_args, exec_ctx) {
         let res = new RuntimeResult();
-        res.register(this.check_args(arg_names, mandatory_arg_names, given_args));
+        res.register(this.check_args(args, given_args));
         if (res.should_return()) return res;
 
-        this.populate_args(arg_names, mandatory_arg_names, optional_arg_names, default_values, given_args, exec_ctx);
+        this.populate_args(args, default_values, given_args, exec_ctx);
         return res.success(null);
     }
 }
@@ -360,19 +381,13 @@ export class FunctionValue extends BaseFunction {
      * @constructs CustomFunction 
      * @param {string} name The name of the variable.
      * @param {CustomNode} body_node The body.
-     * @param {Array<string>} arg_names The list of arguments.
-     * @param {Array<string>} mandatory_arg_name_toks The list of mandatory arguments.
-     * @param {Array<string>} optional_args The list of optional args.
-     * @param {Array<CustomNode>} default_values_nodes The values of the optional args.
+     * @param {Array<ArgumentNode>} args The list of arguments.
      * @param {boolean} should_auto_return Should auto return? Yes for inline functions because the `return` keyword is the arrow.
      */
-    constructor(name, body_node, arg_names, mandatory_arg_name_toks, optional_args, default_values_nodes, should_auto_return) {
+    constructor(name, body_node, args, should_auto_return) {
         super(name);
         this.body_node = body_node;
-        this.arg_names = arg_names;
-        this.mandatory_arg_name_toks = mandatory_arg_name_toks;
-        this.optional_args = optional_args;
-        this.default_values_nodes = default_values_nodes;
+        this.args = args;
         this.should_auto_return = should_auto_return;
         this.type_name = "function";
     }
@@ -387,14 +402,15 @@ export class FunctionValue extends BaseFunction {
         let interpreter = new Interpreter();
         let exec_ctx = this.generate_new_context();
 
+        let default_values_nodes = this.args.map((v) => v.default_value_node).filter((v) => v !== null);
         let default_values = [];
-        for (let df of this.default_values_nodes) {
+        for (let df of default_values_nodes) {
             let value = res.register(interpreter.visit(df, exec_ctx));
             if (res.should_return()) return res;
             default_values.push(value);
         }
 
-        res.register(this.check_and_populate_args(this.arg_names, this.mandatory_arg_name_toks, this.optional_args, default_values, args, exec_ctx));
+        res.register(this.check_and_populate_args(this.args, default_values, args, exec_ctx));
         if (res.should_return()) return res;
 
         exec_ctx.symbol_table.set('arguments', new ListValue([...args]));
@@ -415,7 +431,7 @@ export class FunctionValue extends BaseFunction {
      * @return {FunctionValue} A copy of that instance.
      */
     copy() {
-        let copy = new FunctionValue(this.name, this.body_node, this.arg_names, this.mandatory_arg_name_toks, this.optional_args, this.default_values_nodes, this.should_auto_return);
+        let copy = new FunctionValue(this.name, this.body_node, this.args, this.should_auto_return);
         copy.set_context(this.context);
         copy.set_pos(this.pos_start, this.pos_end);
         return copy;
@@ -438,36 +454,45 @@ export class NativeFunction extends BaseFunction {
         super(name);
     }
 
+    /**
+     * A shortcut to create arguments for native functions faster.
+     * @param {string} name The name of the argument.
+     * @param {boolean} is_rest Is a rest parameter?
+     * @param {boolean} is_optional Is optional?
+     * @param {Value} default_value The default value.
+     */
+    static arg(name, is_rest=false, is_optional=false, default_value=null) {
+        return new ArgumentNode(new Token(TokenType.STRING, name), is_rest, is_optional, default_value);
+    }
+
     // This static property will have all the arguments of every native functions
     // and their associated behavior
     static NATIVE_FUNCTIONS = {
         log: {
-            args: {
-                names: ["value"],
-                mandatories: ["value"],
-                optional: [],
-                default_values: []
-            },
+            args: [ // all the args
+                NativeFunction.arg("value", true),
+            ],
+            // in the right order (from the first option to the last one)
+            default_values: [],
             /**
              * Equivalent of `console.log`.
              * @param {Context} exec_ctx The execution context.
              */
             behavior: (exec_ctx, pos_start, pos_end) => {
+                /** @type {ListValue} */
                 let value = exec_ctx.symbol_table.get('value');
-                if (value instanceof StringValue) {
-                    value = value.repr();
-                }
-                console.log(value.toString()); // normal
+                let str = "";
+                // @ts-ignore
+                for (let el of value.elements) str += el.repr ? el.repr() + " " : el.toString() + " ";
+                console.log(str); // normal
                 return new RuntimeResult().success(NumberValue.none);
             }
         },
         len: {
-            args: {
-                names: ["s"],
-                mandatories: ["s"],
-                optional: [],
-                default_values: []
-            },
+            args: [
+                NativeFunction.arg("s")
+            ],
+            default_values: [],
             /**
              * Equivalent of `len()` in python.
              * @param {Context} exec_ctx The execution context.
@@ -479,16 +504,12 @@ export class NativeFunction extends BaseFunction {
                     length = s.value.length;
                 } else if (s instanceof ListValue) {
                     length = s.elements.length;
-                } else if (s instanceof BaseFunction || s instanceof NumberValue) {
-                    throw new RuntimeError(
-                        pos_start, pos_end,
-                        "Invalid type of argument for method len()",
-                        exec_ctx
-                    );
+                } else if (s instanceof DictionnaryValue) {
+                    length = s.elements.size;
                 } else {
                     throw new RuntimeError(
                         pos_start, pos_end,
-                        "Unknown type of argument",
+                        "Invalid type of argument for method len()",
                         exec_ctx
                     );
                 }
@@ -496,7 +517,6 @@ export class NativeFunction extends BaseFunction {
             }
         },
         exit: {
-            args: {},
             /**
              * Exists the entire program
              */
@@ -521,12 +541,9 @@ export class NativeFunction extends BaseFunction {
 
         let method = native_function.behavior;
 
-        let registered_args = native_function.args;
-        if (registered_args) {
-            res.register(this.check_and_populate_args(registered_args.names || [], registered_args.mandatories || [], registered_args.optional || [], registered_args.default_values || [], args, exec_ctx));
-        } else {
-            res.register(this.check_and_populate_args([], [], [], [], args, exec_ctx));
-        }
+        let registered_args = native_function.args || [];
+        let registered_default_values = native_function.default_values || [];
+        res.register(this.check_and_populate_args(registered_args, registered_default_values, args, exec_ctx));
         if (res.should_return()) return res;
 
         let return_value = res.register(method(exec_ctx, pos_start, pos_end));

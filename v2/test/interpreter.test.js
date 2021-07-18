@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode } from '../nodes.js';
 import { ClassValue, DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
@@ -497,15 +497,9 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 null,
                                 [
-                                    identifier_tok("a"),
-                                    identifier_tok("b"),
+                                    new ArgumentNode(identifier_tok("a")),
+                                    new ArgumentNode(identifier_tok("b"))
                                 ],
-                                [
-                                    identifier_tok("a"),
-                                    identifier_tok("b"),
-                                ],
-                                [],
-                                [],
                                 new AddNode(
                                     new VarAccessNode(identifier_tok("a")),
                                     new VarAccessNode(identifier_tok("b")),
@@ -554,24 +548,15 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 null,
                                 [],
-                                [],
-                                [],
-                                [],
                                 new ListNode(
                                     [
                                         number(1),
                                         new FuncDefNode(
                                             null,
                                             [
-                                                identifier_tok("a"),
-                                                identifier_tok("b"),
+                                                new ArgumentNode(identifier_tok("a")),
+                                                new ArgumentNode(identifier_tok("b")),
                                             ],
-                                            [
-                                                identifier_tok("a"),
-                                                identifier_tok("b"),
-                                            ],
-                                            [],
-                                            [],
                                             new AddNode(
                                                 new VarAccessNode(identifier_tok("a")),
                                                 new VarAccessNode(identifier_tok("b")),
@@ -796,20 +781,9 @@ describe('Interpreter', () => {
                 new FuncDefNode(
                     identifier_tok("add"),
                     [ // all
-                        identifier_tok("a"),
-                        identifier_tok("b"),
-                        identifier_tok("c"),
-                    ],
-                    [ // mandatories
-                        identifier_tok("a"),
-                    ],
-                    [ // optionals
-                        identifier_tok("b"),
-                        identifier_tok("c"),
-                    ],
-                    [
-                        number(0),
-                        number(1),
+                        new ArgumentNode(identifier_tok("a"), false, false),
+                        new ArgumentNode(identifier_tok("b"), false, true, number(0)),
+                        new ArgumentNode(identifier_tok("c"), false, true, number(1)),
                     ],
                     new IfNode(
                         [
@@ -859,21 +833,12 @@ describe('Interpreter', () => {
                 new FuncDefNode(
                     identifier_tok("test_func"),
                     [],
-                    [],
-                    [],
-                    [],
                     new FuncDefNode(
                         null,
                         [
-                            identifier_tok("a"),
-                            identifier_tok("b"),
+                            new ArgumentNode(identifier_tok("a")),
+                            new ArgumentNode(identifier_tok("b")),
                         ],
-                        [
-                            identifier_tok("a"),
-                            identifier_tok("b"),
-                        ],
-                        [],
-                        [],
                         new AddNode(
                             new VarAccessNode(identifier_tok("a")),
                             new VarAccessNode(identifier_tok("b"))
@@ -1180,17 +1145,10 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("firstname"),
-                                    identifier_tok("lastname"),
-                                    identifier_tok("age"),
+                                    new ArgumentNode(identifier_tok("firstname")),
+                                    new ArgumentNode(identifier_tok("lastname")),
+                                    new ArgumentNode(identifier_tok("age")),
                                 ],
-                                [
-                                    identifier_tok("firstname"),
-                                    identifier_tok("lastname"),
-                                    identifier_tok("age"),
-                                ],
-                                [],
-                                [],
                                 new ListNode(
                                     [
                                         new AssignPropertyNode(
@@ -1242,9 +1200,6 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("assemble"),
                                 [],
-                                [],
-                                [],
-                                [],
                                 new AddNode(
                                     new AddNode(
                                         new CallPropertyNode(
@@ -1271,9 +1226,6 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("getFullname"),
                                 [],
-                                [],
-                                [],
-                                [],
                                 new CallPropertyNode(
                                     new VarAccessNode(identifier_tok("self")),
                                     identifier_tok("fullname")
@@ -1294,13 +1246,8 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("setFirstname"),
                                 [
-                                    identifier_tok("new_name")
+                                    new ArgumentNode(identifier_tok("new_name")),
                                 ],
-                                [
-                                    identifier_tok("new_name")
-                                ],
-                                [],
-                                [],
                                 new ListNode(
                                     [
                                         new AssignPropertyNode(
@@ -1338,20 +1285,18 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("setAge"),
                                 [
-                                    identifier_tok("new_age")
-                                ],
-                                [],
-                                [
-                                    identifier_tok("new_age")
-                                ],
-                                [
-                                    new AddNode(
-                                        new CallPropertyNode(
-                                            new VarAccessNode(identifier_tok("self")),
-                                            identifier_tok("age")
-                                        ),
-                                        number(1)
-                                    )
+                                    new ArgumentNode(
+                                        identifier_tok("new_age"),
+                                        false,
+                                        true,
+                                        new AddNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("age")
+                                            ),
+                                            number(1)
+                                        )
+                                    ),
                                 ],
                                 new AssignPropertyNode(
                                     new CallPropertyNode(
@@ -1449,13 +1394,8 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("name")
+                                    new ArgumentNode(identifier_tok("name")),
                                 ],
-                                [
-                                    identifier_tok("name")
-                                ],
-                                [],
-                                [],
                                 new AssignPropertyNode(
                                     new CallPropertyNode(
                                         new VarAccessNode(identifier_tok("self")),
@@ -1472,9 +1412,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("walk"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new AddNode(
                                     new CallPropertyNode(
@@ -1605,17 +1542,15 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("name")
-                                ],
-                                [],
-                                [
-                                    identifier_tok("name")
-                                ],
-                                [
-                                    new CallPropertyNode(
-                                        new VarAccessNode(identifier_tok("self")),
-                                        identifier_tok("default_name")
-                                    )
+                                    new ArgumentNode(
+                                        identifier_tok("name"),
+                                        false,
+                                        true,
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("default_name")
+                                        )
+                                    ),
                                 ],
                                 new AssignPropertyNode(
                                     new CallPropertyNode(
@@ -1633,9 +1568,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("walk"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new AddNode(
                                     new CallPropertyNode(
@@ -1774,15 +1706,9 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("name"),
-                                    identifier_tok("type"),
+                                    new ArgumentNode(identifier_tok("name")),
+                                    new ArgumentNode(identifier_tok("type")),
                                 ],
-                                [
-                                    identifier_tok("name"),
-                                    identifier_tok("type"),
-                                ],
-                                [],
-                                [],
                                 new ListNode(
                                     [
                                         new AssignPropertyNode(
@@ -1813,9 +1739,6 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("walk"),
                                 [],
-                                [],
-                                [],
-                                [],
                                 new AddNode(
                                     new CallPropertyNode(
                                         new VarAccessNode(identifier_tok("self")),
@@ -1844,13 +1767,8 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("name"),
+                                    new ArgumentNode(identifier_tok("name")),
                                 ],
-                                [
-                                    identifier_tok("name"),
-                                ],
-                                [],
-                                [],
                                 new SuperNode(
                                     [
                                         new VarAccessNode(identifier_tok("name")),
@@ -1868,9 +1786,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("walk"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new AddNode(
                                     new CallPropertyNode(
@@ -2013,9 +1928,6 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("get_default_name"),
                                 [],
-                                [],
-                                [],
-                                [],
                                 str("default"),
                                 true
                             ),
@@ -2027,16 +1939,14 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("name")
-                                ],
-                                [],
-                                [
-                                    identifier_tok("name")
-                                ],
-                                [
-                                    new CallPropertyNode(
-                                        new VarAccessNode(identifier_tok("self")),
-                                        identifier_tok("default_name")
+                                    new ArgumentNode(
+                                        identifier_tok("name"),
+                                        false,
+                                        true,
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("default_name")
+                                        )
                                     )
                                 ],
                                 new AssignPropertyNode(
@@ -2055,9 +1965,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("walk"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new AddNode(
                                     new CallPropertyNode(
@@ -2180,9 +2087,6 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("get_default_name"),
                                 [],
-                                [],
-                                [],
-                                [],
                                 str("default"),
                                 true
                             ),
@@ -2194,23 +2098,21 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("name")
-                                ],
-                                [],
-                                [
-                                    identifier_tok("name")
-                                ],
-                                [
-                                    new CallMethodNode(
-                                        new CallNode(
-                                            new CallPropertyNode(
-                                                new VarAccessNode(identifier_tok("self")),
-                                                identifier_tok("get_default_name")
+                                    new ArgumentNode(
+                                        identifier_tok("name"),
+                                        false,
+                                        true,
+                                        new CallMethodNode(
+                                            new CallNode(
+                                                new CallPropertyNode(
+                                                    new VarAccessNode(identifier_tok("self")),
+                                                    identifier_tok("get_default_name")
+                                                ),
+                                                []
                                             ),
-                                            []
-                                        ),
-                                        new VarAccessNode(identifier_tok("self"))
-                                    )
+                                            new VarAccessNode(identifier_tok("self"))
+                                        )
+                                    ),
                                 ],
                                 new AssignPropertyNode(
                                     new CallPropertyNode(
@@ -2228,9 +2130,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("walk"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new AddNode(
                                     new CallPropertyNode(
@@ -2367,9 +2266,6 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("get_name"),
                                 [],
-                                [],
-                                [],
-                                [],
                                 new CallStaticPropertyNode(
                                     new VarAccessNode(identifier_tok("self")),
                                     identifier_tok("static_property")
@@ -2383,9 +2279,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("__init"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new AssignPropertyNode(
                                     new CallPropertyNode(
@@ -2413,9 +2306,6 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("static_method"),
                                 [],
-                                [],
-                                [],
-                                [],
                                 str("static method"),
                                 true
                             ),
@@ -2426,9 +2316,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("__repr"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new AddNode(
                                     str("self.test = "),
@@ -2588,13 +2475,8 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("isalive")
+                                    new ArgumentNode(identifier_tok("isalive")),
                                 ],
-                                [
-                                    identifier_tok("isalive")
-                                ],
-                                [],
-                                [],
                                 new AssignPropertyNode(
                                     new CallPropertyNode(
                                         new VarAccessNode(identifier_tok("self")),
@@ -2615,9 +2497,6 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("die"),
                                 [],
-                                [],
-                                [],
-                                [],
                                 new AssignPropertyNode(
                                     new CallPropertyNode(
                                         new VarAccessNode(identifier_tok("self")),
@@ -2634,9 +2513,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("resuscitate"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new AssignPropertyNode(
                                     new CallPropertyNode(
@@ -2679,15 +2555,9 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("name"),
-                                    identifier_tok("type"),
+                                    new ArgumentNode(identifier_tok("name")),
+                                    new ArgumentNode(identifier_tok("type")),
                                 ],
-                                [
-                                    identifier_tok("name"),
-                                    identifier_tok("type"),
-                                ],
-                                [],
-                                [],
                                 new ListNode(
                                     [
                                         new SuperNode([number(1)], null, null),
@@ -2718,9 +2588,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("walk"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 // if self.isalive: self.name + " walks" else: self.name + " is dead"
                                 new IfNode(
@@ -2771,13 +2638,8 @@ describe('Interpreter', () => {
                             new FuncDefNode(
                                 identifier_tok("__init"),
                                 [
-                                    identifier_tok("name")
+                                    new ArgumentNode(identifier_tok("name")),
                                 ],
-                                [
-                                    identifier_tok("name")
-                                ],
-                                [],
-                                [],
                                 new SuperNode(
                                     [
                                         new VarAccessNode(identifier_tok("name")),
@@ -2795,9 +2657,6 @@ describe('Interpreter', () => {
                         new ClassMethodDefNode(
                             new FuncDefNode(
                                 identifier_tok("walk"),
-                                [],
-                                [],
-                                [],
                                 [],
                                 new IfNode(
                                     [
@@ -2956,13 +2815,8 @@ describe('Interpreter', () => {
                 new FuncDefNode(
                     identifier_tok("test_arguments"),
                     [
-                        identifier_tok("arg1")
+                        new ArgumentNode(identifier_tok("arg1")),
                     ],
-                    [
-                        identifier_tok("arg1")
-                    ],
-                    [],
-                    [],
                     new ReturnNode(
                         new VarAccessNode(identifier_tok("arguments")),
                         null,
@@ -2983,6 +2837,86 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context);
         const expected = ["yo"];
         const values = result.value.elements[1].elements.map((v) => v.value);
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with rest parameter', () => {
+        /*
+        # we use number_of_marks because len() doesn't work here
+        # indeed, we cannot initiate the global symbol table because of a bug with mocha
+        func average_grade(number_of_marks, ...marks):
+            var s = 0
+            for i to number_of_marks:
+                s += marks[i]
+            end
+            return s / number_of_marks
+        end
+        average_grade(3, 10, 11, 12)
+        */
+        const tree = new ListNode(
+            [
+                new FuncDefNode(
+                    identifier_tok("average_grade"),
+                    [
+                        new ArgumentNode(identifier_tok("number_of_marks")),
+                        new ArgumentNode(identifier_tok("marks"), true),
+                    ],
+                    new ListNode(
+                        [
+                            new VarAssignNode(
+                                identifier_tok("s"),
+                                number(0)
+                            ),
+                            new ForNode(
+                                identifier_tok("i"),
+                                number(0),
+                                new VarAccessNode(identifier_tok("number_of_marks")),
+                                number(1),
+                                new VarModifyNode(
+                                    identifier_tok("s"),
+                                    new AddNode(
+                                        new VarAccessNode(identifier_tok("s")),
+                                        new ListAccessNode(
+                                            new VarAccessNode(identifier_tok("marks")),
+                                            0,
+                                            [
+                                                new VarAccessNode(identifier_tok("i"))
+                                            ]
+                                        )
+                                    )
+                                ),
+                                false
+                            ),
+                            new ReturnNode(
+                                new DivideNode(
+                                    new VarAccessNode(identifier_tok("s")),
+                                    new VarAccessNode(identifier_tok("number_of_marks"))
+                                ),
+                                null,
+                                null
+                            )
+                        ],
+                        null,
+                        null
+                    ),
+                    false
+                ),
+                new CallNode(
+                    new VarAccessNode(identifier_tok("average_grade")),
+                    [
+                        number(3),
+                        number(10),
+                        number(11),
+                        number(12),
+                    ]
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context);
+        const expected = 11;
+        const values = result.value.elements[1].value;
         assert.deepStrictEqual(values, expected);
     });
 });

@@ -434,4 +434,15 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with triple dots', () => {
+        const tokens = Array.from(new Lexer("(...args)").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.LPAREN),
+            new Token(TokenType.TRIPLE_DOTS),
+            new Token(TokenType.IDENTIFIER, "args"),
+            new Token(TokenType.RPAREN),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

@@ -2028,9 +2028,7 @@ export class Interpreter {
         let res = new RuntimeResult();
         let func_name = node.var_name_tok ? node.var_name_tok.value : null;
         let body_node = node.body_node;
-        let arg_names = [];
-        let optional_arg_names = [];
-        let mandatory_arg_names = [];
+        let all_args = node.args;
 
         if (func_name) {
             if (context.symbol_table.doesExist(func_name)) {
@@ -2042,17 +2040,14 @@ export class Interpreter {
             }
         }
 
-        for (let arg_name of node.arg_name_toks) arg_names.push(arg_name.value);
-        for (let optional_arg of node.optional_arg_name_toks) optional_arg_names.push(optional_arg.value);
-        for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg.value);
+        // for (let arg_name of node.arg_name_toks) arg_names.push(arg_name);
+        // for (let optional_arg of node.optional_arg_name_toks) optional_arg_names.push(optional_arg);
+        // for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg);
 
         let func_value = new FunctionValue(
             func_name,
             body_node,
-            arg_names,
-            mandatory_arg_names,
-            optional_arg_names,
-            node.default_values_nodes,
+            all_args,
             node.should_auto_return)
                 .set_context(context)
                 .set_pos(node.pos_start, node.pos_end);
@@ -2832,7 +2827,7 @@ export class Interpreter {
             }
             let method = res.register(this.visit(method_node.func, exec_ctx));
             if (res.should_return()) return res;
-            if (method_name === "__repr" && method.arg_names.length > 0) {
+            if (method_name === "__repr" && method.args.length > 0) {
                 throw new RuntimeError(
                     method_node.pos_start, method_node.pos_end,
                     `The __repr method is not allowed to have arguments.`,

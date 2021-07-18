@@ -131,7 +131,26 @@ export class Lexer {
         let pos_start = this.pos.copy();
         let number_str = this.current_char;
         let decimal_point_count = 0;
+        let is_beginning_with_a_dot = this.current_char === ".";
         this.advance();
+
+        // handles console.log (the dot)
+        // and triple dots: '...'
+        // i.e. if there is one dot or three dots, there cannot be two dots.
+        if (is_beginning_with_a_dot && this.current_char === ".") {
+            this.advance();
+            if (this.current_char === ".") {
+                this.advance();
+                return new Token(TokenType.TRIPLE_DOTS, null, pos_start, this.pos);
+            } else {
+                throw new ExpectedCharError(
+                    pos_start, this.pos,
+                    "Expected one more point ('...')"
+                )
+            }
+        } else if (is_beginning_with_a_dot && !is_in(this.current_char, DIGITS.replace('_', ''))) {
+            return new Token(TokenType.DOT, null, pos_start);
+        }
         
         while (this.current_char !== null && is_in(this.current_char, DIGITS + ".")) {
             if (this.current_char === ".") {
@@ -141,15 +160,8 @@ export class Lexer {
                 }
             }
 
-            // avoid `class.__init ` to become a number (._ == 0)
-            if (number_str === "." && this.current_char === "_") break;
-
             number_str += this.current_char;
             this.advance();
-        }
-
-        if (number_str === ".") {
-            return new Token(TokenType.DOT, null, pos_start);
         }
 
         if (number_str.startsWith('.')) {

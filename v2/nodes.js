@@ -762,27 +762,21 @@ export class FuncDefNode extends CustomNode {
     /**
      * @constructs FuncDefNode
      * @param {Token|null} var_name_tok The identifier that corresponds to the name of the function. Might be null for anonymous functions.
-     * @param {Array<Token>} arg_name_toks The arguments.
-     * @param {Array<Token>} mandatory_arg_name_toks The mandatory arguments.
-     * @param {Array<Token>} optional_arg_name_toks The optional arguments.
-     * @param {Array<CustomNode>} default_values_nodes The values of the optional arguments.
+     * @param {Array<ArgumentNode>} args The arguments.
      * @param {CustomNode} body_node The body of the function.
      * @param {boolean} should_auto_return Should auto return? True if the function is an arrow function.
      */
-    constructor(var_name_tok, arg_name_toks, mandatory_arg_name_toks, optional_arg_name_toks, default_values_nodes, body_node, should_auto_return) {
+    constructor(var_name_tok, args, body_node, should_auto_return) {
         super();
         this.var_name_tok = var_name_tok;
-        this.arg_name_toks = arg_name_toks;
-        this.mandatory_arg_name_toks = mandatory_arg_name_toks;
-        this.optional_arg_name_toks = optional_arg_name_toks;
-        this.default_values_nodes = default_values_nodes;
+        this.args = args;
         this.body_node = body_node;
         this.should_auto_return = should_auto_return;
 
         if (this.var_name_tok) {
             this.pos_start = this.var_name_tok.pos_start;
-        } else if (this.arg_name_toks.length > 0) {
-            this.pos_start = this.arg_name_toks[0].pos_start;
+        } else if (this.args.length > 0) {
+            this.pos_start = this.args[0].pos_start;
         } else {
             this.pos_start = this.body_node.pos_start;
         }
@@ -791,7 +785,7 @@ export class FuncDefNode extends CustomNode {
     }
 
     toString() {
-        return `func ${this.var_name_tok ? this.var_name_tok.value : ''}(${this.arg_name_toks.join(', ')})`;
+        return `func ${this.var_name_tok ? this.var_name_tok.value : ''}(${this.args.map((v) => v.arg_name_tok.value).join(', ')})`;
     }
 }
 
@@ -1152,5 +1146,41 @@ export class SuperNode extends CustomNode {
 
     toString() {
         return `(super (${this.arg_nodes.length} args))`;
+    }
+}
+
+/**
+ * @classdesc Describes an argument inside the declaration of a function.
+ */
+export class ArgumentNode extends CustomNode {
+    /**
+     * @constructs ArgumentNode
+     * @param {Token} arg_name_tok The name of the argument.
+     * @param {boolean} is_rest Is a rest parameter?
+     * @param {boolean} is_optional Is optional?
+     * @param {CustomNode} default_value_node The default value in case the argument is optional.
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(arg_name_tok, is_rest=false, is_optional=false, default_value_node=null, pos_start=null, pos_end=null) {
+        super();
+        this.arg_name_tok = arg_name_tok;
+        this.is_rest = is_rest;
+        this.is_optional = is_optional;
+        this.default_value_node = default_value_node;
+        this.pos_start = pos_start ? pos_start : this.arg_name_tok.pos_start;
+        this.pos_end = pos_end;
+
+        if (!this.pos_end) {
+            if (this.default_value_node) {
+                this.pos_end = this.default_value_node.pos_end;
+            } else {
+                this.pos_end = this.arg_name_tok.pos_end;
+            }
+        }
+    }
+
+    toString() {
+        return `(${this.is_rest ? '...' : ''}${this.arg_name_tok.value}${this.is_optional ? '?' : ''}${this.default_value_node ? '=' + this.default_value_node : ''})`;
     }
 }
