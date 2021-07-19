@@ -1,17 +1,6 @@
-enum State:
-    stopped,
-    paused,
-    running
+class add_list_and_class:
+    property nothing
 end
 
-var state = State.paused
-var response = none
-
-switch (state):
-    case State.stopped: response = "stopped"
-    case State.paused: response = "paused"
-    case State.running: response = "running"
-    default: response = no
-end
-
-log(response)
+var test_add_list_and_class = new add_list_and_class()
+log([0] + test_add_list_and_class)

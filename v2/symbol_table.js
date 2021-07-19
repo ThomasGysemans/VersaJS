@@ -126,8 +126,6 @@ export class SymbolTable {
 const global_symbol_table = new SymbolTable();
 
 export const CONSTANTS = {
-    none: NumberValue.none,
-    null: NumberValue.none,
     yes: NumberValue.yes,
     true: NumberValue.yes,
     no: NumberValue.no,

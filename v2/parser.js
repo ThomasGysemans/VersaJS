@@ -1,7 +1,6 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode } from "./nodes.js";
-import { InvalidSyntaxError, RuntimeError } from "./Exceptions.js";
-import { NumberValue } from "./values.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode } from "./nodes.js";
+import { InvalidSyntaxError } from "./Exceptions.js";
 import { is_in } from "./miscellaneous.js";
 import { Position } from "./position.js";
 
@@ -418,7 +417,7 @@ export class Parser {
                     this.advance();
                     value_node = this.expr();
                 } else {
-                    value_node = new NumberNode(new Token(TokenType.NUMBER, NumberValue.none.value, property_pos_start, property_pos_end))
+                    value_node = new NoneNode(property_pos_start, property_pos_end);
                 }
                 let property_def_node = new ClassPropertyDefNode(
                     property_name_tok,
@@ -1089,6 +1088,9 @@ export class Parser {
         } else if (this.current_token.matches(TokenType.KEYWORD, "switch")) {
             let switch_expr = this.switch_expr();
             return switch_expr;
+        } else if (this.current_token.matches(TokenType.KEYWORD, "none")) {
+            this.advance();
+            return new NoneNode(token.pos_start, token.pos_end);
         } else {
             this.advance();
             let pos_end = pos_start.copy();
@@ -1722,7 +1724,7 @@ export class Parser {
                     if (this.current_token.type === TokenType.QMARK) {
                         is_optional = true;
                         let question_mark_token = this.current_token;
-                        let default_value = new NumberNode(new Token(TokenType.NUMBER, NumberValue.none.value, question_mark_token.pos_start, question_mark_token.pos_end));
+                        let default_value = new NoneNode(question_mark_token.pos_start, question_mark_token.pos_end);
                         this.advance();
 
                         // there might be an equal sign

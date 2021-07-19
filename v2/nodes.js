@@ -1226,3 +1226,20 @@ export class SwitchNode extends CustomNode {
         return `(switch (${this.primary_value})(${this.cases.length + (this.default_case ? 1 : 0)} case${this.cases.length + (this.default_case ? 1 : 0) > 1 ? 's' : ''}))`;
     }
 }
+
+export class NoneNode extends CustomNode {
+    /**
+     * @constructs NoneNode
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(pos_start, pos_end) {
+        super();
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `(none)`;
+    }
+}

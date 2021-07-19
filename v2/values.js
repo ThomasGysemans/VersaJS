@@ -81,7 +81,6 @@ export class NumberValue extends Value {
     }
 }
 
-NumberValue.none = new NumberValue(0);
 NumberValue.yes = new NumberValue(1);
 NumberValue.no = new NumberValue(0);
 
@@ -418,7 +417,7 @@ export class FunctionValue extends BaseFunction {
         let value = res.register(interpreter.visit(this.body_node, exec_ctx));
         if (res.should_return() && res.func_return_value == null) return res;
 
-        let ret_value = (this.should_auto_return ? value : null) || res.func_return_value || NumberValue.none;
+        let ret_value = (this.should_auto_return ? value : null) || res.func_return_value || new NoneValue();
         return res.success(ret_value);
     }
 
@@ -485,7 +484,7 @@ export class NativeFunction extends BaseFunction {
                 // @ts-ignore
                 for (let el of value.elements) str += el.repr ? el.repr() + " " : el.toString() + " ";
                 console.log(str); // normal
-                return new RuntimeResult().success(NumberValue.none);
+                return new RuntimeResult().success(new NoneValue());
             }
         },
         len: {
@@ -605,5 +604,33 @@ export class EnumValue extends Value {
 
     toString() {
         return `<Enum ${this.name}>`;
+    }
+}
+
+export class NoneValue extends Value {
+    /**
+     * @constructs NoneValue
+     */
+    constructor() {
+        super();
+    }
+
+    is_true() {
+        return false;
+    }
+
+    /**
+     * @override
+     * @return {NoneValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new NoneValue();
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `none`;
     }
 }

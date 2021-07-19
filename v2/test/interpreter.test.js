@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode } from '../nodes.js';
-import { ClassValue, DictionnaryValue, FunctionValue, ListValue, NumberValue, StringValue } from '../values.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode } from '../nodes.js';
+import { ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js'; // ok
 import { Context } from '../context.js'; // ok
@@ -35,7 +35,11 @@ const str = (string, allow_concatenation=true) => {
 
 const identifier_tok = (string) => {
     return new Token(TokenType.IDENTIFIER, string, null, null);
-}
+};
+
+const none = () => {
+    return new NoneNode(null, null);
+};
 
 describe('Interpreter', () => {
     it('should work with numbers', () => {
@@ -212,6 +216,13 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context);
         const value = result.value.value;
         assert.deepStrictEqual(value, 0); // 0 == false
+    });
+
+    it('should work with none', () => {
+        const tree = none();
+        const result = new Interpreter().visit(tree, context);
+        const value = result.value;
+        assert.deepStrictEqual(true, value instanceof NoneValue);
     });
 
     it('should work with a complex operation', () => {
@@ -407,7 +418,7 @@ describe('Interpreter', () => {
 
     it('should work with a list (assignement)', () => {
         // var list = [1, 2, 3]; list[4] = 5; list
-        // expected = [1, 2, 3, 0, 5]
+        // expected = [1, 2, 3, none, 5]
         const tree = new ListNode(
             [
                 new VarAssignNode(
@@ -439,7 +450,7 @@ describe('Interpreter', () => {
         );
         const result = new Interpreter().visit(tree, context);
         const expected = [1, 2, 3, 0, 5];
-        const value = result.value.elements[2].elements.map((v) => v.value);
+        const value = result.value.elements[2].elements.map((v) => v instanceof NoneValue ? 0 : v.value);
         assert.deepStrictEqual(value, expected);
     });
 

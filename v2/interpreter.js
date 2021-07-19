@@ -1,5 +1,5 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode } from './nodes.js';
-import { BaseFunction, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NumberValue, StringValue } from './values.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode } from './nodes.js';
+import { BaseFunction, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
@@ -53,6 +53,8 @@ function array_equals(a, b) {
                 }
             } else if (a_element instanceof BaseFunction) {
                 return false; // two functions cannot be equal
+            } else if (a_element instanceof NoneValue) {
+                return true;
             } else if (a_element instanceof ClassValue) {
                 return false; // two classes cannot be equal
             } else {
@@ -222,6 +224,8 @@ export class Interpreter {
             return this.visit_EnumNode(node, context);
         } else if (node instanceof SwitchNode) {
             return this.visit_SwitchNode(node, context);
+        } else if (node instanceof NoneNode) {
+            return this.visit_NoneNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -238,6 +242,20 @@ export class Interpreter {
         let new_context = new Context(context_name, parent_context, pos_start);
         new_context.symbol_table = new SymbolTable(new_context.parent.symbol_table);
         return new_context;
+    }
+
+    /**
+     * Trying to operate an illegal operation between two values.
+     * @param {CustomNode} node
+     * @param {Context} context 
+     * @throws {RuntimeError}
+     */
+    illegal_operation(node, context) {
+        throw new RuntimeError(
+            node.pos_start, node.pos_end,
+            "Illegal operation",
+            context
+        );
     }
 
     /**
@@ -265,60 +283,166 @@ export class Interpreter {
         let right = res.register(this.visit(node.node_b, context));
         if (res.should_return()) return res;
 
-        if (left instanceof NumberValue && right instanceof NumberValue) {
+        // there are so many types of values
+        // I keep forgetting some combinations
+        // therefore, I designed this solution
+        // just to keep my mind safe
+        // I test every scenario in `./test/interpreter.test.js`
+
+        // ---
+        // Every possible addition which returns a number
+        // ---
+        // number + number            OK
+        // number + none              OK
+        // none + number              OK
+        if (left instanceof NumberValue && right instanceof NumberValue) { // number + number
             return new RuntimeResult().success(
                 new NumberValue(left.value + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else if (left instanceof ListValue && right instanceof NumberValue) {
-            let new_values = [];
-            new_values.push(...left.elements, right);
+        } else if (left instanceof NumberValue && right instanceof NoneValue) { // number + none
+            return new RuntimeResult().success(
+                new NumberValue(left.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) { // none + number
+            return new RuntimeResult().success(
+                new NumberValue(right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        }
 
-            return new RuntimeResult().success(
-                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof NumberValue && right instanceof ListValue) {
-            let new_values = [];
-            new_values.push(...right.elements, left);
-            return new RuntimeResult().success(
-                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof ListValue && right instanceof ListValue) {
-            let new_values = [];
-            new_values.push(...left.elements, ...right.elements);
-            return new RuntimeResult().success(
-                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof StringValue && right instanceof NumberValue) {
-            return new RuntimeResult().success(
-                new StringValue(left.value + right.value.toString()).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof NumberValue && right instanceof StringValue) {
+        // ---
+        // Every possible addition which returns a string
+        // ---
+        // number + string            OK
+        // string + number            OK
+        // string + string            OK
+        // string + none              OK
+        // none + string              OK
+        if (left instanceof NumberValue && right instanceof StringValue) { // number + string
             return new RuntimeResult().success(
                 new StringValue(left.value.toString() + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else if (left instanceof StringValue && right instanceof StringValue) {
+        } else if (left instanceof StringValue && right instanceof NumberValue) { // string + number
+            return new RuntimeResult().success(
+                new StringValue(left.value + right.value.toString()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof StringValue) { // string + string
             return new RuntimeResult().success(
                 new StringValue(left.value + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else if (left instanceof StringValue && right instanceof ListValue) {
+        } else if (left instanceof StringValue && right instanceof NoneValue) { // string + none
             return new RuntimeResult().success(
-                new StringValue(left.value + right.repr()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new StringValue(left.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else if (left instanceof ListValue && right instanceof StringValue) {
+        } else if (left instanceof NoneValue && right instanceof StringValue) { // none + string
             return new RuntimeResult().success(
-                new StringValue(left.repr() + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new StringValue(right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
+        }
+
+        // ---
+        // Every possible addition which returns a list
+        // ---
+        // list + number              OK
+        // number + list              OK
+        // list + string              OK
+        // string + list              OK
+        // list + list                OK
+        // list + dict                OK
+        // dict + list                OK
+        // list + class               OK
+        // class + list               OK
+        // list + enum                OK
+        // enum + list                OK
+        // list + none                OK
+        // none + list                OK
+        if (left instanceof ListValue && right instanceof NumberValue) { // list + number
+            let new_values = [...left.elements, right];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof ListValue) { // number + list
+            let new_values = [...right.elements, left];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof ListValue && right instanceof StringValue) { // list + string
+            let new_values = [...left.elements, right];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof ListValue) { // string + list
+            let new_values = [...right.elements, left];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof ListValue && right instanceof ListValue) { // list + list
+            let new_values = [...left.elements, ...right.elements];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof ListValue && right instanceof DictionnaryValue) { // list + dict
+            let new_values = [...left.elements, right];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof DictionnaryValue && right instanceof ListValue) { // dict + list
+            let new_values = [...right.elements, left];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof ListValue && right instanceof ClassValue) { // list + class
+            let new_values = [...left.elements, right];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof ClassValue && right instanceof ListValue) { // class + list
+            let new_values = [...right.elements, left];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof ListValue && right instanceof EnumValue) { // list + enum
+            let new_values = [...left.elements, right];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof EnumValue && right instanceof ListValue) { // enum + list
+            let new_values = [...right.elements, left];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof ListValue && right instanceof NoneValue) { // list + none
+            let new_values = [...left.elements, right];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof ListValue) { // none + list
+            let new_values = [...right.elements, left];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        }
+
+        // ---
+        // Every possible addition which returns a dictionnary
+        // ---
+        // dict + dict
+        if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
                 new DictionnaryValue(new Map(Array.from(left.elements.entries()).concat(Array.from(right.elements.entries())))).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+        }
+
+        // ---
+        // Special
+        // ---
+        // none + none
+        if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
+
+        this.illegal_operation(node, context);
     }
 
     /**
@@ -338,12 +462,20 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(left.value - right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0 - right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
         }
     }
 
@@ -384,12 +516,20 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new StringValue(right.value.repeat(left.value)).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
         }
     }
 
@@ -406,24 +546,30 @@ export class Interpreter {
         let right = res.register(this.visit(node.node_b, context));
         if (res.should_return()) return res;
 
+        const err_divide_by_zero = () => {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                'Division by Zero',
+                context
+            );
+        };
+
         if (left instanceof NumberValue && right instanceof NumberValue) {
             if (right.value === 0) {
-                throw new RuntimeError(
-                    node.pos_start, node.pos_end,
-                    'Division by Zero',
-                    context
-                );
+                err_divide_by_zero();
             }
 
             return new RuntimeResult().success(
                 new NumberValue(left.value / right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            err_divide_by_zero();
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            err_divide_by_zero();
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            err_divide_by_zero();
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
-            );
+            this.illegal_operation(node, context);
         }
     }
 
@@ -440,24 +586,30 @@ export class Interpreter {
         let right = res.register(this.visit(node.node_b, context));
         if (res.should_return()) return res;
 
+        const err_divide_by_zero = () => {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                'Division by Zero',
+                context
+            );
+        };
+
         if (left instanceof NumberValue && right instanceof NumberValue) {
             if (right.value === 0) {
-                throw new RuntimeError(
-                    node.pos_start, node.pos_end,
-                    'Division by Zero',
-                    context
-                );
+                err_divide_by_zero();
             }
             
             return new RuntimeResult().success(
                 new NumberValue(left.value % right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            err_divide_by_zero();
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            err_divide_by_zero();
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            err_divide_by_zero();
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
-            );
+            this.illegal_operation(node, context);
         }
     }
 
@@ -485,11 +637,7 @@ export class Interpreter {
                 if (list_element instanceof NumberValue) {
                     new_values.push(new NumberValue(list_element.value ** right.value).set_pos(node.pos_start, node.pos_end).set_context(context));
                 } else {
-                    throw new RuntimeError(
-                        node.pos_start, node.pos_end,
-                        "Illegal operation",
-                        context
-                    );
+                    this.illegal_operation(node, context);
                 }
             }
 
@@ -503,23 +651,27 @@ export class Interpreter {
                 if (list_element instanceof NumberValue) {
                     new_values.push(new NumberValue(list_element.value ** left.value).set_pos(node.pos_start, node.pos_end).set_context(context));
                 } else {
-                    throw new RuntimeError(
-                        node.pos_start, node.pos_end,
-                        "Illegal operation",
-                        context
-                    );
+                    this.illegal_operation(node, context);
                 }
             }
 
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
         }
     }
 
@@ -538,12 +690,12 @@ export class Interpreter {
             return new RuntimeResult().success(
                 visited_node
             );
-        } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+        } else if (visited_node instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else {
+            this.illegal_operation(node, context);
         }
     }
 
@@ -562,12 +714,12 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(-1 * visited_node.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+        } else if (visited_node instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else {
+            this.illegal_operation(node, context);
         }
     }
 
@@ -745,13 +897,15 @@ export class Interpreter {
 
         if (number instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(number.value == 0 ? 1 : 0).set_context(context)
+                new NumberValue(number.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (number instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -773,14 +927,6 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.value === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else if (left instanceof ListValue && right instanceof NumberValue) {
-            return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof NumberValue && right instanceof ListValue) {
-            return new RuntimeResult().success(
-                new NumberValue(new Number(left.value === right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
         } else if (left instanceof ListValue && right instanceof ListValue) {
             let is_equal = array_equals(left.elements, right.elements);
             return new RuntimeResult().success(
@@ -798,24 +944,26 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.value === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
-        } else if (left instanceof DictionnaryValue && right instanceof NumberValue) {
-            return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof NumberValue && right instanceof DictionnaryValue) {
-            return new RuntimeResult().success(
-                new NumberValue(new Number(right.elements.size === left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             let is_equal = dictionnary_equals(left, right);
             return new RuntimeResult().success(
                 new NumberValue(is_equal ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(right.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -855,7 +1003,7 @@ export class Interpreter {
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(right.value.length < left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(new Number(left.value < right.value.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
@@ -869,11 +1017,21 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.value < right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(right.value > 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value < 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -913,7 +1071,7 @@ export class Interpreter {
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(right.value.length > left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(new Number(left.value > right.value.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
@@ -927,11 +1085,21 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.value > right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(right.value < 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value > 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -971,7 +1139,7 @@ export class Interpreter {
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(right.value.length <= left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(new Number(left.value <= right.value.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
@@ -985,11 +1153,21 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.value <= right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(right.value >= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value <= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -1029,7 +1207,7 @@ export class Interpreter {
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(right.value.length >= left.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(new Number(left.value >= right.value.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
@@ -1043,11 +1221,21 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.value >= right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(right.value <= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value >= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -1068,14 +1256,6 @@ export class Interpreter {
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
                 new NumberValue(new Number(left.value !== right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof ListValue && right instanceof NumberValue) {
-            return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length !== right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof NumberValue && right instanceof ListValue) {
-            return new RuntimeResult().success(
-                new NumberValue(new Number(left.value !== right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof ListValue) {
             let is_equal = array_equals(left.elements, right.elements);
@@ -1099,11 +1279,21 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(is_equal ? 0 : 1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(right.value !== 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value !== 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
+            return new RuntimeResult().success(
+                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -1120,8 +1310,8 @@ export class Interpreter {
         if (res.should_return()) return res;
         
         // might be null or false if it's a number
-        if (left instanceof NumberValue) {
-            var is_left_node_null = left.value === NumberValue.none.value;
+        if (left instanceof NumberValue || left instanceof NoneValue) {
+            var is_left_node_null = left instanceof NoneValue || (left.value === 0);
             if (is_left_node_null) {
                 let right = res.register(this.visit(node.node_b, context));
                 if (res.should_return()) return res;
@@ -1485,10 +1675,10 @@ export class Interpreter {
                                 index.value = value_to_be_replaced.elements.length + index.value;
                             }
 
-                            // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                            // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
                             if (index.value > value_to_be_replaced.elements.length) {
                                 for (let e = value_to_be_replaced.elements.length; e < index.value; e++) {
-                                    value_to_be_replaced.elements[e] = NumberValue.none;
+                                    value_to_be_replaced.elements[e] = new NoneValue();
                                 }
                             }
                             
@@ -1581,10 +1771,10 @@ export class Interpreter {
                                 index.value = value.elements.length + index.value;
                             }
 
-                            // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                            // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
                             if (index_per_depth[i].value > value.elements.length) {
                                 for (let e = value.elements.length; e < index_per_depth[i].value; e++) {
-                                    value.elements[e] = NumberValue.none;
+                                    value.elements[e] = new NoneValue();
                                 }
                             }
 
@@ -1674,7 +1864,7 @@ export class Interpreter {
                             // therefore we add `none` to the previous values that should have a value already.
                             if (current_index.a.value > value_to_be_replaced.elements.length) {
                                 for (let e = value_to_be_replaced.elements.length; e < current_index.a.value; e++) {
-                                    value_to_be_replaced.elements[e] = NumberValue.none;
+                                    value_to_be_replaced.elements[e] = new NoneValue();
                                 }
                             }
                             
@@ -1731,9 +1921,9 @@ export class Interpreter {
                         // `a` cannot be greater than the length of the list
                         // therefore we add `none` to the previous values that should have a value already.
                         if (first_index.a.value > value.elements.length) {
-                            // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                            // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
                             for (let e = value.elements.length; e < first_index.a.value; e++) {
-                                value.elements[e] = NumberValue.none;
+                                value.elements[e] = new NoneValue();
                             }
                         }
 
@@ -1853,7 +2043,7 @@ export class Interpreter {
             if (condition_value.is_true()) {
                 let expr_value = res.register(this.visit(expr, context));
                 if (res.should_return()) return res;
-                return res.success(should_return_null ? NumberValue.none : expr_value);
+                return res.success(should_return_null ? new NoneValue() : expr_value);
             }
         }
 
@@ -1862,10 +2052,10 @@ export class Interpreter {
             let should_return_null = node.else_case.should_return_null;
             let else_value = res.register(this.visit(code, context));
             if (res.should_return()) return res;
-            return res.success(should_return_null ? NumberValue.none : else_value);
+            return res.success(should_return_null ? new NoneValue() : else_value);
         }
 
-        return res.success(NumberValue.none);
+        return res.success(new NoneValue());
     }
 
     /**
@@ -1923,7 +2113,7 @@ export class Interpreter {
 
         return res.success(
             node.should_return_null
-                ? NumberValue.none
+                ? new NoneValue()
                 : new ListValue(elements).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
     }
@@ -1984,7 +2174,7 @@ export class Interpreter {
 
         return res.success(
             node.should_return_null
-                ? NumberValue.none
+                ? new NoneValue()
                 : new ListValue(elements).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
     }
@@ -2017,7 +2207,7 @@ export class Interpreter {
 
         return res.success(
             node.should_return_null
-                ? NumberValue.none
+                ? new NoneValue()
                 : new ListValue(elements).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
     }
@@ -2043,10 +2233,6 @@ export class Interpreter {
                 );
             }
         }
-
-        // for (let arg_name of node.arg_name_toks) arg_names.push(arg_name);
-        // for (let optional_arg of node.optional_arg_name_toks) optional_arg_names.push(optional_arg);
-        // for (let mandatory_arg of node.mandatory_arg_name_toks) mandatory_arg_names.push(mandatory_arg);
 
         let func_value = new FunctionValue(
             func_name,
@@ -2119,7 +2305,7 @@ export class Interpreter {
             value = res.register(this.visit(node.node_to_return, context));
             if (res.should_return()) return res;
         } else {
-            value = NumberValue.none;
+            value = new NoneValue();
         }
 
         return res.success_return(value);
@@ -2288,10 +2474,10 @@ export class Interpreter {
                                         index.value = value_to_be_replaced.elements.length + index.value;
                                     }
 
-                                    // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                                    // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
                                     if (index.value > value_to_be_replaced.elements.length) {
                                         for (let e = value_to_be_replaced.elements.length; e < index.value; e++) {
-                                            value_to_be_replaced.elements[e] = NumberValue.none;
+                                            value_to_be_replaced.elements[e] = new NoneValue();
                                         }
                                     }
                                     
@@ -2373,10 +2559,10 @@ export class Interpreter {
                                         index.value = value.elements.length + index.value;
                                     }
 
-                                    // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                                    // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
                                     if (index_per_depth[i].value > value.elements.length) {
                                         for (let e = value.elements.length; e < index_per_depth[i].value; e++) {
-                                            value.elements[e] = NumberValue.none;
+                                            value.elements[e] = new NoneValue();
                                         }
                                     }
 
@@ -2465,7 +2651,7 @@ export class Interpreter {
                                     // therefore we add `none` to the previous values that should have a value already.
                                     if (current_index.a.value > value_to_be_replaced.elements.length) {
                                         for (let e = value_to_be_replaced.elements.length; e < current_index.a.value; e++) {
-                                            value_to_be_replaced.elements[e] = NumberValue.none;
+                                            value_to_be_replaced.elements[e] = new NoneValue();
                                         }
                                     }
                                     
@@ -2520,9 +2706,9 @@ export class Interpreter {
                                 // `a` cannot be greater than the length of the list
                                 // therefore we add `none` to the previous values that should have a value already.
                                 if (first_index.a.value > value.elements.length) {
-                                    // we have to make sure that every previous values of a selected value is defined (NumberValue.none).
+                                    // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
                                     for (let e = value.elements.length; e < first_index.a.value; e++) {
-                                        value.elements[e] = NumberValue.none;
+                                        value.elements[e] = new NoneValue();
                                     }
                                 }
 
@@ -2598,7 +2784,7 @@ export class Interpreter {
             );
         }
 
-        return res.success(NumberValue.none);
+        return res.success(new NoneValue());
     }
 
     /**
@@ -2617,12 +2803,12 @@ export class Interpreter {
             return res.success(
                 new NumberValue(visited.value + difference).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (visited instanceof NoneValue) {
+            return res.success(
+                new NumberValue(0 + difference).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
-            ); 
+            this.illegal_operation(node, context); 
         }
     }
 
@@ -2667,12 +2853,12 @@ export class Interpreter {
             let new_value = new NumberValue(value.value + difference).set_pos(node.pos_start, node.pos_end).set_context(context);
             context.symbol_table.modify(var_name, new_value);
             return new RuntimeResult().success(new_value);
+        } else if (value instanceof NoneValue) {
+            let new_value = new NumberValue(0 + difference).set_pos(node.pos_start, node.pos_end).set_context(context);
+            context.symbol_table.modify(var_name, new_value);
+            return new RuntimeResult().success(new_value);
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Illegal operation",
-                context
-            );
+            this.illegal_operation(node, context);
         }
     }
 
@@ -2946,7 +3132,7 @@ export class Interpreter {
 
         context.symbol_table.set(class_name, value);
 
-        return res.success(NumberValue.none);
+        return res.success(new NoneValue());
     }
 
     /**
@@ -3177,8 +3363,6 @@ export class Interpreter {
                     );
                 }
             } 
-        } else {
-            // todo: when we'll be able to extend from classes, I don't want to add new properties like that
         }
 
         new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
@@ -3304,7 +3488,7 @@ export class Interpreter {
         // @ts-ignore
         __init_parent.execute(args);
 
-        return res.success(NumberValue.none);
+        return res.success(new NoneValue());
     }
 
     /**
@@ -3329,7 +3513,7 @@ export class Interpreter {
         context.symbol_table.define_constant(enum_name, value);
         CONSTANTS[enum_name] = value; // so that we cannot modify it later
 
-        return new RuntimeResult().success(NumberValue.none);
+        return new RuntimeResult().success(new NoneValue());
     }
 
     /**
@@ -3372,6 +3556,16 @@ export class Interpreter {
             return res.success(body_value);
         }
 
-        return res.success(NumberValue.none);
+        return res.success(new NoneValue());
+    }
+
+    /**
+     * Interprets a none node.
+     * @param {NoneNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_NoneNode(node, context) {
+        return new RuntimeResult().success(new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context));
     }
 }

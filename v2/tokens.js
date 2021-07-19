@@ -81,6 +81,7 @@ const KEYWORDS = [
     "switch",
     "case",
     "default",
+    "none",
 ];
 
 export default KEYWORDS;
