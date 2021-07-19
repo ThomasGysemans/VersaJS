@@ -46,12 +46,13 @@ describe('Lexer tests', () => {
     });
 
     it('should return all operators', () => {
-        const tokens = Array.from(new Lexer("+-*/").generate_tokens());
+        const tokens = Array.from(new Lexer("+-*/^").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.PLUS),
             new Token(TokenType.MINUS),
             new Token(TokenType.MULTIPLY),
             new Token(TokenType.DIVIDE),
+            new Token(TokenType.POWER),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -442,6 +443,18 @@ describe('Lexer tests', () => {
             new Token(TokenType.TRIPLE_DOTS),
             new Token(TokenType.IDENTIFIER, "args"),
             new Token(TokenType.RPAREN),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with booleans', () => {
+        const tokens = Array.from(new Lexer("true false yes no none").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.KEYWORD, "true"),
+            new Token(TokenType.KEYWORD, "false"),
+            new Token(TokenType.KEYWORD, "yes"),
+            new Token(TokenType.KEYWORD, "no"),
+            new Token(TokenType.KEYWORD, "none"),
         ];
         check_tokens(tokens, expected_tokens);
     });

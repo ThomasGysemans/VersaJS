@@ -82,6 +82,10 @@ const KEYWORDS = [
     "case",
     "default",
     "none",
+    "yes",
+    "no",
+    "true",
+    "false",
 ];
 
 export default KEYWORDS;

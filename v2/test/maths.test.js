@@ -1,11 +1,11 @@
 import assert from 'assert';
 import { NoneValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
-import { Token, TokenType } from '../tokens.js'; // ok
-import { Context } from '../context.js'; // ok
-import global_symbol_table from '../symbol_table.js'; // ok
+import { Token, TokenType } from '../tokens.js';
+import { Context } from '../context.js';
 import { RuntimeError } from '../Exceptions.js';
-import { AddNode, ClassCallNode, ClassDefNode, DictionnaryElementNode, DictionnaryNode, DivideNode, EnumNode, EqualsNode, GreaterThanNode, GreaterThanOrEqualNode, LessThanNode, LessThanOrEqualNode, ListNode, ModuloNode, MultiplyNode, NoneNode, NotEqualsNode, NotNode, NumberNode, PowerNode, StringNode, VarAccessNode, VarAssignNode } from '../nodes.js';
+import global_symbol_table from '../symbol_table.js';
+import { AddNode, BooleanNode, ClassCallNode, ClassDefNode, DictionnaryElementNode, DictionnaryNode, DivideNode, EnumNode, EqualsNode, GreaterThanNode, GreaterThanOrEqualNode, LessThanNode, LessThanOrEqualNode, ListNode, ModuloNode, MultiplyNode, NoneNode, NotEqualsNode, NotNode, NumberNode, PowerNode, StringNode, VarAccessNode, VarAssignNode } from '../nodes.js';
 
 const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
 context.symbol_table = global_symbol_table;
@@ -13,7 +13,7 @@ context.symbol_table = global_symbol_table;
 /* 
 How to make tests with the interpreter?
 
-* Because of a glitch, we have to comment `CONSTANTS` in symbol_table.js AND replace it with an empty object
+* Because of a glitch, we have to comment a block in `symbol_table.js`
 * Design an operation (example: 5 ^ (1 + 2 * 10 / 10))
 * Test this operation and don't forget to console.log the generated tree (in run.js) (it might help)
 * Recreate that tree in your test.
@@ -41,6 +41,14 @@ const none = () => {
     return new NoneNode(null, null);
 };
 
+const yes = () => {
+    return new BooleanNode(1, "yes", null, null);
+};
+
+const no = () => {
+    return new BooleanNode(0, "no", null, null);
+};
+
 describe('Maths (tests every possible combinations for every kind of arithmetic operation)', () => {
     it('should work with an adddition', () => {
         const interpreter = new Interpreter();
@@ -51,9 +59,12 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // ---
         // Every possible addition that returns a number
         // ---
-        // 2 + 2         == 4      OK
-        // 2 + none      == 2      OK
-        // none + 2      == 2      OK
+        // 2 + 2       == 4      OK
+        // 2 + none    == 2      OK
+        // none + 2    == 2      OK
+        // 10 + true   == 11     OK
+        // false + 10  == 10     OK
+        // true + true == 2      OK
         tree = new AddNode(
             number(2),
             number(2),
@@ -72,6 +83,24 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         );
         expected = 2;
         assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new AddNode(
+            number(10),
+            yes(),
+        );
+        expected = 11;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new AddNode(
+            no(),
+            number(10),
+        );
+        expected = 10;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new AddNode(
+            yes(),
+            yes(),
+        );
+        expected = 2;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
 
         // ---
         // Every possible addition that returns a string
@@ -81,6 +110,8 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // "string" + "string"    == "stringstring"  OK
         // "string" + none        == "string"        OK
         // none + "string"        == "string"        OK
+        // "string" + true        == "string1"       OK
+        // false + "string"       == "0string"       OK
         tree = new AddNode(
             number(2),
             str("string"),
@@ -111,6 +142,18 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         );
         expected = "string";
         assert.deepStrictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new AddNode(
+            str("string"),
+            yes(),
+        );
+        expected = "string1";
+        assert.deepStrictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new AddNode(
+            no(),
+            str("string"),
+        );
+        expected = "0string";
+        assert.deepStrictEqual(interpreter.visit(tree, context).value.value, expected);
         // ---
 
         // ---
@@ -129,6 +172,8 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // Enum + [0]             == [0, Enum]           OK
         // [0] + none             == [0, none]           OK
         // none + [0]             == [0, none]           OK
+        // [0] + true             == [0, true]           
+        // false + [0]            == [0, false]          
         tree = new AddNode(
             new ListNode([number(0)], null, null),
             number(1),
@@ -309,6 +354,20 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         result = interpreter.visit(tree, context)
         assert.deepStrictEqual(result.value.elements[0].value, 0);
         assert.deepStrictEqual(result.value.elements[1] instanceof NoneValue, true);
+        tree = new AddNode(
+            new ListNode([number(0)], null, null),
+            yes(),
+        );
+        result = interpreter.visit(tree, context)
+        assert.deepStrictEqual(result.value.elements[0].value, 0);
+        assert.deepStrictEqual(result.value.elements[1].state, 1);
+        tree = new AddNode(
+            no(),
+            new ListNode([number(0)], null, null),
+        );
+        result = interpreter.visit(tree, context)
+        assert.deepStrictEqual(result.value.elements[0].value, 0);
+        assert.deepStrictEqual(result.value.elements[1].state, 0);
         // ---
 
         // ---
@@ -361,12 +420,15 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         let result;
 
         // ---
-        // Every possible division that returns a number
+        // Every possible multiplication that returns a number
         // ---
         // 10 * 2        == 20     OK
         // 10 * none     == 0      OK
         // none * 10     == 0      OK
         // none * none   == 0      OK
+        // 5 * true      == 5      OK
+        // true * 5      == 5      OK
+        // true * false  == 0      OK
         tree = new MultiplyNode(
             number(10),
             number(2),
@@ -388,6 +450,24 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         tree = new MultiplyNode(
             none(),
             none(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new MultiplyNode(
+            number(5),
+            yes(),
+        );
+        expected = 5;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new MultiplyNode(
+            yes(),
+            number(5),
+        );
+        expected = 5;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new MultiplyNode(
+            yes(),
+            no(),
         );
         expected = 0;
         assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
@@ -442,6 +522,10 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // 5 / none      == error  OK
         // none / 5      == error  OK
         // none / none   == error  OK
+        // 5 / false     == error  OK
+        // 5 / true      == 5      OK
+        // true / 2      == 0.5    OK
+        // true / false  == error  OK
         tree = new DivideNode(
             number(10),
             number(2),
@@ -453,7 +537,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
                 number(5),
                 none(),
             );
-            assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+            interpreter.visit(tree, context)
         } catch(e) {
             assert.strictEqual(true, e instanceof RuntimeError);
         }
@@ -462,7 +546,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
                 none(),
                 number(5),
             );
-            assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+            interpreter.visit(tree, context)
         } catch(e) {
             assert.strictEqual(true, e instanceof RuntimeError);
         }
@@ -471,7 +555,37 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
                 none(),
                 none(),
             );
-            assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+            interpreter.visit(tree, context)
+        } catch(e) {
+            assert.strictEqual(true, e instanceof RuntimeError);
+        }
+        try {
+            tree = new DivideNode(
+                number(5),
+                no(),
+            );
+            interpreter.visit(tree, context)
+        } catch(e) {
+            assert.strictEqual(true, e instanceof RuntimeError);
+        }
+        tree = new DivideNode(
+            number(5),
+            yes(),
+        );
+        expected = 5;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new DivideNode(
+            yes(),
+            number(2),
+        );
+        expected = 0.5;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        try {
+            tree = new DivideNode(
+                yes(),
+                no(),
+            );
+            interpreter.visit(tree, context)
         } catch(e) {
             assert.strictEqual(true, e instanceof RuntimeError);
         }
@@ -490,6 +604,10 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // 5 % none      == error  OK
         // none % 5      == error  OK
         // none % none   == error  OK
+        // 5 % false     == error  OK
+        // 5 % true      == 0      OK
+        // true % 2      == 1      OK
+        // true % false  == error  OK
         tree = new ModuloNode(
             number(10),
             number(2),
@@ -501,7 +619,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
                 number(5),
                 none(),
             );
-            assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+            interpreter.visit(tree, context)
         } catch(e) {
             assert.strictEqual(true, e instanceof RuntimeError);
         }
@@ -510,7 +628,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
                 none(),
                 number(5),
             );
-            assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+            interpreter.visit(tree, context)
         } catch(e) {
             assert.strictEqual(true, e instanceof RuntimeError);
         }
@@ -519,7 +637,37 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
                 none(),
                 none(),
             );
-            assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+            interpreter.visit(tree, context)
+        } catch(e) {
+            assert.strictEqual(true, e instanceof RuntimeError);
+        }
+        try {
+            tree = new ModuloNode(
+                number(5),
+                no(),
+            );
+            interpreter.visit(tree, context)
+        } catch(e) {
+            assert.strictEqual(true, e instanceof RuntimeError);
+        }
+        tree = new ModuloNode(
+            number(5),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new ModuloNode(
+            yes(),
+            number(2),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        try {
+            tree = new ModuloNode(
+                yes(),
+                no(),
+            );
+            interpreter.visit(tree, context)
         } catch(e) {
             assert.strictEqual(true, e instanceof RuntimeError);
         }
@@ -538,6 +686,9 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // 10 ^ none              == 1        OK
         // none ^ 10              == 1        OK
         // none ^ none            == 1        OK
+        // 5 ^ true               == 5        OK
+        // false ^ 5              == 0        OK
+        // true ^ false           == 1        OK
         tree = new PowerNode(
             number(10),
             number(2),
@@ -559,6 +710,24 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         tree = new PowerNode(
             none(),
             none(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new PowerNode(
+            number(5),
+            yes(),
+        );
+        expected = 5;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new PowerNode(
+            no(),
+            number(5),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        tree = new PowerNode(
+            yes(),
+            no(),
         );
         expected = 1;
         assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
@@ -594,21 +763,33 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // not 0             == 1      OK
         // not none          == 1      OK
         // not "something"   == 0      OK
+        // not true          == 0      OK
+        // not false         == 1      OK
         tree = new NotNode(
             number(0),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotNode(
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotNode(
             str("something"),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new NotNode(
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new NotNode(
+            no(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
     });
 
     it('should work with an equals node', () => {
@@ -629,30 +810,34 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // none == 0                    == 1      OK
         // 0 == none                    == 1      OK
         // "str" == none                == 0      OK
+        // 1 == true                    == 1      OK
+        // false == 0                   == 1      OK
+        // true == true                 == 1      OK
+        // false == false               == 1      OK
         tree = new EqualsNode(
             number(0),
             number(0),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new EqualsNode(
             new ListNode([number(5),number(6)],null,null),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new EqualsNode(
             str("5"),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new EqualsNode(
             number(5),
             str("5"),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new EqualsNode(
             new DictionnaryNode(
                 [
@@ -670,31 +855,55 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new EqualsNode(
             none(),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new EqualsNode(
             none(),
             number(0),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new EqualsNode(
             number(0),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new EqualsNode(
             str("str"),
             none(),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new EqualsNode(
+            number(1),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new EqualsNode(
+            no(),
+            number(0),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new EqualsNode(
+            yes(),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new EqualsNode(
+            no(),
+            no(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
     });
 
     it('should work with a less than node', () => {
@@ -727,78 +936,84 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // none < 0                     == 0      OK
         // -1 < none                    == 1      OK
         // 5 < none                     == 0      OK
+        // 0 < true                     == 1      OK
+        // 1 < true                     == 0      OK
+        // true < 2                     == 1      OK
+        // true < 0                     == 0      OK
+        // true < true                  == 0      OK
+        // false < true                 == 1      OK
         tree = new LessThanNode(
             number(5),
             number(6),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             number(5),
             number(5),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             new ListNode([number(5),number(6)],null,null),
             number(3),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             new ListNode([number(5),number(6)],null,null),
             number(1),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             number(1),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             number(3),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             new ListNode([number(5)],null,null),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             new ListNode([number(5),number(6),number(7)],null,null),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             str("str"),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             str("str"),
             number(1),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             number(1),
             str("str"),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             number(5),
             str("str"),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             new DictionnaryNode(
                 [],
@@ -814,7 +1029,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             new DictionnaryNode(
                 [
@@ -830,7 +1045,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             new DictionnaryNode(
                 [
@@ -842,7 +1057,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             number(0),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             number(0),
             new DictionnaryNode(
@@ -854,37 +1069,73 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             none(),
             none(),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             none(),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             none(),
             number(0),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             number(-1),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanNode(
             number(5),
             none(),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanNode(
+            number(0),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanNode(
+            number(1),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanNode(
+            yes(),
+            number(2),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanNode(
+            yes(),
+            number(0),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanNode(
+            yes(),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanNode(
+            no(),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
     });
 
     it('should work with a greater than node', () => {
@@ -917,78 +1168,84 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // 0 > none                     == 0      OK
         // none > -1                    == 1      OK
         // none > 5                     == 0      OK
+        // true > 0                     == 1      OK
+        // true > 1                     == 0      OK
+        // 2 > true                     == 1      OK
+        // 0 > true                     == 0      OK
+        // true > true                  == 0      OK
+        // true > false                 == 1      OK
         tree = new GreaterThanNode(
             number(6),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             number(5),
             number(5),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             number(3),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             number(1),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             new ListNode([number(5),number(6)],null,null),
             number(1),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             new ListNode([number(5),number(6)],null,null),
             number(3),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             new ListNode([number(5),number(6)],null,null),
             new ListNode([number(5)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             new ListNode([number(5),number(6)],null,null),
             new ListNode([number(5),number(6),number(7)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             number(5),
             str("str"),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             number(1),
             str("str"),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             str("str"),
             number(1),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             str("str"),
             number(5),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             new DictionnaryNode(
                 [
@@ -1004,7 +1261,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             new DictionnaryNode(
                 [],
@@ -1020,7 +1277,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             number(0),
             new DictionnaryNode(
@@ -1032,7 +1289,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             new DictionnaryNode(
                 [
@@ -1044,37 +1301,73 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             number(0),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             none(),
             none(),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             number(5),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             number(0),
             none(),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             none(),
             number(-1),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanNode(
             none(),
             number(5),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanNode(
+            yes(),
+            number(0),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanNode(
+            yes(),
+            number(1),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanNode(
+            number(2),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanNode(
+            number(0),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanNode(
+            yes(),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanNode(
+            yes(),
+            no(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
     });
 
     it('should work with a less than or equal node', () => {
@@ -1107,78 +1400,84 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // none <= 0                     == 1      OK
         // -1 <= none                    == 1      OK
         // 5 <= none                     == 0      OK
+        // 0 <= true                     == 1      OK
+        // 1 <= true                     == 1      OK
+        // true <= 2                     == 1      OK
+        // true <= 0                     == 0      OK
+        // true <= true                  == 1      OK
+        // false <= true                 == 1      OK
         tree = new LessThanOrEqualNode(
             number(5),
             number(6),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             number(5),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             new ListNode([number(5),number(6)],null,null),
             number(3),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             new ListNode([number(5),number(6)],null,null),
             number(1),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             number(1),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             number(3),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             new ListNode([number(5)],null,null),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             new ListNode([number(5),number(6),number(7)],null,null),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             str("str"),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             str("str"),
             number(1),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             number(1),
             str("str"),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             number(5),
             str("str"),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             new DictionnaryNode(
                 [],
@@ -1194,7 +1493,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             new DictionnaryNode(
                 [
@@ -1210,7 +1509,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             new DictionnaryNode(
                 [
@@ -1222,7 +1521,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             number(0),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             number(0),
             new DictionnaryNode(
@@ -1234,37 +1533,73 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             none(),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             none(),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             none(),
             number(0),
         );
         expected = 1
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             number(-1),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new LessThanOrEqualNode(
             number(5),
             none(),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanOrEqualNode(
+            number(0),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanOrEqualNode(
+            number(1),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanOrEqualNode(
+            yes(),
+            number(2),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanOrEqualNode(
+            yes(),
+            number(0),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanOrEqualNode(
+            yes(),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new LessThanOrEqualNode(
+            no(),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
     });
 
     it('should work with a greater than or equal node', () => {
@@ -1297,78 +1632,84 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // 0 >= none                     == 1      OK
         // none >= -1                    == 1      OK
         // none >= 5                     == 0      OK
+        // true >= 0                     == 1      OK
+        // true >= 1                     == 1      OK
+        // 2 >= true                     == 1      OK
+        // 0 >= true                     == 0      OK
+        // true >= true                  == 1      OK
+        // true >= false                 == 1      OK
         tree = new GreaterThanOrEqualNode(
             number(6),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             number(5),
             number(5),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             number(3),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             number(1),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             new ListNode([number(5),number(6)],null,null),
             number(1),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             new ListNode([number(5),number(6)],null,null),
             number(3),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             new ListNode([number(5),number(6)],null,null),
             new ListNode([number(5)],null,null),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             new ListNode([number(5),number(6)],null,null),
             new ListNode([number(5),number(6),number(7)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             number(5),
             str("str"),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             number(1),
             str("str"),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             str("str"),
             number(1),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             str("str"),
             number(5),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             new DictionnaryNode(
                 [
@@ -1384,7 +1725,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             new DictionnaryNode(
                 [],
@@ -1400,7 +1741,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             number(0),
             new DictionnaryNode(
@@ -1412,7 +1753,7 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             new DictionnaryNode(
                 [
@@ -1424,37 +1765,73 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             number(0),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             none(),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             number(5),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             number(0),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             none(),
             number(-1),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new GreaterThanOrEqualNode(
             none(),
             number(5),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanOrEqualNode(
+            yes(),
+            number(0),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanOrEqualNode(
+            yes(),
+            number(1),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanOrEqualNode(
+            number(2),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanOrEqualNode(
+            number(0),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanOrEqualNode(
+            yes(),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new GreaterThanOrEqualNode(
+            yes(),
+            no(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
     });
 
     it('should work with a not equals node', () => {
@@ -1475,30 +1852,34 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // none != 0                    == 0      OK
         // 0 != none                    == 0      OK
         // "str" != none                == 1      OK
+        // 1 != true                    == 0      OK
+        // false != 0                   == 0      OK
+        // true != true                 == 0      OK
+        // false != false               == 0      OK
         tree = new NotEqualsNode(
             number(0),
             number(0),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotEqualsNode(
             new ListNode([number(5),number(6)],null,null),
             new ListNode([number(5),number(6)],null,null),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotEqualsNode(
             str("5"),
             number(5),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotEqualsNode(
             number(5),
             str("5"),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotEqualsNode(
             new DictionnaryNode(
                 [
@@ -1516,30 +1897,54 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             ),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotEqualsNode(
             none(),
             none(),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotEqualsNode(
             none(),
             number(0),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotEqualsNode(
             number(0),
             none(),
         );
         expected = 0;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
         tree = new NotEqualsNode(
             str("str"),
             none(),
         );
         expected = 1;
-        assert.strictEqual(interpreter.visit(tree, context).value.value, expected);
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new NotEqualsNode(
+            number(1),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new NotEqualsNode(
+            no(),
+            number(0),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new NotEqualsNode(
+            yes(),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
+        tree = new NotEqualsNode(
+            no(),
+            no(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context).value.state, expected);
     });
 });

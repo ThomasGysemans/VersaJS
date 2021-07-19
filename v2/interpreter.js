@@ -1,5 +1,5 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode } from './nodes.js';
-import { BaseFunction, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode } from './nodes.js';
+import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
@@ -226,6 +226,8 @@ export class Interpreter {
             return this.visit_SwitchNode(node, context);
         } else if (node instanceof NoneNode) {
             return this.visit_NoneNode(node, context);
+        } else if (node instanceof BooleanNode) {
+            return this.visit_BooleanNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -295,6 +297,10 @@ export class Interpreter {
         // number + number            OK
         // number + none              OK
         // none + number              OK
+        // number + boolean           OK
+        // boolean + number           OK
+        // boolean + boolean          OK
+        // none + none                OK
         if (left instanceof NumberValue && right instanceof NumberValue) { // number + number
             return new RuntimeResult().success(
                 new NumberValue(left.value + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
@@ -307,6 +313,22 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) { // number + boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.value + right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) { // boolean + number
+            return new RuntimeResult().success(
+                new NumberValue(left.state + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) { // boolean + boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.state + right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         }
 
         // ---
@@ -317,6 +339,8 @@ export class Interpreter {
         // string + string            OK
         // string + none              OK
         // none + string              OK
+        // string + boolean           OK
+        // boolean + string           OK
         if (left instanceof NumberValue && right instanceof StringValue) { // number + string
             return new RuntimeResult().success(
                 new StringValue(left.value.toString() + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
@@ -337,6 +361,14 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new StringValue(right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof StringValue && right instanceof BooleanValue) { // string + boolean
+            return new RuntimeResult().success(
+                new StringValue(left.value + right.state.toString()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof StringValue) { // boolean + string
+            return new RuntimeResult().success(
+                new StringValue(left.state.toString() + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         }
 
         // ---
@@ -355,6 +387,8 @@ export class Interpreter {
         // enum + list                OK
         // list + none                OK
         // none + list                OK
+        // list + boolean             OK
+        // boolean + list             OK
         if (left instanceof ListValue && right instanceof NumberValue) { // list + number
             let new_values = [...left.elements, right];
             return new RuntimeResult().success(
@@ -420,6 +454,16 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof ListValue && right instanceof BooleanValue) { // list + boolean
+            let new_values = [...left.elements, right];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof ListValue) { // boolean + list
+            let new_values = [...right.elements, left];
+            return new RuntimeResult().success(
+                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         }
 
         // ---
@@ -429,16 +473,6 @@ export class Interpreter {
         if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
                 new DictionnaryValue(new Map(Array.from(left.elements.entries()).concat(Array.from(right.elements.entries())))).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        }
-
-        // ---
-        // Special
-        // ---
-        // none + none
-        if (left instanceof NoneValue && right instanceof NoneValue) {
-            return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
 
@@ -473,6 +507,18 @@ export class Interpreter {
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
                 new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value - right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.state - right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.state - right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             this.illegal_operation(node, context);
@@ -528,6 +574,18 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value * right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.state * right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.state * right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
             this.illegal_operation(node, context);
         }
@@ -568,6 +626,30 @@ export class Interpreter {
             err_divide_by_zero();
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             err_divide_by_zero();
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            if (right.state === 0) {
+                err_divide_by_zero();
+            }
+
+            return new RuntimeResult().success(
+                new NumberValue(left.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            if (right.value === 0) {
+                err_divide_by_zero();
+            }
+
+            return new RuntimeResult().success(
+                new NumberValue(left.state / right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            if (right.state === 0) {
+                err_divide_by_zero();
+            }
+
+            return new RuntimeResult().success(
+                new NumberValue(left.state / right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
             this.illegal_operation(node, context);
         }
@@ -608,6 +690,30 @@ export class Interpreter {
             err_divide_by_zero();
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             err_divide_by_zero();
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            if (right.state === 0) {
+                err_divide_by_zero();
+            }
+
+            return new RuntimeResult().success(
+                new NumberValue(left.value % right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            if (right.value === 0) {
+                err_divide_by_zero();
+            }
+            
+            return new RuntimeResult().success(
+                new NumberValue(left.state % right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            if (right.state === 0) {
+                err_divide_by_zero();
+            }
+
+            return new RuntimeResult().success(
+                new NumberValue(left.state % right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
             this.illegal_operation(node, context);
         }
@@ -636,6 +742,10 @@ export class Interpreter {
                 let list_element = left.elements[i];
                 if (list_element instanceof NumberValue) {
                     new_values.push(new NumberValue(list_element.value ** right.value).set_pos(node.pos_start, node.pos_end).set_context(context));
+                } else if (list_element instanceof BooleanValue) {
+                    new_values.push(new NumberValue(list_element.state ** right.value).set_pos(node.pos_start, node.pos_end).set_context(context));
+                } else if (list_element instanceof NoneValue) {
+                    new_values.push(new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context));
                 } else {
                     this.illegal_operation(node, context);
                 }
@@ -650,6 +760,10 @@ export class Interpreter {
                 let list_element = right.elements[i];
                 if (list_element instanceof NumberValue) {
                     new_values.push(new NumberValue(list_element.value ** left.value).set_pos(node.pos_start, node.pos_end).set_context(context));
+                } else if (list_element instanceof BooleanValue) {
+                    new_values.push(new NumberValue(list_element.state ** left.value).set_pos(node.pos_start, node.pos_end).set_context(context));
+                } else if (list_element instanceof NoneValue) {
+                    new_values.push(new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context));
                 } else {
                     this.illegal_operation(node, context);
                 }
@@ -669,6 +783,18 @@ export class Interpreter {
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
                 new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.value ** right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.state ** right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(left.state ** right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             this.illegal_operation(node, context);
@@ -694,6 +820,10 @@ export class Interpreter {
             return new RuntimeResult().success(
                 new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
+        } else if (visited_node instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(visited_node.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else {
             this.illegal_operation(node, context);
         }
@@ -717,6 +847,10 @@ export class Interpreter {
         } else if (visited_node instanceof NoneValue) {
             return new RuntimeResult().success(
                 new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (visited_node instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(-1 * visited_node.state).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             this.illegal_operation(node, context);
@@ -844,13 +978,13 @@ export class Interpreter {
 
         const truthly = () => {
             return new RuntimeResult().success(
-                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
 
         const falsy = () => {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
 
@@ -880,7 +1014,7 @@ export class Interpreter {
         if (res.should_return()) return res;
 
         return new RuntimeResult().success(
-            new NumberValue(new Number(left.is_true() || right.is_true()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+            new BooleanValue((left.is_true() || right.is_true()) ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
     }
 
@@ -897,15 +1031,19 @@ export class Interpreter {
 
         if (number instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(number.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(number.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (number instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (number instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(number.state === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -925,45 +1063,57 @@ export class Interpreter {
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value === right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof ListValue) {
             let is_equal = array_equals(left.elements, right.elements);
             return new RuntimeResult().success(
-                new NumberValue(is_equal ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(is_equal ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value == right.value.toString()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value == right.value.toString() ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(right.value == left.value.toString()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value == left.value.toString() ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value === right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value === right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             let is_equal = dictionnary_equals(left, right);
             return new RuntimeResult().success(
-                new NumberValue(is_equal ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(is_equal ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(right.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(left.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value === 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.value === right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state === right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state === right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -983,55 +1133,67 @@ export class Interpreter {
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value < right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value < right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length < right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.length < right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof ListValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value < right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value < right.elements.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof ListValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length < right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.length < right.elements.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value.length < right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value.length < right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value < right.value.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value < right.value.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size < right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.size < right.elements.size ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size < right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.size < right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value < right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value < right.elements.size ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(right.value > 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value > 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(left.value < 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value < 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.value < right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state < right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state < right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -1051,55 +1213,67 @@ export class Interpreter {
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value > right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value > right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length > right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.length > right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof ListValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value > right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value > right.elements.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof ListValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length > right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.length > right.elements.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value.length > right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value.length > right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value > right.value.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value > right.value.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size > right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.size > right.elements.size ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size > right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.size > right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value > right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value > right.elements.size ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(right.value < 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value < 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(left.value > 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value > 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.value > right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state > right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state > right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -1119,55 +1293,67 @@ export class Interpreter {
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value <= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value <= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length <= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.length <= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof ListValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value <= right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value <= right.elements.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof ListValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length <= right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.length <= right.elements.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value.length <= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value.length <= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value <= right.value.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value <= right.value.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size <= right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.size <= right.elements.size ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size <= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.size <= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value <= right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value <= right.elements.size ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(right.value >= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value >= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(left.value <= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value <= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.value <= right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state <= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state <= right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -1187,55 +1373,67 @@ export class Interpreter {
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value >= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value >= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length >= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.length >= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof ListValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value >= right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value >= right.elements.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof ListValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.length >= right.elements.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.length >= right.elements.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value.length >= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value.length >= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value >= right.value.length).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value >= right.value.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size >= right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.size >= right.elements.size ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.elements.size >= right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.elements.size >= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value >= right.elements.size).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value >= right.elements.size ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(right.value <= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value <= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(left.value >= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value >= 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.value >= right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state >= right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state >= right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -1255,45 +1453,57 @@ export class Interpreter {
 
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value !== right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value !== right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ListValue && right instanceof ListValue) {
             let is_equal = array_equals(left.elements, right.elements);
             return new RuntimeResult().success(
-                new NumberValue(is_equal ? 0 : 1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(is_equal ? 0 : 1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value !== right.value.toString()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value !== right.value.toString() ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(right.value !== left.value.toString()).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value !== left.value.toString() ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new NumberValue(new Number(left.value !== right.value).valueOf()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value !== right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             let is_equal = dictionnary_equals(left, right);
             return new RuntimeResult().success(
-                new NumberValue(is_equal ? 0 : 1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(is_equal ? 0 : 1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(right.value !== 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value !== 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
-                new NumberValue(left.value !== 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value !== 0 ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.value !== right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state !== right.value ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.state !== right.state ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             return new RuntimeResult().success(
-                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
     }
@@ -1309,10 +1519,10 @@ export class Interpreter {
         let left = res.register(this.visit(node.node_a, context));
         if (res.should_return()) return res;
         
-        // might be null or false if it's a number
-        if (left instanceof NumberValue || left instanceof NoneValue) {
-            var is_left_node_null = left instanceof NoneValue || (left.value === 0);
-            if (is_left_node_null) {
+        // if left is 0, false or null, we return the right value
+        if (left instanceof NumberValue || left instanceof BooleanValue || left instanceof NoneValue) {
+            var is_left_node_null_or_false = left instanceof NoneValue || (left instanceof BooleanValue ? left.state === 0 : left.value === 0);
+            if (is_left_node_null_or_false) {
                 let right = res.register(this.visit(node.node_b, context));
                 if (res.should_return()) return res;
                 return new RuntimeResult().success(right);
@@ -3567,5 +3777,15 @@ export class Interpreter {
      */
     visit_NoneNode(node, context) {
         return new RuntimeResult().success(new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context));
+    }
+
+    /**
+     * Interprets a boolean node.
+     * @param {BooleanNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_BooleanNode(node, context) {
+        return new RuntimeResult().success(new BooleanValue(node.state, node.display_name).set_pos(node.pos_start, node.pos_end).set_context(context));
     }
 }

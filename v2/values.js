@@ -81,9 +81,6 @@ export class NumberValue extends Value {
     }
 }
 
-NumberValue.yes = new NumberValue(1);
-NumberValue.no = new NumberValue(0);
-
 export class ListValue extends Value {
     /**
      * @constructs ListValue
@@ -632,5 +629,37 @@ export class NoneValue extends Value {
 
     toString() {
         return `none`;
+    }
+}
+
+export class BooleanValue extends Value {
+    /**
+     * @constructs BooleanValue
+     * @param {number} state false or true?
+     * @param {string} display_name "yes", "true", "no" or "false"
+     */
+    constructor(state, display_name=null) {
+        super();
+        this.state = state;
+        this.display_name = display_name ? display_name : (this.state === 1 ? 'yes' : 'no');
+    }
+
+    is_true() {
+        return this.state === 1 ? true : false;
+    }
+
+    /**
+     * @override
+     * @return {BooleanValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new BooleanValue(this.state, this.display_name);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `${this.display_name}`;
     }
 }

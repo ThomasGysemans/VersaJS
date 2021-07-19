@@ -1,10 +1,10 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode } from '../nodes.js';
 import { ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
-import { Token, TokenType } from '../tokens.js'; // ok
-import { Context } from '../context.js'; // ok
-import global_symbol_table from '../symbol_table.js'; // ok
+import { Token, TokenType } from '../tokens.js';
+import { Context } from '../context.js';
+import global_symbol_table from '../symbol_table.js';
 import { RuntimeError } from '../Exceptions.js';
 
 const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
@@ -13,7 +13,7 @@ context.symbol_table = global_symbol_table;
 /* 
 How to make tests with the interpreter?
 
-* Because of a glitch, we have to comment `CONSTANTS` in symbol_table.js AND replace it with an empty object
+* Because of a glitch, we have to comment a block in `symbol_table.js`
 * Design an operation (example: 5 ^ (1 + 2 * 10 / 10))
 * Test this operation and don't forget to console.log the generated tree (in run.js)
 * Recreate that tree in your test.
@@ -39,6 +39,14 @@ const identifier_tok = (string) => {
 
 const none = () => {
     return new NoneNode(null, null);
+};
+
+const yes = () => {
+    return new BooleanNode(1, "yes", null, null);
+};
+
+const no = () => {
+    return new BooleanNode(0, "no", null, null);
 };
 
 describe('Interpreter', () => {
@@ -104,7 +112,7 @@ describe('Interpreter', () => {
             number(30)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
 
@@ -114,7 +122,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
 
@@ -124,7 +132,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
 
@@ -134,7 +142,7 @@ describe('Interpreter', () => {
             number(30)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
 
@@ -144,7 +152,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
 
@@ -154,7 +162,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
 
@@ -164,7 +172,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
 
@@ -174,7 +182,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
 
@@ -184,7 +192,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
 
@@ -194,7 +202,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
 
@@ -204,7 +212,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
 
@@ -214,7 +222,7 @@ describe('Interpreter', () => {
             number(20)
         );
         const result = new Interpreter().visit(tree, context);
-        const value = result.value.value;
+        const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
 

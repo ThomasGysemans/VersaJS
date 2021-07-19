@@ -60,6 +60,7 @@ atom        : NUMBER|(f)?STRING|IDENTIFIER(#if variable# (PLUS|MINUS|MUL|DIV|POW
             : func-def
             : switch-expr
             : none
+            : true|yes|no|false
 
 list-expr   : LSQUARE (expr (COMMA expr)*)? RSQUARE
 

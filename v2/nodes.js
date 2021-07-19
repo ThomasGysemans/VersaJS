@@ -1243,3 +1243,24 @@ export class NoneNode extends CustomNode {
         return `(none)`;
     }
 }
+
+export class BooleanNode extends CustomNode {
+    /**
+     * @constructs BooleanNode
+     * @param {number} state true or false?
+     * @param {string} display_name "true", "yes", "no" or "false"?
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     */
+    constructor(state, display_name, pos_start, pos_end) {
+        super();
+        this.state = state;
+        this.display_name = display_name;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `(${this.display_name})`;
+    }
+}
