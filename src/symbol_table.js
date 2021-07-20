@@ -1,4 +1,4 @@
-import { NativeFunction, NumberValue } from "./values.js";
+import { NativeFunction } from "./values.js";
 
 /**
  * @classdesc Keeps track of all the declared variables in our program.

@@ -2,7 +2,7 @@ import assert from 'assert';
 import { Token, TokenType } from '../tokens.js';
 import { Lexer } from '../lexer.js';
 
-// npm run test
+// npm run test ./test/lexer.test.js
 
 /**
  * @param {Token[]} values

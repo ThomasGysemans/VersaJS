@@ -4,7 +4,7 @@ import { Parser } from '../parser.js';
 import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode } from '../nodes.js';
 import { InvalidSyntaxError } from '../Exceptions.js';
 
-// npm run test
+// npm run test ./test/parser.test.js
 
 describe('Parser tests', () => {
     it('should return numbers', () => {

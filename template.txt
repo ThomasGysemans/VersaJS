@@ -1,20 +1,18 @@
-tag Greet {
+tag Greet:
     prop name
 
-    def _private_function() {
-        return 1
-    }
+    private method private_function() -> 1
     
-    def render() {
-        const important_variable = do _private_function();
-        let name = self.name ?? "stranger";
+    method render():
+        var important_variable = self.private_function()
+        var name = self.name ?? "stranger"
         return (
             <div>
                 <h1>Hello {name}</h1>
             </div>
-        );
-    }
-}
+        )
+    end
+end
 
 __RUN__(
     <Greet name={"Thomas"}>
