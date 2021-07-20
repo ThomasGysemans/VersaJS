@@ -2,7 +2,7 @@ import fs from 'fs';
 import { run } from './run.js';
 
 let script = ``;
-let fn = "example.vjs";
+let fn = "./examples/main.vjs";
 
 try {
     script = fs.readFileSync(fn, 'utf8');

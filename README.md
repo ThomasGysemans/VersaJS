@@ -113,7 +113,7 @@ func average_grade(...marks):
     for i to length:
         s += marks[i]
     end
-    return s
+    return s / length
 end
 
 var average = average_grade(10, 11, 12) # == 11
