@@ -1,4 +1,4 @@
-# RunningJS
+# VersaJS
 
 A language made to create websites in a javascript-like way.
 
@@ -59,9 +59,9 @@ end
 var state = Status.paused
 
 switch (state):
-    case State.stopped: log("stopped") # log is a temporary native function (same as console.log)
-    case State.paused: log("paused")
-    case State.running: log("running")
+    case Status.stopped: log("stopped") # log is a temporary native function (same as console.log)
+    case Status.paused: log("paused")
+    case Status.running: log("running")
     default: log(no)
 end
 ```

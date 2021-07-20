@@ -1,6 +1,0 @@
-class add_list_and_class:
-    property nothing
-end
-
-var test_add_list_and_class = new add_list_and_class()
-log([0] + test_add_list_and_class)
