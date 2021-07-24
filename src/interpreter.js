@@ -3558,9 +3558,11 @@ export class Interpreter {
 
         let prop = base.self.get(property_name);
         let status = 1;
+        let static_prop = 0;
 
         if (prop) {
             status = prop.status;
+            static_prop = prop.static_prop;
             if (!context.is_context_in(base.context_name)) {
                 // this means that we are outside the class
                 if (status === 0 || status === 2) {
@@ -3572,11 +3574,11 @@ export class Interpreter {
                         context
                     );
                 }
-            } 
+            }
         }
 
         new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
-        base.self.set(property_name, { static_prop: 0, status, value: new_value });
+        base.self.set(property_name, { static_prop, status, value: new_value });
         context.symbol_table.set(base.name, base);
 
         return res.success(new_value);

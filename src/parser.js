@@ -606,6 +606,10 @@ export class Parser {
                 }
                 if (result instanceof ListAccessNode) {
                     return new ListAssignmentNode(result, new AddNode(result, new NumberNode(new Token(TokenType.NUMBER, difference))));
+                } else if (result instanceof CallPropertyNode) {
+                    return new AssignPropertyNode(result, new NumberNode(new Token(TokenType.NUMBER, difference)));
+                } else if (result instanceof CallStaticPropertyNode) {
+                    return new AssignPropertyNode(result, new NumberNode(new Token(TokenType.NUMBER, difference)));
                 }
                 return new PostfixOperationNode(result, difference);
             } else if (this.current_token.type === TokenType.DEC) { // b--
@@ -617,6 +621,10 @@ export class Parser {
                 }
                 if (result instanceof ListAccessNode) {
                     return new ListAssignmentNode(result, new AddNode(result, new NumberNode(new Token(TokenType.NUMBER, difference))));
+                } else if (result instanceof CallPropertyNode) {
+                    return new AssignPropertyNode(result, new NumberNode(new Token(TokenType.NUMBER, difference)));
+                } else if (result instanceof CallStaticPropertyNode) {
+                    return new AssignPropertyNode(result, new NumberNode(new Token(TokenType.NUMBER, difference)));
                 }
                 return new PostfixOperationNode(result, difference);
             }
