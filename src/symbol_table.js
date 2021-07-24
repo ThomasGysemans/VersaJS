@@ -130,9 +130,9 @@ export const CONSTANTS = {};
 // comment that if you want to execute `./test/interpreter.test.js` or `./test/maths.test.js`
 // indeed, there is a glitch: apparently mocha doesn't want to us to use static properties from classes outside the classes themselves.
 // Because of that, we cannot use any native function in the tests
-for (let i = 0; i < Object.keys(NativeFunction.NATIVE_FUNCTIONS).length; i++) {
-    let name = Object.keys(NativeFunction.NATIVE_FUNCTIONS)[i];
-    global_symbol_table.set(name, new NativeFunction(name));
-}
+// for (let i = 0; i < Object.keys(NativeFunction.NATIVE_FUNCTIONS).length; i++) {
+//     let name = Object.keys(NativeFunction.NATIVE_FUNCTIONS)[i];
+//     global_symbol_table.set(name, new NativeFunction(name));
+// }
 
 export default global_symbol_table;

@@ -1,2 +1,52 @@
-var variable
-log(variable)
+class LivingThing:
+    property isalive = yes
+    property walk_counter = 0
+
+    method __init(isalive):
+        self.isalive = isalive
+    end
+
+    set die() -> self.isalive = no
+    set resuscitate() -> self.isalive = yes
+
+    method walk():
+        self.walk_counter = self.walk_counter + 1
+    end
+end
+
+class Animal extends LivingThing:
+    property name = "name"
+    property type
+
+    method __init(name, type):
+        super(yes)
+        self.name = name
+        self.type = type
+    end
+
+    override method walk():
+        super()
+        self.walk_counter = self.walk_counter * 10
+    end
+end
+
+class Wolf extends Animal:
+    method __init(name):
+        super(name, "Wolf")
+    end
+
+    override method walk():
+        if self.isalive:
+            super()
+            return self.name + " runs"
+        else:
+            return self.name + " is dead, but walked " + self.walk_counter + " times"
+        end
+    end
+end
+
+var wolf = new Wolf("Wolfy")
+
+log(wolf.walk()) # Wolfy runs
+wolf.die()
+log(wolf.walk()) # Wolf2 is dead

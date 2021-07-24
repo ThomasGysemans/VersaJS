@@ -4,13 +4,11 @@ import { ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, String
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js';
 import { Context } from '../context.js';
-import global_symbol_table from '../symbol_table.js';
+import { SymbolTable } from '../symbol_table.js';
 import { RuntimeError } from '../Exceptions.js';
 
-const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
-context.symbol_table = global_symbol_table;
+/*
 
-/* 
 How to make tests with the interpreter?
 
 * Because of a glitch, we have to comment a block in `symbol_table.js`
@@ -19,8 +17,6 @@ How to make tests with the interpreter?
 * Recreate that tree in your test.
 
 Tests with `mocha` (npm run test ./test/interpreter.test.js)
-
-! Careful, the context is the same throughout every tests, therefore we might get errors such as "variable 'i' already exists"
 
 */
 
@@ -49,59 +45,65 @@ const no = () => {
     return new BooleanNode(0, "no", null, null);
 };
 
+const context = () => {
+    const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
+    context.symbol_table = new SymbolTable();
+    return context;
+};
+
 describe('Interpreter', () => {
     it('should work with numbers', () => {
         const tree = number(51.2);
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         assert.deepStrictEqual(value, 51.2);
     });
 
     it('should work with an addition', () => {
         const tree = new AddNode(number(27), number(14));
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         assert.deepStrictEqual(value, 41);
     });
 
     it('should work with a subtract', () => {
         const tree = new SubtractNode(number(27), number(14));
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         assert.deepStrictEqual(value, 13);
     });
 
     it('should work with a multiplication', () => {
         const tree = new MultiplyNode(number(27), number(14));
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         assert.deepStrictEqual(value, 378);
     });
 
     it('should work with a power', () => {
         const tree = new PowerNode(number(10), number(0));
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         assert.deepStrictEqual(value, 1);
     });
 
     it('should work with a divison', () => {
         const tree = new DivideNode(number(10), number(5));
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         assert.deepStrictEqual(value, 2);
     });
 
     it('should work with a modulo', () => {
         const tree = new ModuloNode(number(9), number(2));
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         assert.deepStrictEqual(value, 1);
     });
 
     it('should work with a negative number', () => {
         const tree = new MinusNode(number(5));
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         assert.deepStrictEqual(value, -5);
     });
@@ -111,7 +113,7 @@ describe('Interpreter', () => {
             number(20),
             number(30)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
@@ -121,7 +123,7 @@ describe('Interpreter', () => {
             number(30),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
@@ -131,7 +133,7 @@ describe('Interpreter', () => {
             number(30),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
@@ -141,7 +143,7 @@ describe('Interpreter', () => {
             number(20),
             number(30)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
@@ -151,7 +153,7 @@ describe('Interpreter', () => {
             number(20),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
@@ -161,7 +163,7 @@ describe('Interpreter', () => {
             number(21),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
@@ -171,7 +173,7 @@ describe('Interpreter', () => {
             number(20),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
@@ -181,7 +183,7 @@ describe('Interpreter', () => {
             number(19),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
@@ -191,7 +193,7 @@ describe('Interpreter', () => {
             number(20),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
@@ -201,7 +203,7 @@ describe('Interpreter', () => {
             number(19),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
@@ -211,7 +213,7 @@ describe('Interpreter', () => {
             number(19),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 1); // 1 == true
     });
@@ -221,14 +223,14 @@ describe('Interpreter', () => {
             number(20),
             number(20)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.state;
         assert.deepStrictEqual(value, 0); // 0 == false
     });
 
     it('should work with none', () => {
         const tree = none();
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value;
         assert.deepStrictEqual(true, value instanceof NoneValue);
     });
@@ -249,7 +251,7 @@ describe('Interpreter', () => {
                 )
             )
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         const expected = 125;
         assert.deepStrictEqual(value, expected);
@@ -257,7 +259,7 @@ describe('Interpreter', () => {
 
     it('should work with a prefix operation (before)', () => {
         const tree = new PrefixOperationNode(number(9), 1);
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         const expected = 10;
         assert.deepStrictEqual(value, expected);
@@ -269,7 +271,7 @@ describe('Interpreter', () => {
                 number(10),
                 number(0),
             );
-            const value = new Interpreter().visit(tree, context);
+            const value = new Interpreter().visit(tree, context());
         } catch(e) {
             assert.strictEqual(true, true);
         }
@@ -289,7 +291,7 @@ describe('Interpreter', () => {
             )
         );
 
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         const expected = -2166;
         assert.deepStrictEqual(value, expected);
@@ -300,7 +302,7 @@ describe('Interpreter', () => {
             identifier_tok("var_assignement"),
             number(1)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = 1;
         const value = result.value.value;
         assert.deepStrictEqual(value, expected);
@@ -317,7 +319,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.elements[1].value;
         const expected = 8;
         assert.deepStrictEqual(value, expected);
@@ -342,7 +344,7 @@ describe('Interpreter', () => {
             null,
             null
         )
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = 4;
         const value = result.value.elements[2].value;
         assert.deepStrictEqual(value, expected);
@@ -365,7 +367,7 @@ describe('Interpreter', () => {
             null
         );
         try {
-            const result = new Interpreter().visit(tree, context);
+            const result = new Interpreter().visit(tree, context());
         } catch(e) {
             assert.strictEqual(true, e instanceof RuntimeError);
         }
@@ -376,7 +378,7 @@ describe('Interpreter', () => {
             number(0),
             number(1)
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = 1;
         const value = result.value.value;
         assert.deepStrictEqual(value, expected);
@@ -391,7 +393,7 @@ describe('Interpreter', () => {
             null,
             null,
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [0, 1];
         const value = result.value.elements.map((v) => v.value);
         assert.deepStrictEqual(value, expected);
@@ -418,7 +420,7 @@ describe('Interpreter', () => {
             null,
             null,
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [1, 2, 3];
         const value = result.value.elements[1].elements.map((v) => v.value);
         assert.deepStrictEqual(value, expected);
@@ -456,7 +458,7 @@ describe('Interpreter', () => {
             null,
             null,
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [1, 2, 3, 0, 5];
         const value = result.value.elements[2].elements.map((v) => v instanceof NoneValue ? 0 : v.value);
         assert.deepStrictEqual(value, expected);
@@ -497,7 +499,7 @@ describe('Interpreter', () => {
             null,
             null,
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [2, 3, 0];
         const value = result.value.elements[1].elements.map((v) => v.value);
         assert.deepStrictEqual(value, expected);
@@ -547,7 +549,7 @@ describe('Interpreter', () => {
             null,
             null,
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = 3;
         const value = result.value.elements[1].value;
         assert.deepStrictEqual(value, expected);
@@ -619,7 +621,7 @@ describe('Interpreter', () => {
             null,
             null,
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = 6;
         const value = result.value.elements[1].value;
         assert.deepStrictEqual(value, expected);
@@ -637,7 +639,7 @@ describe('Interpreter', () => {
             new VarAccessNode(identifier_tok("i")),
             false
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
         const value = result.value.elements.map((number_value) => number_value.value);
         assert.deepStrictEqual(value, expected);
@@ -665,7 +667,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         const value = result.value.elements[1].elements.map((number_value) => number_value.value);
         assert.deepStrictEqual(value, expected);
@@ -705,7 +707,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = "majeur";
         const value = result.value.elements[1].value;
         assert.deepStrictEqual(value, expected);
@@ -745,7 +747,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = "pile 18";
         const value = result.value.elements[1].value;
         assert.deepStrictEqual(value, expected);
@@ -785,7 +787,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = "mineur";
         const value = result.value.elements[1].value;
         assert.deepStrictEqual(value, expected);
@@ -837,7 +839,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = 6;
         const value = result.value.elements[1].value;
         assert.deepStrictEqual(value, expected);
@@ -884,7 +886,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = 15;
         const value = result.value.elements[1].value;
         assert.deepStrictEqual(value, expected);
@@ -900,7 +902,7 @@ describe('Interpreter', () => {
             ),
             new NumberNode(new Token(TokenType.NUMBER, 5))
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         const expected = -1;
         assert.deepStrictEqual(value, expected);
@@ -916,7 +918,7 @@ describe('Interpreter', () => {
             ),
             new NumberNode(new Token(TokenType.NUMBER, 5))
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         const expected = 16;
         assert.deepStrictEqual(value, expected);
@@ -937,7 +939,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.elements[1].value;
         const expected = 3;
         assert.deepStrictEqual(value, expected);
@@ -958,7 +960,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.elements[1].value;
         const expected = 7;
         assert.deepStrictEqual(value, expected);
@@ -976,7 +978,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.elements[2].value;
         const expected = "I am 17.";
         assert.deepStrictEqual(value, expected);
@@ -994,7 +996,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.elements[2].value;
         const expected = "I am an adult";
         assert.deepStrictEqual(value, expected);
@@ -1041,7 +1043,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const value = result.value.elements[1].value;
         const expected = "I am 18.";
         assert.deepStrictEqual(value, expected);
@@ -1058,7 +1060,7 @@ describe('Interpreter', () => {
             null,
             null,
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const keys = [
             new StringValue("yo"),
             new StringValue("test"),
@@ -1358,7 +1360,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = "Thomas CodoPixel";
         const value = result.value.elements[2].value;
         assert.deepStrictEqual(true, result.value.elements[1] instanceof ClassValue);
@@ -1493,7 +1495,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [
             "A cat walks",
             "catty walks"
@@ -1647,7 +1649,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [
             "A dog walks",
             "default walks"
@@ -1868,7 +1870,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [
             "An animal walks",
             "Wolfy runs"
@@ -2044,7 +2046,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [
             "A snake walks",
             "default walks"
@@ -2209,7 +2211,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [
             "A rat walks",
             "default walks"
@@ -2394,7 +2396,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [
             "self.test = static property",
             "static property",
@@ -2423,7 +2425,7 @@ describe('Interpreter', () => {
             set resuscitate() -> self.isalive = 1
         end
 
-        class _Animal extends LivingThing:
+        class Animal extends LivingThing:
             property name = "name"
             property type
 
@@ -2436,38 +2438,38 @@ describe('Interpreter', () => {
             method walk() -> if self.isalive: self.name + " walks" else: self.name + " is dead"
         end
 
-        class _Wolf extends _Animal:
+        class Wolf extends Animal:
             method __init(name):
-                super(name, "_Wolf")
+                super(name, "Wolf")
             end
 
             override method walk() -> if self.isalive: self.name + " runs" else: self.name + " is dead"
         end
 
-        var _wolf = new _Wolf("Wolfy")
-        var _animal = new _Animal("Animal", "Dog")
-        var _wolf2 = new _Wolf("Wolf2");
-        _wolf.walk()
-        _wolf2.die()
-        _wolf2.walk()
-        _animal.walk()
-        _animal.isalive = 0
-        _animal.walk()
+        var wolf = new Wolf("Wolfy")
+        var animal = new Animal("Animal", "Dog")
+        var wolf2 = new Wolf("Wolf2");
+        wolf.walk()
+        wolf2.die()
+        wolf2.walk()
+        animal.walk()
+        animal.isalive = 0
+        animal.walk()
         */
         /*
         tree = [
             (Class LivingThing),
-            (Class _Animal),
-            (Class _Wolf),
-            (var _wolf = (new IDENTIFIER:_Wolf)),
-            (var _animal = (new IDENTIFIER:_Animal)),
-            (var _wolf2 = (new IDENTIFIER:_Wolf)),
-            (method (_wolf).(call (prop (_wolf).walk)(0 args))),
-            (method (_wolf2).(call (prop (_wolf2).die)(0 args))),
-            (method (_wolf2).(call (prop (_wolf2).walk)(0 args))),
-            (method (_animal).(call (prop (_animal).walk)(0 args))),
-            ((prop (_animal).isalive) = 0),
-            (method (_animal).(call (prop (_animal).walk)(0 args))),
+            (Class Animal),
+            (Class Wolf),
+            (var wolf = (new IDENTIFIER:Wolf)),
+            (var animal = (new IDENTIFIER:Animal)),
+            (var wolf2 = (new IDENTIFIER:Wolf)),
+            (method (wolf).(call (prop (wolf).walk)(0 args))),
+            (method (wolf2).(call (prop (wolf2).die)(0 args))),
+            (method (wolf2).(call (prop (wolf2).walk)(0 args))),
+            (method (animal).(call (prop (animal).walk)(0 args))),
+            ((prop (animal).isalive) = 0),
+            (method (animal).(call (prop (animal).walk)(0 args))),
         ]
         */
         // expected results:
@@ -2551,7 +2553,7 @@ describe('Interpreter', () => {
                     null
                 ),
                 new ClassDefNode(
-                    identifier_tok("_Animal"),
+                    identifier_tok("Animal"),
                     identifier_tok("LivingThing"),
                     [
                         new ClassPropertyDefNode(
@@ -2649,8 +2651,8 @@ describe('Interpreter', () => {
                     null
                 ),
                 new ClassDefNode(
-                    identifier_tok("_Wolf"),
-                    identifier_tok("_Animal"),
+                    identifier_tok("Wolf"),
+                    identifier_tok("Animal"),
                     [],
                     [
                         new ClassMethodDefNode(
@@ -2717,18 +2719,18 @@ describe('Interpreter', () => {
                     null
                 ),
                 new VarAssignNode(
-                    identifier_tok("_wolf"),
+                    identifier_tok("wolf"),
                     new ClassCallNode(
-                        identifier_tok("_Wolf"),
+                        identifier_tok("Wolf"),
                         [
                             str("Wolfy")
                         ]
                     )
                 ),
                 new VarAssignNode(
-                    identifier_tok("_animal"),
+                    identifier_tok("animal"),
                     new ClassCallNode(
-                        identifier_tok("_Animal"),
+                        identifier_tok("Animal"),
                         [
                             str("Animal"),
                             str("Dog")
@@ -2736,9 +2738,9 @@ describe('Interpreter', () => {
                     )
                 ),
                 new VarAssignNode(
-                    identifier_tok("_wolf2"),
+                    identifier_tok("wolf2"),
                     new ClassCallNode(
-                        identifier_tok("_Wolf"),
+                        identifier_tok("Wolf"),
                         [
                             str("Wolf2")
                         ]
@@ -2747,46 +2749,46 @@ describe('Interpreter', () => {
                 new CallMethodNode(
                     new CallNode(
                         new CallPropertyNode(
-                            new VarAccessNode(identifier_tok("_wolf")),
+                            new VarAccessNode(identifier_tok("wolf")),
                             identifier_tok("walk")
                         ),
                         []
                     ),
-                    new VarAccessNode(identifier_tok("_wolf"))
+                    new VarAccessNode(identifier_tok("wolf"))
                 ),
                 new CallMethodNode(
                     new CallNode(
                         new CallPropertyNode(
-                            new VarAccessNode(identifier_tok("_wolf2")),
+                            new VarAccessNode(identifier_tok("wolf2")),
                             identifier_tok("die")
                         ),
                         []
                     ),
-                    new VarAccessNode(identifier_tok("_wolf2"))
+                    new VarAccessNode(identifier_tok("wolf2"))
                 ),
                 new CallMethodNode(
                     new CallNode(
                         new CallPropertyNode(
-                            new VarAccessNode(identifier_tok("_wolf2")),
+                            new VarAccessNode(identifier_tok("wolf2")),
                             identifier_tok("walk")
                         ),
                         []
                     ),
-                    new VarAccessNode(identifier_tok("_wolf2"))
+                    new VarAccessNode(identifier_tok("wolf2"))
                 ),
                 new CallMethodNode(
                     new CallNode(
                         new CallPropertyNode(
-                            new VarAccessNode(identifier_tok("_animal")),
+                            new VarAccessNode(identifier_tok("animal")),
                             identifier_tok("walk")
                         ),
                         []
                     ),
-                    new VarAccessNode(identifier_tok("_animal"))
+                    new VarAccessNode(identifier_tok("animal"))
                 ),
                 new AssignPropertyNode(
                     new CallPropertyNode(
-                        new VarAccessNode(identifier_tok("_animal")),
+                        new VarAccessNode(identifier_tok("animal")),
                         identifier_tok("isalive")
                     ),
                     number(0)
@@ -2794,18 +2796,18 @@ describe('Interpreter', () => {
                 new CallMethodNode(
                     new CallNode(
                         new CallPropertyNode(
-                            new VarAccessNode(identifier_tok("_animal")),
+                            new VarAccessNode(identifier_tok("animal")),
                             identifier_tok("walk")
                         ),
                         []
                     ),
-                    new VarAccessNode(identifier_tok("_animal"))
+                    new VarAccessNode(identifier_tok("animal"))
                 )
             ],
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [
             "Wolfy runs",
             "Wolf2 is dead",
@@ -2817,6 +2819,416 @@ describe('Interpreter', () => {
             result.value.elements[8].value,
             result.value.elements[9].value,
             result.value.elements[11].value,
+        ];
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with complex inheritance (with super in another method than __init)', () => {
+        /*
+        class LivingThing:
+            property isalive = yes
+            property walk_counter = 0
+
+            method __init(isalive):
+                self.isalive = isalive
+            end
+
+            set die() -> self.isalive = no
+            set resuscitate() -> self.isalive = yes
+
+            method walk():
+                self.walk_counter = self.walk_counter + 1
+            end
+        end
+
+        class Animal extends LivingThing:
+            property name = "name"
+            property type
+
+            method __init(name, type):
+                super(yes)
+                self.name = name
+                self.type = type
+            end
+
+            override method walk():
+                super()
+                self.walk_counter = self.walk_counter * 10
+            end
+        end
+
+        class Wolf extends Animal:
+            method __init(name):
+                super(name, "Wolf")
+            end
+
+            override method walk():
+                if self.isalive:
+                    super()
+                    return self.name + " runs"
+                else:
+                    return self.name + " is dead, but walked " + self.walk_counter + " times"
+                end
+            end
+        end
+
+        var wolf = new Wolf("Wolfy")
+        wolf.walk() # Wolfy runs
+        wolf.die()
+        wolf.walk() # Wolfy is dead, but walked 10 times
+        */
+        /*
+        tree = [
+            (Class LivingThing),
+            (Class Animal),
+            (Class Wolf),
+            (var wolf = (new IDENTIFIER:Wolf)),
+            (method (wolf).(call (prop (wolf).walk)(0 args))),
+            (method (wolf).(call (prop (wolf).die)(0 args))),
+            (method (wolf).(call (prop (wolf).walk)(0 args))),
+        ]
+        */
+        // expected results:
+        // Wolfy runs
+        // Wolfy is dead, but walked 10 times
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("LivingThing"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("isalive"),
+                            yes(),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("walk_counter"),
+                            number(0),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [
+                                    new ArgumentNode(identifier_tok("isalive")),
+                                ],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("isalive")
+                                    ),
+                                    new VarAccessNode(identifier_tok("isalive"))
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("walk"),
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("walk_counter")
+                                    ),
+                                    new AddNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("self")),
+                                            identifier_tok("walk_counter")
+                                        ),
+                                        number(1)
+                                    ),
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("die"),
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("isalive")
+                                    ),
+                                    no()
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("resuscitate"),
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("isalive")
+                                    ),
+                                    yes()
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    null,
+                    null
+                ),
+                new ClassDefNode(
+                    identifier_tok("Animal"),
+                    identifier_tok("LivingThing"),
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("name"),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("type"),
+                            number(0),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [
+                                    new ArgumentNode(identifier_tok("name")),
+                                    new ArgumentNode(identifier_tok("type")),
+                                ],
+                                new ListNode(
+                                    [
+                                        new SuperNode([yes()], null, null),
+                                        new AssignPropertyNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("name")
+                                            ),
+                                            new VarAccessNode(identifier_tok("name"))
+                                        ),
+                                        new AssignPropertyNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("type")
+                                            ),
+                                            new VarAccessNode(identifier_tok("type"))
+                                        )
+                                    ],
+                                    null,
+                                    null
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("walk"),
+                                [],
+                                new ListNode(
+                                    [
+                                        new SuperNode([], null, null),
+                                        new AssignPropertyNode(
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("walk_counter")
+                                            ),
+                                            new MultiplyNode(
+                                                new CallPropertyNode(
+                                                    new VarAccessNode(identifier_tok("self")),
+                                                    identifier_tok("walk_counter"),
+                                                ),
+                                                number(10)
+                                            ),
+                                        )
+                                    ],
+                                    null,
+                                    null
+                                ),
+                                false
+                            ),
+                            1,
+                            1,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new ClassDefNode(
+                    identifier_tok("Wolf"),
+                    identifier_tok("Animal"),
+                    [],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [
+                                    new ArgumentNode(identifier_tok("name")),
+                                ],
+                                new SuperNode(
+                                    [
+                                        new VarAccessNode(identifier_tok("name")),
+                                        str("Wolf")
+                                    ],
+                                    null,
+                                    null
+                                ),
+                                false
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("walk"),
+                                [],
+                                new IfNode(
+                                    [
+                                        [
+                                            new CallPropertyNode(
+                                                new VarAccessNode(identifier_tok("self")),
+                                                identifier_tok("isalive")
+                                            ),
+                                            new ListNode(
+                                                [
+                                                    new SuperNode([], null, null),
+                                                    new ReturnNode(
+                                                        new AddNode(
+                                                            new CallPropertyNode(
+                                                                new VarAccessNode(identifier_tok("self")),
+                                                                identifier_tok("name")
+                                                            ),
+                                                            str(" runs")
+                                                        ),
+                                                        null,
+                                                        null
+                                                    ),
+                                                ],
+                                                null,
+                                                null
+                                            ),
+                                            true
+                                        ]
+                                    ],
+                                    { code: new ReturnNode(
+                                        new AddNode(
+                                            new AddNode(
+                                                new AddNode(
+                                                    new CallPropertyNode(
+                                                        new VarAccessNode(identifier_tok("self")),
+                                                        identifier_tok("name")
+                                                    ),
+                                                    str(" is dead, but walked ")
+                                                ),
+                                                new CallPropertyNode(
+                                                    new VarAccessNode(identifier_tok("self")),
+                                                    identifier_tok("walk_counter")
+                                                )
+                                            ),
+                                            str(" times")
+                                        ),
+                                        null,
+                                        null
+                                    ), should_return_null: true },
+                                    null,
+                                    null
+                                ),
+                                false
+                            ),
+                            1,
+                            1,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new VarAssignNode(
+                    identifier_tok("wolf"),
+                    new ClassCallNode(
+                        identifier_tok("Wolf"),
+                        [
+                            str("Wolfy")
+                        ]
+                    )
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("wolf")),
+                            identifier_tok("walk")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("wolf"))
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("wolf")),
+                            identifier_tok("die")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("wolf"))
+                ),
+                new CallMethodNode(
+                    new CallNode(
+                        new CallPropertyNode(
+                            new VarAccessNode(identifier_tok("wolf")),
+                            identifier_tok("walk")
+                        ),
+                        []
+                    ),
+                    new VarAccessNode(identifier_tok("wolf"))
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        const expected = [
+            "Wolfy runs",
+            "Wolfy is dead, but walked 10 times",
+        ];
+        const values = [
+            result.value.elements[4].value,
+            result.value.elements[6].value,
         ];
         assert.deepStrictEqual(values, expected);
     });
@@ -2853,7 +3265,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = ["yo"];
         const values = result.value.elements[1].elements.map((v) => v.value);
         assert.deepStrictEqual(values, expected);
@@ -2933,7 +3345,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = 11;
         const values = result.value.elements[1].value;
         assert.deepStrictEqual(values, expected);
@@ -2976,7 +3388,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = [0, 1];
         const values = [result.value.elements[1].value, result.value.elements[2].value];
         assert.deepStrictEqual(values, expected);
@@ -3026,7 +3438,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = "5";
         const values = result.value.elements[3].value;
         assert.deepStrictEqual(values, expected);
@@ -3079,7 +3491,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = "default";
         const values = result.value.elements[3].value;
         assert.deepStrictEqual(values, expected);
@@ -3128,7 +3540,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = "4 or 3";
         const values = result.value.elements[3].value;
         assert.deepStrictEqual(values, expected);
@@ -3213,7 +3625,7 @@ describe('Interpreter', () => {
             null,
             null
         );
-        const result = new Interpreter().visit(tree, context);
+        const result = new Interpreter().visit(tree, context());
         const expected = "paused";
         const values = result.value.elements[4].value;
         assert.deepStrictEqual(values, expected);
