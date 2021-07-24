@@ -250,7 +250,7 @@ export class BaseFunction extends Value {
             }
         }
 
-        const mandatory_args = args.filter((v) => v.is_optional === true && v.is_rest === true);
+        const mandatory_args = args.filter((v) => v.is_optional === false && v.is_rest === false);
 
         // too few arguments
         if (given_args.length < mandatory_args.length) {

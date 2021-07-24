@@ -3649,22 +3649,23 @@ export class Interpreter {
         let res = new RuntimeResult();
         let args = [];
         
-        // the goal here is to give the __init method the right instance of self
+        // the goal here is to give the parent method the right instance of self
         // for that, we grab self from the current context
         // and we look in the context in order to determin in which class we are
-        // We execute the __init method for each parent.
+        // We execute the corresponding method for each parent.
         // just a little problem: self::__name (and other constants) will always be a reference to the first class that calls super()
         // It was pretty complicated so the solution might be ugly
 
         const err_outside = () => {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
-                "The super function cannot be called outside the __init method or in another context.",
+                "The super function cannot be called outside of a method or in a deeper context inside the method.",
                 context
             );
         };
 
-        if (context.display_name !== "__init") err_outside();
+        // the name of the method in wich the super function is used
+        let method_name = context.display_name;
 
         /** @type {ClassValue} */
         let class_value = context.symbol_table.get('self');
@@ -3693,10 +3694,17 @@ export class Interpreter {
             if (res.should_return()) return res;
         }
 
-        let __init_parent = parent_class.self.get('__init').value.copy();
-        __init_parent.context.symbol_table.set('self', class_value);
+        let parent_method = parent_class.self.get(method_name) ? parent_class.self.get(method_name).value.copy() : null;
+        if (!parent_method) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Such a method does not exist in the parent class",
+                context
+            );
+        }
+        parent_method.context.symbol_table.set('self', class_value);
         // @ts-ignore
-        __init_parent.execute(args);
+        parent_method.execute(args);
 
         return res.success(new NoneValue());
     }

@@ -151,7 +151,7 @@ class Animal extends LivingThing:
         self.type = type
     end
 
-    method walk() -> if self.isalive: self.name + " walks" else: self.name + " is dead"
+    method walk() -> log(if self.isalive: self.name + " walks" else: self.name + " is dead")
 end
 
 class Wolf extends Animal:
@@ -159,8 +159,7 @@ class Wolf extends Animal:
         super(name, "Wolf")
     end
 
-    # does not support `super` yet
-    override method walk() -> if self.isalive: self.name + " runs" else: self.name + " is dead"
+    override method walk() -> log(if self.isalive: self.name + " runs" else: self.name + " is dead")
 end
 
 var wolf = new Wolf("Wolfy")
