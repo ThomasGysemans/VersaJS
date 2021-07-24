@@ -22,7 +22,7 @@ class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON
                 | (KEYWORD:set) IDENTIFIER call_func
                 # greedy
 
-expr        : KEYWORD:VAR IDENTIFIER EQUALS expr
+expr        : KEYWORD:VAR IDENTIFIER (EQUALS expr)?
             : KEYWORD:DEFINE IDENTIFIER EQUALS expr
             : KEYWORD:DELETE call
             : comp-expr ((KEYWORD:AND|KEYWORD:OR) comp-expr)*

@@ -111,63 +111,68 @@ export class Parser {
             this.advance();
         }
 
+        // the file is empty
         if (this.current_token.type === TokenType.EOF) {
-            throw new InvalidSyntaxError(
-                pos_start, this.current_token.pos_end,
-                "Unexpected end of file"
-            );
+            return new ListNode(statements, null, null);
         }
 
         let statement = this.statement();
         statements.push(statement);
 
-        let more_statements = true;
+        let more_statements = this.current_token !== null && this.current_token.type !== TokenType.EOF;
 
-        while (true) {
-            let newline_count = 0;
-            while (this.is_newline()) {
-                this.advance();
-                newline_count++;
-            }
-
-            if (this.current_token.type === TokenType.EOF) break;
-
-            // there are no more lines
-            if (newline_count === 0) more_statements = false;
-            if (!more_statements) break;
-            
-            if (this.current_token.matches(TokenType.KEYWORD, "elif")) {
-                more_statements = false;
-                continue;
-            } else if (this.current_token.matches(TokenType.KEYWORD, "else")) {
-                more_statements = false;
-                continue;
-            } else if (this.current_token.matches(TokenType.KEYWORD, "end")) {
-                more_statements = false;
-                continue;
-            } else if (this.current_token.matches(TokenType.KEYWORD, "case")) { // we don't use `break` for the end of a case in a switch
-                more_statements = false;
-                continue;
-            } else if (this.current_token.matches(TokenType.KEYWORD, "default")) { // we don't use `break` for the end of a case in a switch
-                more_statements = false;
-                continue;
-            } else {
-                statement = this.statement();
-
-                if (!statement) {
-                    more_statements = false;
-                    continue;
+        if (more_statements) {
+            while (true) {
+                let newline_count = 0;
+                while (this.is_newline()) {
+                    this.advance();
+                    newline_count++;
                 }
 
-                statements.push(statement);
-            }
-        }
+                if (this.current_token.type === TokenType.EOF) break;
 
-        return new ListNode(
-            statements,
-            pos_start,
-            this.current_token.pos_end.copy()
-        );
+                // there are no more lines
+                if (newline_count === 0) more_statements = false;
+                if (!more_statements) break;
+                
+                if (this.current_token.matches(TokenType.KEYWORD, "elif")) {
+                    more_statements = false;
+                    continue;
+                } else if (this.current_token.matches(TokenType.KEYWORD, "else")) {
+                    more_statements = false;
+                    continue;
+                } else if (this.current_token.matches(TokenType.KEYWORD, "end")) {
+                    more_statements = false;
+                    continue;
+                } else if (this.current_token.matches(TokenType.KEYWORD, "case")) { // we don't use `break` for the end of a case in a switch
+                    more_statements = false;
+                    continue;
+                } else if (this.current_token.matches(TokenType.KEYWORD, "default")) { // we don't use `break` for the end of a case in a switch
+                    more_statements = false;
+                    continue;
+                } else {
+                    statement = this.statement();
+
+                    if (!statement) {
+                        more_statements = false;
+                        continue;
+                    }
+
+                    statements.push(statement);
+                }
+            }
+            return new ListNode(
+                statements,
+                pos_start,
+                this.current_token.pos_end.copy()
+            );
+        } else {
+            return new ListNode(
+                statements,
+                pos_start,
+                statements[statements.length - 1].pos_end.copy()
+            );
+        }
     }
 
     statement() {
@@ -474,19 +479,25 @@ export class Parser {
             const var_name_tok = this.current_token;
             this.advance();
 
-            if (this.current_token.type !== TokenType.EQUALS) {
-                throw new InvalidSyntaxError(
-                    pos_start, this.current_token.pos_end,
-                    "Expected equals"
-                );
-            }
-
-            this.advance();
-            const value_node = this.expr();
-
-            if (is_variable) {
+            if (is_variable) { // is var?
+                let value_node;
+                if (this.current_token.type === TokenType.EQUALS) {
+                    this.advance();
+                    value_node = this.expr();
+                } else {
+                    value_node = new NoneNode(this.current_token.pos_start.copy(), this.current_token.pos_end.copy());
+                }
                 return new VarAssignNode(var_name_tok, value_node);
-            } else {
+            } else { // is define?
+                if (this.current_token.type !== TokenType.EQUALS) {
+                    throw new InvalidSyntaxError(
+                        pos_start, this.current_token.pos_end,
+                        "Expected equals"
+                    );
+                }
+
+                this.advance();
+                const value_node = this.expr();
                 return new DefineNode(var_name_tok, value_node);
             }
         } else if (this.current_token.matches(TokenType.KEYWORD, "delete")) {
@@ -1162,6 +1173,7 @@ export class Parser {
 
         // if the dictionnary is empty ("{}")
         if (this.current_token.type === TokenType.RBRACK) {
+            pos_end = this.current_token.pos_end.copy();
             this.advance();
         } else {
             const read_element = () => {
