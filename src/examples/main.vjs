@@ -1,9 +1,6 @@
 class Maths:
-    static property number = 0
+    static property number = 5
 end
 
-log(Maths::number--)
-log(++Maths::number)
-log(Maths::number)
-log(Maths::number++)
+Maths::number *= 2
 log(Maths::number)

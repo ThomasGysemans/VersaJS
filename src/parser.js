@@ -573,6 +573,8 @@ export class Parser {
                         return new VarModifyNode(result.var_name_tok, new AddNode(result, this.expr()));
                     } else if (result instanceof ListAccessNode) {
                         return new ListAssignmentNode(result, new AddNode(result, this.expr()));
+                    } else if (result instanceof CallPropertyNode || result instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(result, new AddNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
                             result.pos_start, this.current_token.pos_end,
@@ -589,6 +591,8 @@ export class Parser {
                         return new VarModifyNode(result.var_name_tok, new SubtractNode(result, this.expr()));
                     } else if (result instanceof ListAccessNode) {
                         return new ListAssignmentNode(result, new SubtractNode(result, this.expr()));
+                    } else if (result instanceof CallPropertyNode || result instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(result, new SubtractNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
                             result.pos_start, this.current_token.pos_end,
@@ -649,6 +653,8 @@ export class Parser {
                         return new VarModifyNode(node_a.var_name_tok, new MultiplyNode(node_a, this.expr()));
                     } else if (node_a instanceof ListAccessNode) {
                         return new ListAssignmentNode(node_a, new MultiplyNode(node_a, this.expr()));
+                    } else if (node_a instanceof CallPropertyNode || node_a instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(node_a, new MultiplyNode(node_a, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
                             node_a.pos_start, this.current_token.pos_end,
@@ -665,6 +671,8 @@ export class Parser {
                         return new VarModifyNode(node_a.var_name_tok, new DivideNode(node_a, this.expr()));
                     } else if (node_a instanceof ListAccessNode) {
                         return new ListAssignmentNode(node_a, new DivideNode(node_a, this.expr()));
+                    } else if (node_a instanceof CallPropertyNode || node_a instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(node_a, new DivideNode(node_a, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
                             node_a.pos_start, this.current_token.pos_end,
@@ -681,6 +689,8 @@ export class Parser {
                         return new VarModifyNode(node_a.var_name_tok, new PowerNode(node_a, this.expr()));
                     } else if (node_a instanceof ListAccessNode) {
                         return new ListAssignmentNode(node_a, new PowerNode(node_a, this.expr()));
+                    } else if (node_a instanceof CallPropertyNode || node_a instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(node_a, new PowerNode(node_a, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
                             node_a.pos_start, this.current_token.pos_end,
@@ -697,6 +707,8 @@ export class Parser {
                         return new VarModifyNode(node_a.var_name_tok, new ModuloNode(node_a, this.expr()));
                     } else if (node_a instanceof ListAccessNode) {
                         return new ListAssignmentNode(node_a, new ModuloNode(node_a, this.expr()));
+                    } else if (node_a instanceof CallPropertyNode || node_a instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(node_a, new ModuloNode(node_a, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
                             node_a.pos_start, this.current_token.pos_end,
