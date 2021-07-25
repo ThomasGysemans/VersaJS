@@ -66,7 +66,7 @@ export class NumberValue extends Value {
     }
 
     is_true() {
-        return this.value === 1;
+        return this.value !== 0;
     }
 
     /**

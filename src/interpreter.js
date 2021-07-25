@@ -1680,17 +1680,11 @@ export class Interpreter {
         let res = new RuntimeResult();
         let left = res.register(this.visit(node.node_a, context));
         if (res.should_return()) return res;
-        
-        // if left is 0, false or null, we return the right value
-        if (left instanceof NumberValue || left instanceof BooleanValue || left instanceof NoneValue) {
-            var is_left_node_null_or_false = left instanceof NoneValue || (left instanceof BooleanValue ? left.state === 0 : left.value === 0);
-            if (is_left_node_null_or_false) {
-                let right = res.register(this.visit(node.node_b, context));
-                if (res.should_return()) return res;
-                return new RuntimeResult().success(right);
-            } else {
-                return new RuntimeResult().success(left);
-            }
+
+        if (!left.is_true()) {
+            let right = res.register(this.visit(node.node_b, context));
+            if (res.should_return()) return res;
+            return new RuntimeResult().success(right);
         } else {
             return new RuntimeResult().success(left);
         }
