@@ -1,6 +1,16 @@
-class Maths:
-    static property number = 5
-end
+# "falsy" values
+# returns 'no' in a boolean context
+var null = none
+var falsy = no
+var zero = 0
+var empty_list = []
+var empty_dict = {}
+var empty_string = ""
 
-Maths::number *= 2
-log(Maths::number)
+# shouldn't do anything
+if null: log("null is true")
+if falsy: log("no is true")
+if zero: log("0 is true")
+if empty_list: log("empty list is true")
+if empty_dict: log("empty dict is true")
+if empty_string: log("empty string is true")

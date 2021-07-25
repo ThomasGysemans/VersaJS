@@ -16,9 +16,9 @@ In the `src` folder, there is a text file which describes the grammar of the lan
 
 ```
 var big_number = 100_000 # == 100000
-var true = yes
-var false = no
-var null = none
+var truthly = yes # or 'true'
+var falsy = no # or 'false'
+var null = none # 'null' does not exist by default
 var list = ["Hello"]
 var name = "Thomas"
 var dictionnary = {"age": 17}
@@ -34,8 +34,8 @@ define NAME = "Thomas"
 * Logical comparisons
 
 ```
-var variable = 5 == 5
 var nullish_operator = none ?? "Default value if the left expression is none"
+var variable = 5 == 5
 var condition = if 5 == 5: "5 == 5" elif 4 == 5: "4 == 5" else: "else"
 
 if 5 == 5:

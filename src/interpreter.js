@@ -1138,28 +1138,20 @@ export class Interpreter {
         let left = res.register(this.visit(node.node_a, context));
         if (res.should_return()) return res;
 
-        const truthly = () => {
-            return new RuntimeResult().success(
-                new BooleanValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        }
-
-        const falsy = () => {
-            return new RuntimeResult().success(
-                new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        }
-
         if (left.is_true()) {
             let right = res.register(this.visit(node.node_b, context));
             if (res.should_return()) return res;
 
             if (right.is_true()) {
-                return truthly();
+                return new RuntimeResult().success(
+                    new BooleanValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                );
             }
         }
 
-        return falsy();
+        return new RuntimeResult().success(
+            new BooleanValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
     }
 
     /**
@@ -1175,9 +1167,11 @@ export class Interpreter {
         let right = res.register(this.visit(node.node_b, context));
         if (res.should_return()) return res;
 
-        return new RuntimeResult().success(
-            new BooleanValue((left.is_true() || right.is_true()) ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
-        );
+        // returns the thruthly expression
+        // not just a boolean unlike 'and'
+        let truthly_element = (left.is_true() ? left : right).copy().set_pos(node.pos_start, node.pos_end).set_context(context);
+
+        return new RuntimeResult().success(truthly_element);
     }
 
     /**
