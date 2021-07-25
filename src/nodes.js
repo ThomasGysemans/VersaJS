@@ -216,7 +216,7 @@ export class PowerNode extends CustomNode {
     }
 
     toString() {
-        return `(${this.node_a}^${this.node_b})`;
+        return `(${this.node_a}**${this.node_b})`;
     }
 }
 
@@ -235,7 +235,7 @@ export class ModuloNode extends CustomNode {
     }
 
     toString() {
-        return `(${this.node_a}^${this.node_b})`;
+        return `(${this.node_a}%${this.node_b})`;
     }
 }
 

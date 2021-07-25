@@ -675,7 +675,7 @@ export class Parser {
                 result = new DivideNode(result ? result : node_a, this.factor());
             } else if (this.current_token.type === TokenType.POWER) {
                 this.advance();
-                if (this.current_token.type === TokenType.EQUALS) { // ^=
+                if (this.current_token.type === TokenType.EQUALS) { // **=
                     this.advance();
                     if (node_a instanceof VarAccessNode) {
                         return new VarModifyNode(node_a.var_name_tok, new PowerNode(node_a, this.expr()));

@@ -46,7 +46,7 @@ describe('Lexer tests', () => {
     });
 
     it('should return all operators', () => {
-        const tokens = Array.from(new Lexer("+-*/^").generate_tokens());
+        const tokens = Array.from(new Lexer("+-*/**").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.PLUS),
             new Token(TokenType.MINUS),
@@ -58,7 +58,7 @@ describe('Lexer tests', () => {
     });
 
     it('should work with power operations', () => {
-        const tokens = Array.from(new Lexer("10 ^ 2").generate_tokens());
+        const tokens = Array.from(new Lexer("10 ** 2").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 10),
             new Token(TokenType.POWER),
@@ -68,7 +68,7 @@ describe('Lexer tests', () => {
     });
 
     it('should work with power operations (list)', () => {
-        const tokens = Array.from(new Lexer("[2] ^ 2").generate_tokens());
+        const tokens = Array.from(new Lexer("[2] ** 2").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.LSQUARE),
             new Token(TokenType.NUMBER, 2),

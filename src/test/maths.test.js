@@ -12,7 +12,7 @@ import { AddNode, BooleanNode, ClassCallNode, ClassDefNode, DictionnaryElementNo
 How to make tests with the interpreter?
 
 * Because of a glitch, we have to comment a block in `symbol_table.js`
-* Design an operation (example: 5 ^ (1 + 2 * 10 / 10))
+* Design an operation (example: 5 ** (1 + 2 * 10 / 10))
 * Test this operation and don't forget to console.log the generated tree (in run.js) (it might help)
 * Recreate that tree in your test.
 
@@ -684,13 +684,13 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // ---
         // Every possible power operations that returns a number
         // ---
-        // 10 ^ 2                 == 100      OK
-        // 10 ^ none              == 1        OK
-        // none ^ 10              == 1        OK
-        // none ^ none            == 1        OK
-        // 5 ^ true               == 5        OK
-        // false ^ 5              == 0        OK
-        // true ^ false           == 1        OK
+        // 10 ** 2                 == 100      OK
+        // 10 ** none              == 1        OK
+        // none ** 10              == 1        OK
+        // none ** none            == 1        OK
+        // 5 ** true               == 5        OK
+        // false ** 5              == 0        OK
+        // true ** false           == 1        OK
         tree = new PowerNode(
             number(10),
             number(2),
@@ -737,8 +737,8 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         // ---
         // Every possible power operations that returns a list
         // ---
-        // [5, 10] ^ 2            == [25, 100]      OK
-        // 2 ^ [5, 10]            == [25, 100]      OK
+        // [5, 10] ** 2            == [25, 100]      OK
+        // 2 ** [5, 10]            == [25, 100]      OK
         tree = new PowerNode(
             new ListNode([number(5),number(10)],null,null),
             number(2),

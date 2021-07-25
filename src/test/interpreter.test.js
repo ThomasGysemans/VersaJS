@@ -12,7 +12,7 @@ import { RuntimeError } from '../Exceptions.js';
 How to make tests with the interpreter?
 
 * Because of a glitch, we have to comment a block in `symbol_table.js`
-* Design an operation (example: 5 ^ (1 + 2 * 10 / 10))
+* Design an operation (example: 5 ** (1 + 2 * 10 / 10))
 * Test this operation and don't forget to console.log the generated tree (in run.js)
 * Recreate that tree in your test.
 
@@ -236,8 +236,8 @@ describe('Interpreter', () => {
     });
 
     it('should work with a complex operation', () => {
-        // 5 ^ (1 + 2 * 10 / 10) = 125
-        // tree = (5^(1+((2*10)/10)))
+        // 5 ** (1 + 2 * 10 / 10) = 125
+        // tree = (5**(1+((2*10)/10)))
         const tree = new PowerNode(
             number(5),
             new AddNode(

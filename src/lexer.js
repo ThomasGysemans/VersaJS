@@ -54,20 +54,14 @@ export class Lexer {
             } else if (this.current_char === "." || is_in(this.current_char, DIGITS)) {
                 yield this.make_number();
             } else if (this.current_char === "+") {
-                // this.advance();
-                // yield new Token(TokenType.PLUS, null, this.pos);
                 yield this.make_plus_or_increment();
             } else if (this.current_char === "-") {
                 yield this.make_minus_decrement_or_arrow();
             } else if (this.current_char === "*") {
-                this.advance();
-                yield new Token(TokenType.MULTIPLY, null, this.pos);
+                yield this.make_mul_or_power();
             } else if (this.current_char === "/") {
                 this.advance();
                 yield new Token(TokenType.DIVIDE, null, this.pos);
-            } else if (this.current_char === "^") {
-                this.advance();
-                yield new Token(TokenType.POWER, null, this.pos);
             } else if (this.current_char === "%") {
                 this.advance();
                 yield new Token(TokenType.MODULO, null, this.pos);
@@ -328,6 +322,19 @@ export class Lexer {
         if (this.current_char === ":") {
             this.advance();
             tok_type = TokenType.DOUBLE_COLON;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_mul_or_power() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.MULTIPLY;
+        this.advance();
+
+        if (this.current_char === "*") {
+            this.advance();
+            tok_type = TokenType.POWER;
         }
 
         return new Token(tok_type, null, pos_start, this.pos);

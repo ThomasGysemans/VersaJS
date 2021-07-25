@@ -50,20 +50,20 @@ describe('Parser tests', () => {
     });
 
     it('should work with a power', () => {
-        const tokens = new Lexer("27 ^ 14").generate_tokens();
+        const tokens = new Lexer("27 ** 14").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof PowerNode);
         // new PowerNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14)))
     });
 
     it('should work with a power (list)', () => {
-        const tokens = new Lexer("[2] ^ 14").generate_tokens();
+        const tokens = new Lexer("[2] ** 14").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof PowerNode);
     });
 
     it('should work with a complex power', () => {
-        const tokens = new Lexer("(1 + 2) ^ (1 + 2)").generate_tokens();
+        const tokens = new Lexer("(1 + 2) ** (1 + 2)").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof PowerNode);
         if (node.element_nodes[0] instanceof PowerNode) {
