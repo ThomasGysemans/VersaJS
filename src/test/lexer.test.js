@@ -106,6 +106,36 @@ describe('Lexer tests', () => {
         check_tokens(tokens, expected_tokens);
     });
 
+    it('should work with bitwise shift operator (<<)', () => {
+        const tokens = Array.from(new Lexer("256 << 2").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 256),
+            new Token(TokenType.BINARY_LEFT),
+            new Token(TokenType.NUMBER, 2),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with bitwise shift operator (>>)', () => {
+        const tokens = Array.from(new Lexer("256 >> 2").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 256),
+            new Token(TokenType.BINARY_RIGHT),
+            new Token(TokenType.NUMBER, 2),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with bitwise shift operator (>>>)', () => {
+        const tokens = Array.from(new Lexer("256 >>> 2").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NUMBER, 256),
+            new Token(TokenType.BINARY_UNSIGNED_RIGHT),
+            new Token(TokenType.NUMBER, 2),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
     it('should work with random operations', () => {
         const tokens = Array.from(new Lexer("27 + (43 / 36 - 48) * 51").generate_tokens());
         const expected_tokens = [

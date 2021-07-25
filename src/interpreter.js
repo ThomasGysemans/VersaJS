@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode } from './nodes.js';
 import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -228,6 +228,12 @@ export class Interpreter {
             return this.visit_NoneNode(node, context);
         } else if (node instanceof BooleanNode) {
             return this.visit_BooleanNode(node, context);
+        } else if (node instanceof BinaryShiftLeftNode) {
+            return this.visit_BinaryShiftLeftNode(node, context);
+        } else if (node instanceof BinaryShiftRightNode) {
+            return this.visit_BinaryShiftRightNode(node, context);
+        } else if (node instanceof UnsignedBinaryShiftRightNode) {
+            return this.visit_UnsignedBinaryShiftRightNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -795,6 +801,162 @@ export class Interpreter {
         } else if (left instanceof BooleanValue && right instanceof BooleanValue) {
             return new RuntimeResult().success(
                 new NumberValue(left.state ** right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
+        }
+    }
+
+    /**
+     * Interprets a binary shift to the left (<<)
+     * @param {BinaryShiftLeftNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_BinaryShiftLeftNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        // number << number            OK
+        // number << none              OK
+        // none << number              OK
+        // number << boolean           OK
+        // boolean << number           OK
+        // boolean << boolean          OK
+        if (left instanceof NumberValue && right instanceof NumberValue) { // number << number 
+            return new RuntimeResult().success(
+                new NumberValue(left.value << right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) { // number << none
+            return new RuntimeResult().success(
+                new NumberValue(left.value << 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) { // none << number
+            return new RuntimeResult().success(
+                new NumberValue(0 << right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) { // none << none
+            return new RuntimeResult().success(
+                new NumberValue(0 << 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) { // number << boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.value << right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) { // boolean << number
+            return new RuntimeResult().success(
+                new NumberValue(left.state << right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) { // boolean << boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.state << right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
+        }
+    }
+
+    /**
+     * Interprets a binary shift to the right (>>)
+     * @param {BinaryShiftRightNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_BinaryShiftRightNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        // number >> number            OK
+        // number >> none              OK
+        // none >> number              OK
+        // number >> boolean           OK
+        // boolean >> number           OK
+        // boolean >> boolean          OK
+        if (left instanceof NumberValue && right instanceof NumberValue) { // number >> number 
+            return new RuntimeResult().success(
+                new NumberValue(left.value >> right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) { // number >> none
+            return new RuntimeResult().success(
+                new NumberValue(left.value >> 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) { // none >> number
+            return new RuntimeResult().success(
+                new NumberValue(0 >> right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) { // none >> none
+            return new RuntimeResult().success(
+                new NumberValue(0 >> 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) { // number >> boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.value >> right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) { // boolean >> number
+            return new RuntimeResult().success(
+                new NumberValue(left.state >> right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) { // boolean >> boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.state >> right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
+        }
+    }
+
+    /**
+     * Interprets an unsigned binary shift to the right (>>>)
+     * @param {UnsignedBinaryShiftRightNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_UnsignedBinaryShiftRightNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        // number >>> number            OK
+        // number >>> none              OK
+        // none >>> number              OK
+        // number >>> boolean           OK
+        // boolean >>> number           OK
+        // boolean >>> boolean          OK
+        if (left instanceof NumberValue && right instanceof NumberValue) { // number >>> number 
+            return new RuntimeResult().success(
+                new NumberValue(left.value >>> right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) { // number >>> none
+            return new RuntimeResult().success(
+                new NumberValue(left.value >>> 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) { // none >>> number
+            return new RuntimeResult().success(
+                new NumberValue(0 >>> right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) { // none >>> none
+            return new RuntimeResult().success(
+                new NumberValue(0 >>> 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) { // number >>> boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.value >>> right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) { // boolean >>> number
+            return new RuntimeResult().success(
+                new NumberValue(left.state >>> right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) { // boolean >>> boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.state >>> right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             this.illegal_operation(node, context);

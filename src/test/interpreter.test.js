@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, ElseAssignmentNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode } from '../nodes.js';
 import { ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js';
@@ -254,6 +254,27 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         const expected = 125;
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a complex operation including binary shift to the right', () => {
+        // 256 >> 1 + 2 * 10 / 10 = 32
+        const tree = new BinaryShiftRightNode(
+            number(256),
+            new AddNode(
+                number(1),
+                new DivideNode(
+                    new MultiplyNode(
+                        number(2),
+                        number(10),
+                    ),
+                    number(10),
+                ),
+            ),
+        );
+        const result = new Interpreter().visit(tree, context());
+        const value = result.value.value;
+        const expected = 32;
         assert.deepStrictEqual(value, expected);
     });
 

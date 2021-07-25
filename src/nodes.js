@@ -239,6 +239,63 @@ export class ModuloNode extends CustomNode {
     }
 }
 
+export class BinaryShiftLeftNode extends CustomNode {
+    /**
+     * @constructs BinaryShiftLeftNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a}<<${this.node_b})`;
+    }
+}
+
+export class BinaryShiftRightNode extends CustomNode {
+    /**
+     * @constructs BinaryShiftRightNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a}>>${this.node_b})`;
+    }
+}
+
+export class UnsignedBinaryShiftRightNode extends CustomNode {
+    /**
+     * @constructs UnsignedBinaryShiftRightNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a}>>>${this.node_b})`;
+    }
+}
+
 /**
  * @classdesc Creates a variable by saving its name and its value.
  */

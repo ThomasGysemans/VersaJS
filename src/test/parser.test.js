@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode } from '../nodes.js';
 import { InvalidSyntaxError } from '../Exceptions.js';
 
 // npm run test ./test/parser.test.js
@@ -376,5 +376,19 @@ describe('Parser tests', () => {
         assert.deepStrictEqual(true, node.element_nodes[1] instanceof BooleanNode);
         assert.deepStrictEqual(true, node.element_nodes[2] instanceof BooleanNode);
         assert.deepStrictEqual(true, node.element_nodes[3] instanceof BooleanNode);
+    });
+
+    it('should work with bitwise shift operators', () => {
+        const tokens = new Lexer("256 << 2; 256 >> 2; 256 >>> 2").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof BinaryShiftLeftNode);
+        assert.deepStrictEqual(true, node.element_nodes[1] instanceof BinaryShiftRightNode);
+        assert.deepStrictEqual(true, node.element_nodes[2] instanceof UnsignedBinaryShiftRightNode);
+    });
+
+    it('should work with a complex operation including a binary shift to the right', () => {
+        const tokens = new Lexer("256 >> 1 + 2 * 10 / 10").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof BinaryShiftRightNode);
     });
 });

@@ -76,9 +76,9 @@ export class Lexer {
             } else if (this.current_char === "!") {
                 yield this.make_not_equal();
             } else if (this.current_char === "<") {
-                yield this.make_less_than_or_equal();
+                yield this.make_less_than_or_equal_or_binary();
             } else if (this.current_char === ">") {
-                yield this.make_greater_than_or_equal();
+                yield this.make_greater_than_or_equal_or_binary();
             } else if (this.current_char === "?") {
                 yield this.make_qmark_or_else_assign();
             } else if (this.current_char === "'") {
@@ -216,27 +216,37 @@ export class Lexer {
         );
     }
 
-    make_less_than_or_equal() {
+    make_less_than_or_equal_or_binary() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.LT;
         this.advance();
 
-        if (this.current_char === "=") {
+        if (this.current_char === "=") { // <=
             this.advance();
             tok_type = TokenType.LTE;
+        } else if (this.current_char === "<") { // <<
+            this.advance();
+            tok_type = TokenType.BINARY_LEFT;
         }
 
         return new Token(tok_type, null, pos_start, this.pos);
     }
 
-    make_greater_than_or_equal() {
+    make_greater_than_or_equal_or_binary() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.GT;
         this.advance();
 
-        if (this.current_char === "=") {
+        if (this.current_char === "=") { // >=
             this.advance();
             tok_type = TokenType.GTE;
+        } else if (this.current_char === ">") { // >>
+            this.advance();
+            tok_type = TokenType.BINARY_RIGHT;
+            if (this.current_char === ">") { // >>>
+                this.advance();
+                tok_type = TokenType.BINARY_UNSIGNED_RIGHT;
+            }
         }
 
         return new Token(tok_type, null, pos_start, this.pos);

@@ -5,7 +5,7 @@ import { Token, TokenType } from '../tokens.js';
 import { Context } from '../context.js';
 import { RuntimeError } from '../Exceptions.js';
 import { SymbolTable } from '../symbol_table.js';
-import { AddNode, BooleanNode, ClassCallNode, ClassDefNode, DictionnaryElementNode, DictionnaryNode, DivideNode, EnumNode, EqualsNode, GreaterThanNode, GreaterThanOrEqualNode, LessThanNode, LessThanOrEqualNode, ListNode, ModuloNode, MultiplyNode, NoneNode, NotEqualsNode, NotNode, NumberNode, PowerNode, StringNode, VarAccessNode, VarAssignNode } from '../nodes.js';
+import { AddNode, BinaryShiftLeftNode, BinaryShiftRightNode, BooleanNode, ClassCallNode, ClassDefNode, DictionnaryElementNode, DictionnaryNode, DivideNode, EnumNode, EqualsNode, GreaterThanNode, GreaterThanOrEqualNode, LessThanNode, LessThanOrEqualNode, ListNode, ModuloNode, MultiplyNode, NoneNode, NotEqualsNode, NotNode, NumberNode, PowerNode, StringNode, UnsignedBinaryShiftRightNode, VarAccessNode, VarAssignNode } from '../nodes.js';
 
 /*
 
@@ -1948,5 +1948,194 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
         );
         expected = 0;
         assert.strictEqual(interpreter.visit(tree, context()).value.state, expected);
+    });
+
+    it('should work with a binary shift to the left', () => {
+        const interpreter = new Interpreter();
+        let tree;
+        let expected;
+        let result;
+
+        // ---
+        // Every possible combinations
+        // ---
+        // 256 << 2             == 1024     OK
+        // 256 << none          == 256      OK
+        // none << 256          == 0        OK
+        // 256 << true          == 512      OK
+        // true << 256          == 1        OK
+        // true << true         == 2        OK
+        // 5 + 256 << 2         == 1044     OK
+        tree = new BinaryShiftLeftNode(
+            number(256),
+            number(2),
+        );
+        expected = 1024;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftLeftNode(
+            number(256),
+            none(),
+        );
+        expected = 256;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftLeftNode(
+            none(),
+            number(256),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftLeftNode(
+            number(256),
+            yes(),
+        );
+        expected = 512;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftLeftNode(
+            yes(),
+            number(256),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftLeftNode(
+            yes(),
+            yes(),
+        );
+        expected = 2;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftLeftNode(
+            new AddNode(
+                number(5),
+                number(256)
+            ),
+            number(2),
+        );
+        expected = 1044;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+    });
+
+    it('should work with a binary shift to the right', () => {
+        const interpreter = new Interpreter();
+        let tree;
+        let expected;
+        let result;
+
+        // ---
+        // Every possible combinations
+        // ---
+        // 256 >> 2             == 64       OK
+        // 256 >> none          == 256      OK
+        // none >> 256          == 0        OK
+        // 256 >> true          == 128      OK
+        // true >> 256          == 1        OK
+        // true >> true         == 0        OK
+        // 5 + 256 >> 2         == 65       OK
+        tree = new BinaryShiftRightNode(
+            number(256),
+            number(2),
+        );
+        expected = 64;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftRightNode(
+            number(256),
+            none(),
+        );
+        expected = 256;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftRightNode(
+            none(),
+            number(256),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftRightNode(
+            number(256),
+            yes(),
+        );
+        expected = 128;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftRightNode(
+            yes(),
+            number(256),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftRightNode(
+            yes(),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryShiftRightNode(
+            new AddNode(
+                number(5),
+                number(256)
+            ),
+            number(2),
+        );
+        expected = 65;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+    });
+
+    it('should work with an unsigned binary shift to the right', () => {
+        const interpreter = new Interpreter();
+        let tree;
+        let expected;
+        let result;
+
+        // ---
+        // Every possible combinations
+        // ---
+        // 256 >>> 2             == 64       OK
+        // 256 >>> none          == 256      OK
+        // none >>> 256          == 0        OK
+        // 256 >>> true          == 128      OK
+        // true >>> 256          == 1        OK
+        // true >>> true         == 0        OK
+        // 5 + 256 >>> 2         == 65       OK
+        tree = new UnsignedBinaryShiftRightNode(
+            number(256),
+            number(2),
+        );
+        expected = 64;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new UnsignedBinaryShiftRightNode(
+            number(256),
+            none(),
+        );
+        expected = 256;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new UnsignedBinaryShiftRightNode(
+            none(),
+            number(256),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new UnsignedBinaryShiftRightNode(
+            number(256),
+            yes(),
+        );
+        expected = 128;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new UnsignedBinaryShiftRightNode(
+            yes(),
+            number(256),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new UnsignedBinaryShiftRightNode(
+            yes(),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new UnsignedBinaryShiftRightNode(
+            new AddNode(
+                number(5),
+                number(256)
+            ),
+            number(2),
+        );
+        expected = 65;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
     });
 });

@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { is_in } from "./miscellaneous.js";
 import { Position } from "./position.js";
@@ -533,38 +533,113 @@ export class Parser {
             return new NotNode(node);
         }
 
-        let node_a = this.arith_expr();
+        let node_a = this.bin_shift();
 
         if (this.current_token.type === TokenType.DOUBLE_EQUALS) {
             this.advance();
-            return new EqualsNode(node_a, this.arith_expr());
+            return new EqualsNode(node_a, this.bin_shift());
         } else if (this.current_token.type === TokenType.LT) {
             this.advance();
-            return new LessThanNode(node_a, this.arith_expr());
+            return new LessThanNode(node_a, this.bin_shift());
         } else if (this.current_token.type === TokenType.GT) {
             this.advance();
-            return new GreaterThanNode(node_a, this.arith_expr());
+            return new GreaterThanNode(node_a, this.bin_shift());
         } else if (this.current_token.type === TokenType.LTE) {
             this.advance();
-            return new LessThanOrEqualNode(node_a, this.arith_expr());
+            return new LessThanOrEqualNode(node_a, this.bin_shift());
         } else if (this.current_token.type === TokenType.GTE) {
             this.advance();
-            return new GreaterThanOrEqualNode(node_a, this.arith_expr());
+            return new GreaterThanOrEqualNode(node_a, this.bin_shift());
         } else if (this.current_token.type === TokenType.NOT_EQUAL) {
             this.advance();
-            return new NotEqualsNode(node_a, this.arith_expr());
+            return new NotEqualsNode(node_a, this.bin_shift());
         } else if (this.current_token.type === TokenType.ELSE_ASSIGN) {
             this.advance();
-            return new ElseAssignmentNode(node_a, this.arith_expr());
+            return new ElseAssignmentNode(node_a, this.bin_shift());
         }
 
         return node_a;
     }
 
+    bin_shift() {
+        let result = this.arith_expr();
+        let possible_tokens = [
+            TokenType.BINARY_LEFT,
+            TokenType.BINARY_RIGHT,
+            TokenType.BINARY_UNSIGNED_RIGHT
+        ];
+
+        while (this.current_token !== null && is_in(this.current_token.type, possible_tokens)) {
+            if (this.current_token.type === TokenType.BINARY_LEFT) {
+                this.advance();
+                if (this.current_token.type === TokenType.EQUALS) { // <<=
+                    this.advance();
+                    if (result instanceof VarAccessNode) {
+                        return new VarModifyNode(result.var_name_tok, new BinaryShiftLeftNode(result, this.expr()));
+                    } else if (result instanceof ListAccessNode) {
+                        return new ListAssignmentNode(result, new BinaryShiftLeftNode(result, this.expr()));
+                    } else if (result instanceof CallPropertyNode || result instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(result, new BinaryShiftLeftNode(result, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
+                }
+                result = new BinaryShiftLeftNode(result, this.bin_shift());
+            } else if (this.current_token.type === TokenType.BINARY_RIGHT) {
+                this.advance();
+                if (this.current_token.type === TokenType.EQUALS) { // >>=
+                    this.advance();
+                    if (result instanceof VarAccessNode) {
+                        return new VarModifyNode(result.var_name_tok, new BinaryShiftRightNode(result, this.expr()));
+                    } else if (result instanceof ListAccessNode) {
+                        return new ListAssignmentNode(result, new BinaryShiftRightNode(result, this.expr()));
+                    } else if (result instanceof CallPropertyNode || result instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(result, new BinaryShiftRightNode(result, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
+                }
+                result = new BinaryShiftRightNode(result, this.bin_shift());
+            } else if (this.current_token.type === TokenType.BINARY_UNSIGNED_RIGHT) {
+                this.advance();
+                if (this.current_token.type === TokenType.EQUALS) { // >>>=
+                    this.advance();
+                    if (result instanceof VarAccessNode) {
+                        return new VarModifyNode(result.var_name_tok, new UnsignedBinaryShiftRightNode(result, this.expr()));
+                    } else if (result instanceof ListAccessNode) {
+                        return new ListAssignmentNode(result, new UnsignedBinaryShiftRightNode(result, this.expr()));
+                    } else if (result instanceof CallPropertyNode || result instanceof CallStaticPropertyNode) {
+                        return new AssignPropertyNode(result, new UnsignedBinaryShiftRightNode(result, this.expr()));
+                    } else {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
+                }
+                result = new UnsignedBinaryShiftRightNode(result, this.bin_shift());
+            }
+        }
+
+        return result;
+    }
+
     arith_expr() {
         let result = this.term();
+        let possible_tokens = [
+            TokenType.PLUS,
+            TokenType.MINUS,
+            TokenType.INC,
+            TokenType.DEC,
+        ];
 
-        while (this.current_token !== null && is_in(this.current_token.type, [TokenType.PLUS, TokenType.MINUS, TokenType.INC, TokenType.DEC])) {
+        while (this.current_token !== null && is_in(this.current_token.type, possible_tokens)) {
             if (this.current_token.type === TokenType.PLUS) {
                 this.advance();
                 if (this.current_token.type === TokenType.EQUALS) { // +=
@@ -643,8 +718,14 @@ export class Parser {
     term() {
         let node_a = this.factor();
         let result;
+        let possible_tokens = [
+            TokenType.MULTIPLY,
+            TokenType.DIVIDE,
+            TokenType.POWER,
+            TokenType.MODULO
+        ];
 
-        while (this.current_token !== null && is_in(this.current_token.type, [TokenType.MULTIPLY, TokenType.DIVIDE, TokenType.POWER, TokenType.MODULO])) {
+        while (this.current_token !== null && is_in(this.current_token.type, possible_tokens)) {
             if (this.current_token.type === TokenType.MULTIPLY) {
                 this.advance();
                 if (this.current_token.type === TokenType.EQUALS) { // *=
