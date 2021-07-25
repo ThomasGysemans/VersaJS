@@ -510,16 +510,17 @@ export class Parser {
         }
 
         let result = this.comp_expr();
+        
+        const is_and = () => this.current_token.matches(TokenType.KEYWORD, "and");
+        const is_or  = () => this.current_token.matches(TokenType.KEYWORD, "or");
 
-        if (this.current_token !== null) {
-            if (this.current_token.matches(TokenType.KEYWORD, "and")) {
+        while (this.current_token !== null && (is_and() || is_or())) {
+            if (is_and()) {
                 this.advance();
-                let node = this.comp_expr();
-                return new AndNode(result, node);
-            } else if (this.current_token.matches(TokenType.KEYWORD, "or")) {
+                result = new AndNode(result, this.comp_expr());
+            } else if (is_or()) {
                 this.advance();
-                let node = this.comp_expr();
-                return new OrNode(result, node);
+                result = new OrNode(result, this.comp_expr());
             }
         }
 
@@ -533,32 +534,45 @@ export class Parser {
             return new NotNode(node);
         }
 
-        let node_a = this.bin_shift();
+        let result = this.bin_shift();
+        let possible_tokens = [
+            TokenType.DOUBLE_EQUALS,
+            TokenType.LT,
+            TokenType.GT,
+            TokenType.LTE,
+            TokenType.GTE,
+            TokenType.NOT_EQUAL,
+            TokenType.ELSE_ASSIGN,
+        ];
 
-        if (this.current_token.type === TokenType.DOUBLE_EQUALS) {
-            this.advance();
-            return new EqualsNode(node_a, this.bin_shift());
-        } else if (this.current_token.type === TokenType.LT) {
-            this.advance();
-            return new LessThanNode(node_a, this.bin_shift());
-        } else if (this.current_token.type === TokenType.GT) {
-            this.advance();
-            return new GreaterThanNode(node_a, this.bin_shift());
-        } else if (this.current_token.type === TokenType.LTE) {
-            this.advance();
-            return new LessThanOrEqualNode(node_a, this.bin_shift());
-        } else if (this.current_token.type === TokenType.GTE) {
-            this.advance();
-            return new GreaterThanOrEqualNode(node_a, this.bin_shift());
-        } else if (this.current_token.type === TokenType.NOT_EQUAL) {
-            this.advance();
-            return new NotEqualsNode(node_a, this.bin_shift());
-        } else if (this.current_token.type === TokenType.ELSE_ASSIGN) {
-            this.advance();
-            return new ElseAssignmentNode(node_a, this.bin_shift());
+        // while because we want to be able to do:
+        // `5 == 5 == yes`
+        while (this.current_token !== null && is_in(this.current_token.type, possible_tokens)) {
+            if (this.current_token.type === TokenType.DOUBLE_EQUALS) {
+                this.advance();
+                result = new EqualsNode(result, this.bin_shift());
+            } else if (this.current_token.type === TokenType.LT) {
+                this.advance();
+                result = new LessThanNode(result, this.bin_shift());
+            } else if (this.current_token.type === TokenType.GT) {
+                this.advance();
+                result = new GreaterThanNode(result, this.bin_shift());
+            } else if (this.current_token.type === TokenType.LTE) {
+                this.advance();
+                result = new LessThanOrEqualNode(result, this.bin_shift());
+            } else if (this.current_token.type === TokenType.GTE) {
+                this.advance();
+                result = new GreaterThanOrEqualNode(result, this.bin_shift());
+            } else if (this.current_token.type === TokenType.NOT_EQUAL) {
+                this.advance();
+                result = new NotEqualsNode(result, this.bin_shift());
+            } else if (this.current_token.type === TokenType.ELSE_ASSIGN) {
+                this.advance();
+                result = new ElseAssignmentNode(result, this.bin_shift());
+            }
         }
 
-        return node_a;
+        return result;
     }
 
     bin_shift() {
