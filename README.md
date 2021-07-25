@@ -35,7 +35,7 @@ define NAME = "Thomas"
 
 ```
 var variable = 5 == 5
-var else_assignment = variable ?? "Oh no, 5 == 5 is false, 0 or null"
+var nullish_operator = none ?? "Default value if the left expression is none"
 var condition = if 5 == 5: "5 == 5" elif 4 == 5: "4 == 5" else: "else"
 
 if 5 == 5:

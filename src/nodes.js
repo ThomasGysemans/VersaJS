@@ -303,7 +303,7 @@ export class VarAssignNode extends CustomNode {
     /**
      * @constructs VarAssignNode
      * @param {Token} var_name_tok The name of the variable.
-     * @param {CustomNode} value_node The value of the variable. It might be an ElseAssignmentNode.
+     * @param {CustomNode} value_node The value of the variable.
      */
     constructor(var_name_tok, value_node) {
         super();
@@ -321,9 +321,9 @@ export class VarAssignNode extends CustomNode {
 /**
  * @classdesc Creates a variable by saving its name and its value.
  */
-export class ElseAssignmentNode extends CustomNode {
+export class NullishOperatorNode extends CustomNode {
     /**
-     * @constructs ElseAssignmentNode
+     * @constructs NullishOperatorNode
      * @param {CustomNode} node_a The value of the wanted value.
      * @param {CustomNode} node_b The value of the default value.
      */
@@ -931,7 +931,7 @@ export class DefineNode extends CustomNode {
     /**
      * @constructs DefineNode
      * @param {Token} var_name_tok The name of the variable.
-     * @param {CustomNode} value_node The value of the variable. It might be an ElseAssignmentNode.
+     * @param {CustomNode} value_node The value of the variable.
      */
     constructor(var_name_tok, value_node) {
         super();
@@ -1041,7 +1041,7 @@ export class ClassPropertyDefNode extends CustomNode {
     /**
      * @constructs ClassPropertyDefNode
      * @param {Token} property_name_tok The name of the variable.
-     * @param {CustomNode} value_node The value of the variable. It might be an ElseAssignmentNode.
+     * @param {CustomNode} value_node The value of the variable.
      * @param {number} status 0 for private, 1 for public, 2 for protected.
      * @param {number} override 1 for override, 0 otherwise.
      * @param {number} static_prop 1 for static, 0 otherwise.

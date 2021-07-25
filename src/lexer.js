@@ -80,7 +80,7 @@ export class Lexer {
             } else if (this.current_char === ">") {
                 yield this.make_greater_than_or_equal_or_binary();
             } else if (this.current_char === "?") {
-                yield this.make_qmark_or_else_assign();
+                yield this.make_qmark_or_nullish();
             } else if (this.current_char === "'") {
                 yield this.make_string();
             } else if (this.current_char === '"') {
@@ -252,7 +252,7 @@ export class Lexer {
         return new Token(tok_type, null, pos_start, this.pos);
     }
 
-    make_qmark_or_else_assign() {
+    make_qmark_or_nullish() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.QMARK;
         this.advance();
@@ -260,7 +260,7 @@ export class Lexer {
         // we want "??"
         if (this.current_char === "?") {
             this.advance();
-            tok_type = TokenType.ELSE_ASSIGN;
+            tok_type = TokenType.NULLISH_OPERATOR;
         }
 
         return new Token(tok_type, null, pos_start, this.pos);

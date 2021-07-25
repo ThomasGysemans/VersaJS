@@ -19,7 +19,7 @@ export class TokenType {
     static GT                    = 'GREATER_THAN'
     static LTE                   = 'LESS_THAN_OR_EQUAL'
     static GTE                   = 'GREATER_THAN_OR_EQUAL'
-    static ELSE_ASSIGN           = 'ELSE_ASSIGN' // "??"
+    static NULLISH_OPERATOR      = 'NULLISH_OPERATOR' // "??"
     static COLON                 = 'COLON'
     static DOUBLE_COLON          = 'DOUBLE_COLON'
     static NEWLINE               = 'NEWLINE'

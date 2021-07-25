@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, ElseAssignmentNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode } from './nodes.js';
 import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -166,8 +166,8 @@ export class Interpreter {
             return this.visit_GreaterThanOrEqualNode(node, context);
         } else if (node instanceof NotEqualsNode) {
             return this.visit_NotEqualsNode(node, context);
-        } else if (node instanceof ElseAssignmentNode) {
-            return this.visit_ElseAssignmentNode(node, context);
+        } else if (node instanceof NullishOperatorNode) {
+            return this.visit_NullishOperatorNode(node, context);
         } else if (node instanceof ListNode) {
             return this.visit_ListNode(node, context);
         } else if (node instanceof ListAccessNode) {
@@ -1671,17 +1671,17 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an else assignment node.
-     * @param {ElseAssignmentNode} node The node.
+     * Interprets a nullish coalescing operator
+     * @param {NullishOperatorNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
      */
-    visit_ElseAssignmentNode(node, context) {
+    visit_NullishOperatorNode(node, context) {
         let res = new RuntimeResult();
         let left = res.register(this.visit(node.node_a, context));
         if (res.should_return()) return res;
 
-        if (!left.is_true()) {
+        if (left instanceof NoneValue) {
             let right = res.register(this.visit(node.node_b, context));
             if (res.should_return()) return res;
             return new RuntimeResult().success(right);
@@ -1691,7 +1691,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets an else assignment node.
+     * Interprets a list.
      * @param {ListNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
