@@ -294,13 +294,13 @@ describe('Parser tests', () => {
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof ClassCallNode);
     });
 
-    it('should work with an assignement to a property (list)', () => {
+    it('should work with an assignment to a property (list)', () => {
         const tokens = new Lexer("person.names[] = 5").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAssignmentNode);
     });
 
-    it('should work with an assignement to a property (method)', () => {
+    it('should work with an assignment to a property (method)', () => {
         try {
             const tokens = new Lexer("person.names() = 5").generate_tokens();
             const node = new Parser(tokens).parse();
@@ -309,14 +309,14 @@ describe('Parser tests', () => {
         }
     });
 
-    it('should work with an assignement to a property (just property)', () => {
+    it('should work with an assignment to a property (just property)', () => {
         const tokens = new Lexer("person.names = 5").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof AssignPropertyNode);
         assert.deepStrictEqual(true, node.element_nodes[0].property instanceof CallPropertyNode);
     });
 
-    it('should work with an assignement to a property (all)', () => {
+    it('should work with an assignment to a property (all)', () => {
         const tokens = new Lexer("person.names().list[0].prop = 5").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof AssignPropertyNode);

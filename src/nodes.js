@@ -319,7 +319,7 @@ export class VarAssignNode extends CustomNode {
 }
 
 /**
- * @classdesc Creates a variable by saving its name and its value.
+ * @classdesc A nullish coalescing operator
  */
 export class NullishOperatorNode extends CustomNode {
     /**
@@ -337,6 +337,28 @@ export class NullishOperatorNode extends CustomNode {
     
     toString() {
         return `(${this.node_a} ?? ${this.node_b})`;
+    }
+}
+
+/**
+ * @classdesc A nullish assignment
+ */
+export class NullishAssignmentNode extends CustomNode {
+    /**
+     * @constructs NullishAssignmentNode
+     * @param {CustomNode} node_a The value of the wanted value.
+     * @param {CustomNode} node_b The value of the default value.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+        this.pos_start = this.node_a.pos_start;
+        this.pos_end = this.node_b.pos_end;
+    }
+    
+    toString() {
+        return `(${this.node_a} ??= ${this.node_b})`;
     }
 }
 
@@ -1168,7 +1190,7 @@ export class ClassCallNode extends CustomNode {
 export class AssignPropertyNode extends CustomNode {
     /**
      * @constructs AssignPropertyNode
-     * @param {CallPropertyNode} property The property to be modified.
+     * @param {CallPropertyNode|CallStaticPropertyNode} property The property to be modified.
      * @param {CustomNode} value_node The new value.
      */
     constructor(property, value_node) {

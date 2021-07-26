@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { is_in } from "./miscellaneous.js";
 import { Position } from "./position.js";
@@ -568,6 +568,16 @@ export class Parser {
                 result = new NotEqualsNode(result, this.bin_shift());
             } else if (this.current_token.type === TokenType.NULLISH_OPERATOR) {
                 this.advance();
+                if (this.current_token.type === TokenType.EQUALS) { // a ??= 5, a <- 5 only if a == none
+                    this.advance();
+                    if (!(result instanceof VarAccessNode) && !(result instanceof ListAccessNode) && !(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
+                    return new NullishAssignmentNode(result, this.expr());
+                }
                 result = new NullishOperatorNode(result, this.bin_shift());
             }
         }
@@ -897,7 +907,7 @@ export class Parser {
             }
 
             if (this.current_token.type === TokenType.EQUALS) {
-                if (!(result instanceof CallPropertyNode)) {
+                if (!(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
                     throw new InvalidSyntaxError(
                         this.current_token.pos_start, this.current_token.pos_end,
                         "Unable to assign a new value for that call.",

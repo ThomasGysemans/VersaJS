@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode } from './nodes.js';
 import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -234,6 +234,8 @@ export class Interpreter {
             return this.visit_BinaryShiftRightNode(node, context);
         } else if (node instanceof UnsignedBinaryShiftRightNode) {
             return this.visit_UnsignedBinaryShiftRightNode(node, context);
+        } else if (node instanceof NullishAssignmentNode) {
+            return this.visit_NullishAssignmentNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -1094,7 +1096,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets a variable declaration.
+     * Interprets a variable modification.
      * @param {VarModifyNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -1125,6 +1127,60 @@ export class Interpreter {
         context.symbol_table.modify(var_name, value);
 
         return new RuntimeResult().success(value);
+    }
+
+    /**
+     * Interprets a variable modification only if its null.
+     * @param {NullishAssignmentNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_NullishAssignmentNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+
+        if (left instanceof NoneValue) {
+            if (node.node_a instanceof CallPropertyNode || node.node_a instanceof CallStaticPropertyNode) {
+                let new_value = res.register(this.visit(
+                    new AssignPropertyNode(
+                        node.node_a,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else if (node.node_a instanceof ListAccessNode) {
+                let new_value = res.register(this.visit(
+                    new ListAssignmentNode(
+                        node.node_a,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else if (node.node_a instanceof VarAccessNode) {
+                let new_value = res.register(this.visit(
+                    new VarModifyNode(
+                        node.node_a.var_name_tok,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "Invalid type of variable for nullish assignment",
+                    context
+                );
+            }
+        }
+
+        return res.success(left.copy().set_pos(node.pos_start, node.pos_end).set_context(context));
     }
 
     /**
@@ -1796,12 +1852,6 @@ export class Interpreter {
                     if (found_value instanceof ListValue) {
                         if (binary_selector[1] === null) {
                             binary_selector[1] = new NumberValue(found_value.elements.length);
-                        } else if (binary_selector[1].value > found_value.elements.length) {
-                            throw new RuntimeError(
-                                node.pos_start, node.pos_end,
-                                `Element at this index could not be retrieved from the list because index is out of bounds.`,
-                                context
-                            );
                         } else if (binary_selector[1].value < 0) {
                             binary_selector[1].value = found_value.elements.length + binary_selector[1].value;
                         }
@@ -1819,12 +1869,6 @@ export class Interpreter {
                 } else {
                     if (binary_selector[1] === null) {
                         binary_selector[1] = new NumberValue(value.elements.length);
-                    } else if (binary_selector[1].value > value.elements.length) {
-                        throw new RuntimeError(
-                            node.pos_start, node.pos_end,
-                            `Element at this index could not be retrieved from the list because index is out of bounds.`,
-                            context
-                        );
                     } else if (binary_selector[1].value < 0) {
                         binary_selector[1].value = value.elements.length + binary_selector[1].value;
                     }
@@ -1891,11 +1935,7 @@ export class Interpreter {
                 }
 
                 if (found_value === undefined) {
-                    throw new RuntimeError(
-                        node.pos_start, node.pos_end,
-                        `Element at this index could not be retrieved from the list because index is out of bounds.`,
-                        context
-                    );
+                    found_value = new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context);
                 }
             }
         }
@@ -3523,7 +3563,9 @@ export class Interpreter {
             );
         }
 
-        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries())), value.parent_class).set_pos(node.pos_start, node.pos_end).set_context(context);
+        // the instance of a class
+        // does not heritate the static properties, methods
+        let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries()).map((v) => v[1].static_prop === 0 ? v : null).filter((v) => v !== null)), value.parent_class).set_pos(node.pos_start, node.pos_end).set_context(context);
         let __init = new_class_value.self.get("__init");
         
         if (__init) {
@@ -3568,10 +3610,8 @@ export class Interpreter {
             let prop = base.self.get(property_name);
 
             if (prop === undefined || prop === null) {
-                throw new RuntimeError(
-                    node.pos_start, node.pos_end,
-                    "Undefined property",
-                    context
+                return res.success(
+                    new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
                 );
             }
 
@@ -3645,7 +3685,7 @@ export class Interpreter {
         if (prop === undefined || prop === null) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
-                "Undefined property",
+                "Undefined static property",
                 context
             );
         }
@@ -3710,6 +3750,17 @@ export class Interpreter {
         let status = 1;
         let static_prop = 0;
 
+        // the property does not exist
+        // and we call it as a static property
+        // that's not good
+        if (!prop && node.property instanceof CallStaticPropertyNode) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "You cannot assign new static properties to the instance of a class",
+                context
+            );
+        }
+
         if (prop) {
             status = prop.status;
             static_prop = prop.static_prop;
@@ -3729,7 +3780,6 @@ export class Interpreter {
 
         new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
         base.self.set(property_name, { static_prop, status, value: new_value });
-        context.symbol_table.set(base.name, base);
 
         return res.success(new_value);
     }

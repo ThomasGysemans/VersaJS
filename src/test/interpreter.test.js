@@ -1,6 +1,6 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, NullishOperatorNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode } from '../nodes.js';
-import { ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, StringValue } from '../values.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, NullishOperatorNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode, NullishAssignmentNode } from '../nodes.js';
+import { BooleanValue, ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js';
 import { Context } from '../context.js';
@@ -320,7 +320,7 @@ describe('Interpreter', () => {
 
     it('should work with an assignment to a variable', () => {
         const tree = new VarAssignNode(
-            identifier_tok("var_assignement"),
+            identifier_tok("var_assignment"),
             number(1)
         );
         const result = new Interpreter().visit(tree, context());
@@ -447,13 +447,13 @@ describe('Interpreter', () => {
         assert.deepStrictEqual(value, expected);
     });
 
-    it('should work with a list (assignement)', () => {
+    it('should work with a list (assignment)', () => {
         // var list = [1, 2, 3]; list[4] = 5; list
         // expected = [1, 2, 3, none, 5]
         const tree = new ListNode(
             [
                 new VarAssignNode(
-                    identifier_tok("list_assignement"),
+                    identifier_tok("list_assignment"),
                     new ListNode(
                         [
                             number(1),
@@ -466,7 +466,7 @@ describe('Interpreter', () => {
                 ),
                 new ListAssignmentNode(
                     new ListAccessNode(
-                        new VarAccessNode(identifier_tok("list_assignement")),
+                        new VarAccessNode(identifier_tok("list_assignment")),
                         0,
                         [
                             number(4)
@@ -474,7 +474,7 @@ describe('Interpreter', () => {
                     ),
                     number(5)
                 ),
-                new VarAccessNode(identifier_tok("list_assignement"))
+                new VarAccessNode(identifier_tok("list_assignment"))
             ],
             null,
             null,
@@ -2243,6 +2243,77 @@ describe('Interpreter', () => {
         ];
         assert.deepStrictEqual(values, expected);
     });
+
+    it('should not create any conflicts between different instances of the same class', () => {
+        /*
+        class Test:
+            property value = none
+        end
+
+        var t = new Test()
+        t.value = 5
+        var t2 = new Test()
+
+        t.value # 5
+        t2.value # none
+        */
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("Test"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("value"),
+                            none(),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new VarAssignNode(
+                    identifier_tok("t"),
+                    new ClassCallNode(
+                        identifier_tok("Test"),
+                        []
+                    )
+                ),
+                new AssignPropertyNode(
+                    new CallPropertyNode(
+                        new VarAccessNode(identifier_tok("t")),
+                        identifier_tok("value")
+                    ),
+                    number(5),
+                ),
+                new VarAssignNode(
+                    identifier_tok("t2"),
+                    new ClassCallNode(
+                        identifier_tok("Test"),
+                        []
+                    )
+                ),
+                new CallPropertyNode(
+                    new VarAccessNode(identifier_tok("t")),
+                    identifier_tok("value")
+                ),
+                new CallPropertyNode(
+                    new VarAccessNode(identifier_tok("t2")),
+                    identifier_tok("value")
+                ),
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[4].value, 5);
+        assert.deepStrictEqual(result.value.elements[5] instanceof NoneValue, true);
+    });
     
     it('should work with static properties', () => {
         /*
@@ -2250,10 +2321,10 @@ describe('Interpreter', () => {
             static property static_property = "static property"
             property test
 
-            static method get_name() -> self::static_property
+            static method get_name() -> Test::static_property
 
             method __init():
-                self.test = self::get_name()
+                self.test = Test::get_name()
             end
 
             static method static_method() -> "static method"
@@ -2276,12 +2347,14 @@ describe('Interpreter', () => {
             (method (t).(call (prop (t).__repr)(0 args))),
             (prop (Test)::static_property),
             (method (Test).(call (prop (Test)::static_method)(0 args)))
+            (prop (Test)::__name)
         ]
         */
         // expected results:
         // self.test = static property
         // static property
         // static method
+        // Test
         const tree = new ListNode(
             [
                 new ClassDefNode(
@@ -2309,7 +2382,7 @@ describe('Interpreter', () => {
                                 identifier_tok("get_name"),
                                 [],
                                 new CallStaticPropertyNode(
-                                    new VarAccessNode(identifier_tok("self")),
+                                    new VarAccessNode(identifier_tok("Test")),
                                     identifier_tok("static_property")
                                 ),
                                 true
@@ -2330,7 +2403,7 @@ describe('Interpreter', () => {
                                     new CallMethodNode(
                                         new CallNode(
                                             new CallStaticPropertyNode(
-                                                new VarAccessNode(identifier_tok("self")),
+                                                new VarAccessNode(identifier_tok("Test")),
                                                 identifier_tok("get_name")
                                             ),
                                             []
@@ -3467,47 +3540,47 @@ describe('Interpreter', () => {
 
     it('should work with a switch statement (with default)', () => {
         /*
-        var _value = 0
-        var _response = -1
+        var value = 0
+        var response = -1
 
-        switch (_value):
+        switch (value):
             case 4:
-                _response = "4"
+                response = "4"
             
             case 5:
-                _response = "5"
+                response = "5"
             
             default:
-                _response = "default"
+                response = "default"
         end
 
-        _response
+        response
         */
         const tree = new ListNode(
             [
                 new VarAssignNode(
-                    identifier_tok("_value"),
+                    identifier_tok("value"),
                     number(0)
                 ),
                 new VarAssignNode(
-                    identifier_tok("_response"),
+                    identifier_tok("response"),
                     number(-1)
                 ),
                 new SwitchNode(
-                    new VarAccessNode(identifier_tok("_value")),
+                    new VarAccessNode(identifier_tok("value")),
                     [
                         {
-                            conditions: [new EqualsNode(new VarAccessNode(identifier_tok("_value")), number(4))],
-                            body: new VarModifyNode(identifier_tok("_response"), str("4"))
+                            conditions: [new EqualsNode(new VarAccessNode(identifier_tok("value")), number(4))],
+                            body: new VarModifyNode(identifier_tok("response"), str("4"))
                         },
                         {
-                            conditions: [new EqualsNode(new VarAccessNode(identifier_tok("_value")), number(5))],
-                            body: new VarModifyNode(identifier_tok("_response"), str("5"))
+                            conditions: [new EqualsNode(new VarAccessNode(identifier_tok("value")), number(5))],
+                            body: new VarModifyNode(identifier_tok("response"), str("5"))
                         }
                     ],
-                    new VarModifyNode(identifier_tok("_response"), str("default")),
+                    new VarModifyNode(identifier_tok("response"), str("default")),
                 ),
-                new VarAccessNode(identifier_tok("_response"))
+                new VarAccessNode(identifier_tok("response"))
             ],
             null,
             null
@@ -3520,43 +3593,43 @@ describe('Interpreter', () => {
 
     it('should work with complex cases on switch statement', () => {
         /*
-        var __value = 3
-        var __response = -1
+        var value = 3
+        var response = -1
 
-        switch (__value):
+        switch (value):
             case 4,3:
-                __response = "4 or 3"
+                response = "4 or 3"
             
             default:
-                __response = "default"
+                response = "default"
         end
 
-        __response
+        response
         */
         const tree = new ListNode(
             [
                 new VarAssignNode(
-                    identifier_tok("__value"),
+                    identifier_tok("value"),
                     number(3)
                 ),
                 new VarAssignNode(
-                    identifier_tok("__response"),
+                    identifier_tok("response"),
                     number(-1)
                 ),
                 new SwitchNode(
-                    new VarAccessNode(identifier_tok("__value")),
+                    new VarAccessNode(identifier_tok("value")),
                     [
                         {
                             conditions: [
-                                new EqualsNode(new VarAccessNode(identifier_tok("__value")), number(4)),
-                                new EqualsNode(new VarAccessNode(identifier_tok("__value")), number(3))
+                                new EqualsNode(new VarAccessNode(identifier_tok("value")), number(4)),
+                                new EqualsNode(new VarAccessNode(identifier_tok("value")), number(3))
                             ],
-                            body: new VarModifyNode(identifier_tok("__response"), str("4 or 3"))
+                            body: new VarModifyNode(identifier_tok("response"), str("4 or 3"))
                         }
                     ],
-                    new VarModifyNode(identifier_tok("__response"), str("default")),
+                    new VarModifyNode(identifier_tok("response"), str("default")),
                 ),
-                new VarAccessNode(identifier_tok("__response"))
+                new VarAccessNode(identifier_tok("response"))
             ],
             null,
             null
@@ -3576,16 +3649,16 @@ describe('Interpreter', () => {
         end
 
         var state = State.paused
-        var switch_enum_response = none
+        var response = none
 
         switch (state):
-            case State.stopped: switch_enum_response = "stopped"
-            case State.paused: switch_enum_response = "paused"
-            case State.running: switch_enum_response = "running"
-            default: switch_enum_response = no
+            case State.stopped: response = "stopped"
+            case State.paused: response = "paused"
+            case State.running: response = "running"
+            default: response = no
         end
 
-        switch_enum_response
+        response
         */
         const tree = new ListNode(
             [
@@ -3605,7 +3678,7 @@ describe('Interpreter', () => {
                     )
                 ),
                 new VarAssignNode(
-                    identifier_tok("switch_enum_response"),
+                    identifier_tok("response"),
                     number(0)
                 ),
                 new SwitchNode(
@@ -3618,7 +3691,7 @@ describe('Interpreter', () => {
                                     identifier_tok("stopped")
                                 )
                             ],
-                            body: new VarModifyNode(identifier_tok("switch_enum_response"), str("stopped"))
+                            body: new VarModifyNode(identifier_tok("response"), str("stopped"))
                         },
                         {
                             conditions: [
@@ -3627,7 +3700,7 @@ describe('Interpreter', () => {
                                     identifier_tok("paused")
                                 )
                             ],
-                            body: new VarModifyNode(identifier_tok("switch_enum_response"), str("paused"))
+                            body: new VarModifyNode(identifier_tok("response"), str("paused"))
                         },
                         {
                             conditions: [
@@ -3636,12 +3709,12 @@ describe('Interpreter', () => {
                                     identifier_tok("running")
                                 )
                             ],
-                            body: new VarModifyNode(identifier_tok("switch_enum_response"), str("running"))
+                            body: new VarModifyNode(identifier_tok("response"), str("running"))
                         }
                     ],
-                    new VarModifyNode(identifier_tok("switch_enum_response"), number(0)),
+                    new VarModifyNode(identifier_tok("response"), number(0)),
                 ),
-                new VarAccessNode(identifier_tok("switch_enum_response"))
+                new VarAccessNode(identifier_tok("response"))
             ],
             null,
             null
@@ -3650,5 +3723,172 @@ describe('Interpreter', () => {
         const expected = "paused";
         const values = result.value.elements[4].value;
         assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with a nullish assignment operator applied to a dictionnary', () => {
+        /*
+        var dict = { "duration": 50 }
+        dict["duration"] ??= 10
+        dict["duration"] # 50
+
+        dict["speed"] ??= 25
+        dict["speed"] # 25
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("dict"),
+                    new DictionnaryNode(
+                        [
+                            new DictionnaryElementNode(str("duration"), number(50))
+                        ],
+                        null,
+                        null
+                    )
+                ),
+                new NullishAssignmentNode(
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("dict")),
+                        0,
+                        [
+                            str("duration")
+                        ]
+                    ),
+                    number(10)
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("dict")),
+                    0,
+                    [
+                        str("duration")
+                    ]
+                ),
+                new NullishAssignmentNode(
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("dict")),
+                        0,
+                        [
+                            str("speed")
+                        ]
+                    ),
+                    number(25)
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("dict")),
+                    0,
+                    [
+                        str("speed")
+                    ]
+                ),
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        const expected = [
+            50,
+            25
+        ];
+        const values = [
+            result.value.elements[2].value,
+            result.value.elements[4].value,
+        ];
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with a nullish assignment operator applied to a list', () => {
+        /*
+        var list = [1, 2]
+        list[1] ??= 50
+        list[1] # 2
+
+        list[3] ??= 25
+        list[3] # 25
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("list"),
+                    new ListNode([number(1),number(2)],null,null),
+                ),
+                new NullishAssignmentNode(
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("list")),
+                        0,
+                        [number(1)]
+                    ),
+                    number(50)
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("list")),
+                    0,
+                    [number(1)]
+                ),
+                new NullishAssignmentNode(
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("list")),
+                        0,
+                        [number(3)]
+                    ),
+                    number(25)
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("list")),
+                    0,
+                    [number(3)]
+                ),
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        const expected = [
+            2,
+            25
+        ];
+        const values = [
+            result.value.elements[2].value,
+            result.value.elements[4].value,
+        ];
+        assert.deepStrictEqual(values, expected);
+    });
+
+    it('should work with a nullish assignment operator applied to a variable', () => {
+        /*
+        var nullish = none
+        nullish ??= 5
+        nullish
+
+        var falsy = false
+        falsy ??= true
+        falsy
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("nullish"),
+                    none(),
+                ),
+                new NullishAssignmentNode(
+                    new VarAccessNode(identifier_tok("nullish")),
+                    number(5),
+                ),
+                new VarAccessNode(identifier_tok("nullish")),
+                new VarAssignNode(
+                    identifier_tok("falsy"),
+                    no(),
+                ),
+                new NullishAssignmentNode(
+                    new VarAccessNode(identifier_tok("falsy")),
+                    yes(),
+                ),
+                new VarAccessNode(identifier_tok("falsy")),
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[2].value, 5);
+        assert.deepStrictEqual(result.value.elements[4] instanceof BooleanValue && result.value.elements[4].state === 0, true);
     });
 });
