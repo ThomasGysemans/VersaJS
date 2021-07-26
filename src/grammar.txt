@@ -32,12 +32,13 @@ comp-expr   : NOT comp-expr
 
 bin-op      : arith-expr ((BINARY_LEFT|BINARY_RIGHT|BINARY_UNSIGNED_RIGHT|LOGICAL_AND|LOGICAL_XOR|LOGICAL_OR) (EQUALS expr)?|bin-op)*
 
-arith-expr  : term ((PLUS|MINUS|BIN_NOT) (EQUALS expr)?|term)*
+arith-expr  : term ((PLUS|MINUS) (EQUALS expr)?|term)*
             : term (INC|DEC)*
 
 term        : factor (((MUL|DIV|POWER|MODULO) factor)*)|((MUL|DIV|POWER|MODULO|NULLISH)EQUALS expr)?
 
 factor      : (PLUS|MINUS) factor
+            : (BIN_NOT)* factor
             : (INC|DEC)* term
             : prop
 

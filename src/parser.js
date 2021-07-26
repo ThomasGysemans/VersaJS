@@ -890,13 +890,13 @@ export class Parser {
 
         if (token.type === TokenType.PLUS) { // +a
             this.advance();
-            return new PlusNode(this.prop());
+            return new PlusNode(this.factor());
         } else if (token.type === TokenType.MINUS) { // -a
             this.advance();
-            return new MinusNode(this.prop());
+            return new MinusNode(this.factor());
         } else if (token.type === TokenType.BIN_NOT) { // ~a
             this.advance();
-            return new BinaryNotNode(this.prop());
+            return new BinaryNotNode(this.factor());
         } else if (this.current_token.type === TokenType.INC) { // ++expr
             this.advance();
             let difference = 1;
