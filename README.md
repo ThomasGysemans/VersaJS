@@ -180,10 +180,10 @@ class Test:
     static property static_property = "static property"
     property test
 
-    static method get_name() -> self::static_property
+    static method get_name() -> Test::static_property
 
     method __init():
-        self.test = self::get_name()
+        self.test = Test::get_name()
     end
 
     static method static_method() -> "static method"
