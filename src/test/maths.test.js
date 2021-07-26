@@ -5,7 +5,7 @@ import { Token, TokenType } from '../tokens.js';
 import { Context } from '../context.js';
 import { RuntimeError } from '../Exceptions.js';
 import { SymbolTable } from '../symbol_table.js';
-import { AddNode, BinaryShiftLeftNode, BinaryShiftRightNode, BooleanNode, ClassCallNode, ClassDefNode, DictionnaryElementNode, DictionnaryNode, DivideNode, EnumNode, EqualsNode, GreaterThanNode, GreaterThanOrEqualNode, LessThanNode, LessThanOrEqualNode, ListNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, ModuloNode, MultiplyNode, NoneNode, NotEqualsNode, NotNode, NumberNode, PowerNode, StringNode, UnsignedBinaryShiftRightNode, VarAccessNode, VarAssignNode } from '../nodes.js';
+import { AddNode, BinaryNotNode, BinaryShiftLeftNode, BinaryShiftRightNode, BooleanNode, ClassCallNode, ClassDefNode, DictionnaryElementNode, DictionnaryNode, DivideNode, EnumNode, EqualsNode, GreaterThanNode, GreaterThanOrEqualNode, LessThanNode, LessThanOrEqualNode, ListNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, ModuloNode, MultiplyNode, NoneNode, NotEqualsNode, NotNode, NumberNode, PowerNode, StringNode, UnsignedBinaryShiftRightNode, VarAccessNode, VarAssignNode } from '../nodes.js';
 
 /*
 
@@ -2325,6 +2325,35 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             number(9),
         );
         expected = 7;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+    });
+
+    it('should work with a binary NOT', () => {
+        const interpreter = new Interpreter();
+        let tree;
+        let expected;
+        let result;
+
+        // ---
+        // Every possible combinations
+        // ---
+        // ~5              == -6        OK
+        // ~none           == -1        OK
+        // ~true           == -2        OK
+        tree = new BinaryNotNode(
+            number(5),
+        );
+        expected = -6;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryNotNode(
+            none(),
+        );
+        expected = -1;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new BinaryNotNode(
+            yes()
+        );
+        expected = -2;
         assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
     });
 });

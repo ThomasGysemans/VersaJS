@@ -113,6 +113,9 @@ export class Lexer {
             } else if (this.current_char === "^") {
                 this.advance();
                 yield new Token(TokenType.LOGICAL_XOR, null, this.pos);
+            } else if (this.current_char === "~") {
+                this.advance();
+                yield new Token(TokenType.BIN_NOT, null, this.pos);
             } else if (this.current_char === "#") {
                 this.skip_comment();
             } else {

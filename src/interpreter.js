@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode } from './nodes.js';
 import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -242,6 +242,8 @@ export class Interpreter {
             return this.visit_LogicalOrNode(node, context);
         } else if (node instanceof LogicalXORNode) {
             return this.visit_LogicalXORNode(node, context);
+        } else if (node instanceof BinaryNotNode) {
+            return this.visit_BinaryNotNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -1177,6 +1179,34 @@ export class Interpreter {
         } else if (visited_node instanceof BooleanValue) {
             return new RuntimeResult().success(
                 new NumberValue(-1 * visited_node.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
+        }
+    }
+
+    /**
+     * Interprets a binary NOT.
+     * @param {BinaryNotNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_BinaryNotNode(node, context) {
+        let res = new RuntimeResult();
+        let visited_node = res.register(this.visit(node.node, context));
+        if (res.should_return()) return res;
+
+        if (visited_node instanceof NumberValue) {
+            return new RuntimeResult().success(
+                new NumberValue(~visited_node.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (visited_node instanceof NoneValue) {
+            return new RuntimeResult().success(
+                new NumberValue(~0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (visited_node instanceof BooleanValue) {
+            return new RuntimeResult().success(
+                new NumberValue(~visited_node.state).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             this.illegal_operation(node, context);

@@ -498,4 +498,12 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with a binary NOT (~)', () => {
+        const tokens = Array.from(new Lexer("~").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.BIN_NOT),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

@@ -155,6 +155,23 @@ export class MinusNode extends CustomNode {
     }
 }
 
+export class BinaryNotNode extends CustomNode {
+    /**
+     * @constructs BinaryNotNode
+     * @param {CustomNode} node The node.
+     */
+    constructor(node) {
+        super();
+        this.node = node;
+
+        this.set_pos(node.pos_start, node.pos_end);
+    }
+
+    toString() {
+        return `(~${this.node})`;
+    }
+}
+
 export class PrefixOperationNode extends CustomNode {
     /**
      * @constructs IncrementBeforeNode
