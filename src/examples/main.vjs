@@ -1,7 +1,10 @@
-var nullish = none
-nullish ??= 5
-log(nullish)
+var x = none
 
-var falsy = false
-falsy ??= true
-log(falsy)
+func test():
+    log("test is called")
+    return 5
+end
+
+# both operations are strictly equal
+# log(x ?? (x = test()))
+log(x ??= test())
