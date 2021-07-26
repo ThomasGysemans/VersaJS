@@ -5,7 +5,7 @@ import { Token, TokenType } from '../tokens.js';
 import { Context } from '../context.js';
 import { RuntimeError } from '../Exceptions.js';
 import { SymbolTable } from '../symbol_table.js';
-import { AddNode, BinaryShiftLeftNode, BinaryShiftRightNode, BooleanNode, ClassCallNode, ClassDefNode, DictionnaryElementNode, DictionnaryNode, DivideNode, EnumNode, EqualsNode, GreaterThanNode, GreaterThanOrEqualNode, LessThanNode, LessThanOrEqualNode, ListNode, ModuloNode, MultiplyNode, NoneNode, NotEqualsNode, NotNode, NumberNode, PowerNode, StringNode, UnsignedBinaryShiftRightNode, VarAccessNode, VarAssignNode } from '../nodes.js';
+import { AddNode, BinaryShiftLeftNode, BinaryShiftRightNode, BooleanNode, ClassCallNode, ClassDefNode, DictionnaryElementNode, DictionnaryNode, DivideNode, EnumNode, EqualsNode, GreaterThanNode, GreaterThanOrEqualNode, LessThanNode, LessThanOrEqualNode, ListNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, ModuloNode, MultiplyNode, NoneNode, NotEqualsNode, NotNode, NumberNode, PowerNode, StringNode, UnsignedBinaryShiftRightNode, VarAccessNode, VarAssignNode } from '../nodes.js';
 
 /*
 
@@ -2136,6 +2136,195 @@ describe('Maths (tests every possible combinations for every kind of arithmetic 
             number(2),
         );
         expected = 65;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+    });
+
+    it('should work with a logical AND operation', () => {
+        const interpreter = new Interpreter();
+        let tree;
+        let expected;
+        let result;
+
+        // ---
+        // Every possible combinations
+        // ---
+        // 14 & 9              == 8        OK
+        // 14 & none           == 0        OK
+        // none & 14           == 0        OK
+        // 14 & true           == 0        OK
+        // true & 14           == 0        OK
+        // true & true         == 1        OK
+        // 1 + 13 & 9          == 8        OK
+        tree = new LogicalAndNode(
+            number(14),
+            number(9),
+        );
+        expected = 8;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalAndNode(
+            number(14),
+            none(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalAndNode(
+            none(),
+            number(14),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalAndNode(
+            number(14),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalAndNode(
+            yes(),
+            number(14),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalAndNode(
+            yes(),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalAndNode(
+            new AddNode(
+                number(1),
+                number(13)
+            ),
+            number(9),
+        );
+        expected = 8;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+    });
+
+    it('should work with a logical OR operation', () => {
+        const interpreter = new Interpreter();
+        let tree;
+        let expected;
+        let result;
+
+        // ---
+        // Every possible combinations
+        // ---
+        // 14 | 9              == 15        OK
+        // 14 | none           == 14        OK
+        // none | 14           == 14        OK
+        // 14 | true           == 15        OK
+        // true | 14           == 15        OK
+        // true | true         == 1         OK
+        // 1 + 13 | 9          == 15        OK
+        tree = new LogicalOrNode(
+            number(14),
+            number(9),
+        );
+        expected = 15;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalOrNode(
+            number(14),
+            none(),
+        );
+        expected = 14;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalOrNode(
+            none(),
+            number(14),
+        );
+        expected = 14;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalOrNode(
+            number(14),
+            yes(),
+        );
+        expected = 15;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalOrNode(
+            yes(),
+            number(14),
+        );
+        expected = 15;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalOrNode(
+            yes(),
+            yes(),
+        );
+        expected = 1;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalOrNode(
+            new AddNode(
+                number(1),
+                number(13)
+            ),
+            number(9),
+        );
+        expected = 15;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+    });
+
+    it('should work with a logical XOR operation', () => {
+        const interpreter = new Interpreter();
+        let tree;
+        let expected;
+        let result;
+
+        // ---
+        // Every possible combinations
+        // ---
+        // 14 ^ 9              == 7        OK
+        // 14 ^ none           == 14       OK
+        // none ^ 14           == 14       OK
+        // 14 ^ true           == 15       OK
+        // true ^ 14           == 15       OK
+        // true ^ true         == 0        OK
+        // 1 + 13 ^ 9          == 7        OK
+        tree = new LogicalXORNode(
+            number(14),
+            number(9),
+        );
+        expected = 7;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalXORNode(
+            number(14),
+            none(),
+        );
+        expected = 14;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalXORNode(
+            none(),
+            number(14),
+        );
+        expected = 14;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalXORNode(
+            number(14),
+            yes(),
+        );
+        expected = 15;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalXORNode(
+            yes(),
+            number(14),
+        );
+        expected = 15;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalXORNode(
+            yes(),
+            yes(),
+        );
+        expected = 0;
+        assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
+        tree = new LogicalXORNode(
+            new AddNode(
+                number(1),
+                number(13)
+            ),
+            number(9),
+        );
+        expected = 7;
         assert.strictEqual(interpreter.visit(tree, context()).value.value, expected);
     });
 });

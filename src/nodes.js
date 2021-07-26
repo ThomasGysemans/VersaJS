@@ -296,6 +296,63 @@ export class UnsignedBinaryShiftRightNode extends CustomNode {
     }
 }
 
+export class LogicalAndNode extends CustomNode {
+    /**
+     * @constructs LogicalAndNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a}&${this.node_b})`;
+    }
+}
+
+export class LogicalOrNode extends CustomNode {
+    /**
+     * @constructs LogicalOrNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a}|${this.node_b})`;
+    }
+}
+
+export class LogicalXORNode extends CustomNode {
+    /**
+     * @constructs LogicalXORNode
+     * @param {CustomNode} node_a The left node.
+     * @param {CustomNode} node_b The right node.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+
+        this.set_pos(node_a.pos_start, node_b.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a}^${this.node_b})`;
+    }
+}
+
 /**
  * @classdesc Creates a variable by saving its name and its value.
  */

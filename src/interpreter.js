@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode } from './nodes.js';
 import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -236,6 +236,12 @@ export class Interpreter {
             return this.visit_UnsignedBinaryShiftRightNode(node, context);
         } else if (node instanceof NullishAssignmentNode) {
             return this.visit_NullishAssignmentNode(node, context);
+        } else if (node instanceof LogicalAndNode) {
+            return this.visit_LogicalAndNode(node, context);
+        } else if (node instanceof LogicalOrNode) {
+            return this.visit_LogicalOrNode(node, context);
+        } else if (node instanceof LogicalXORNode) {
+            return this.visit_LogicalXORNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -959,6 +965,162 @@ export class Interpreter {
         } else if (left instanceof BooleanValue && right instanceof BooleanValue) { // boolean >>> boolean
             return new RuntimeResult().success(
                 new NumberValue(left.state >>> right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
+        }
+    }
+
+    /**
+     * Interprets the logical operation: AND.
+     * @param {LogicalAndNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_LogicalAndNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        // number & number            OK
+        // number & none              OK
+        // none & number              OK
+        // number & boolean           OK
+        // boolean & number           OK
+        // boolean & boolean          OK
+        if (left instanceof NumberValue && right instanceof NumberValue) { // number & number 
+            return new RuntimeResult().success(
+                new NumberValue(left.value & right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) { // number & none
+            return new RuntimeResult().success(
+                new NumberValue(left.value & 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) { // none & number
+            return new RuntimeResult().success(
+                new NumberValue(0 & right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) { // none & none
+            return new RuntimeResult().success(
+                new NumberValue(0 & 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) { // number & boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.value & right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) { // boolean & number
+            return new RuntimeResult().success(
+                new NumberValue(left.state & right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) { // boolean & boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.state & right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
+        }
+    }
+
+    /**
+     * Interprets the logical operation: OR.
+     * @param {LogicalOrNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_LogicalOrNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        // number | number            OK
+        // number | none              OK
+        // none | number              OK
+        // number | boolean           OK
+        // boolean | number           OK
+        // boolean | boolean          OK
+        if (left instanceof NumberValue && right instanceof NumberValue) { // number | number 
+            return new RuntimeResult().success(
+                new NumberValue(left.value | right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) { // number | none
+            return new RuntimeResult().success(
+                new NumberValue(left.value | 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) { // none | number
+            return new RuntimeResult().success(
+                new NumberValue(0 | right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) { // none | none
+            return new RuntimeResult().success(
+                new NumberValue(0 | 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) { // number | boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.value | right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) { // boolean | number
+            return new RuntimeResult().success(
+                new NumberValue(left.state | right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) { // boolean | boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.state | right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else {
+            this.illegal_operation(node, context);
+        }
+    }
+
+    /**
+     * Interprets the logical operation: XOR.
+     * @param {LogicalXORNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_LogicalXORNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+        let right = res.register(this.visit(node.node_b, context));
+        if (res.should_return()) return res;
+
+        // number ^ number            OK
+        // number ^ none              OK
+        // none ^ number              OK
+        // number ^ boolean           OK
+        // boolean ^ number           OK
+        // boolean ^ boolean          OK
+        if (left instanceof NumberValue && right instanceof NumberValue) { // number ^ number 
+            return new RuntimeResult().success(
+                new NumberValue(left.value ^ right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof NoneValue) { // number ^ none
+            return new RuntimeResult().success(
+                new NumberValue(left.value ^ 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NumberValue) { // none ^ number
+            return new RuntimeResult().success(
+                new NumberValue(0 ^ right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NoneValue && right instanceof NoneValue) { // none ^ none
+            return new RuntimeResult().success(
+                new NumberValue(0 ^ 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof NumberValue && right instanceof BooleanValue) { // number ^ boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.value ^ right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof NumberValue) { // boolean ^ number
+            return new RuntimeResult().success(
+                new NumberValue(left.state ^ right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof BooleanValue && right instanceof BooleanValue) { // boolean ^ boolean
+            return new RuntimeResult().success(
+                new NumberValue(left.state ^ right.state).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             this.illegal_operation(node, context);

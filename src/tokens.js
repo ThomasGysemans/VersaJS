@@ -43,6 +43,9 @@ export class TokenType {
     static BINARY_LEFT           = 'BINARY_LEFT'
     static BINARY_RIGHT          = 'BINARY_RIGHT'
     static BINARY_UNSIGNED_RIGHT = 'BINARY_UNSIGNED_RIGHT'
+    static LOGICAL_AND           = 'LOGICAL_AND' // &
+    static LOGICAL_XOR           = 'LOGICAL_XOR' // ^
+    static LOGICAL_OR            = 'LOGICAL_OR' // |
     static EOF                   = 'EOF'
 }
 

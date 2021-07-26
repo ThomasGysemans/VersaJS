@@ -488,4 +488,14 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with logical operators (&, |, ^)', () => {
+        const tokens = Array.from(new Lexer("& | ^").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.LOGICAL_AND),
+            new Token(TokenType.LOGICAL_OR),
+            new Token(TokenType.LOGICAL_XOR),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

@@ -1,10 +1,4 @@
-var x = none
+var a = 5
+a |= 3
 
-func test():
-    log("test is called")
-    return 5
-end
-
-# both operations are strictly equal
-# log(x ?? (x = test()))
-log(x ??= test())
+log(a) # expected: 7

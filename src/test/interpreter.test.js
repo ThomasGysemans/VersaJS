@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, NullishOperatorNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode, NullishAssignmentNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, NullishOperatorNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode } from '../nodes.js';
 import { BooleanValue, ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js';
@@ -275,6 +275,24 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context());
         const value = result.value.value;
         const expected = 32;
+        assert.deepStrictEqual(value, expected);
+    });
+
+    it('should work with a complex operation including a logical operation (AND)', () => {
+        // 14 ^ 1 + 4 * 2 = 8
+        const tree = new LogicalAndNode(
+            number(14),
+            new AddNode(
+                number(1),
+                new MultiplyNode(
+                    number(4),
+                    number(2),
+                ),
+            ),
+        );
+        const result = new Interpreter().visit(tree, context());
+        const value = result.value.value;
+        const expected = 8;
         assert.deepStrictEqual(value, expected);
     });
 
