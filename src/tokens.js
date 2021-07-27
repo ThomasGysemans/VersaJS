@@ -47,6 +47,8 @@ export class TokenType {
     static LOGICAL_XOR           = 'LOGICAL_XOR' // ^
     static LOGICAL_OR            = 'LOGICAL_OR' // |
     static BIN_NOT               = 'BINARY_NOT' // ~
+    static AND                   = 'AND' // &&
+    static OR                    = 'OR' // ||
     static EOF                   = 'EOF'
 }
 

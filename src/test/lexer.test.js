@@ -506,4 +506,13 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with AND and OR as tokens (&&, ||)', () => {
+        const tokens = Array.from(new Lexer("&& ||").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.AND),
+            new Token(TokenType.OR),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

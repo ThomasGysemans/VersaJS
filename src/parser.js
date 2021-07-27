@@ -511,8 +511,8 @@ export class Parser {
 
         let result = this.comp_expr();
         
-        const is_and = () => this.current_token.matches(TokenType.KEYWORD, "and");
-        const is_or  = () => this.current_token.matches(TokenType.KEYWORD, "or");
+        const is_and = () => this.current_token.matches(TokenType.KEYWORD, "and") || this.current_token.type === TokenType.AND;
+        const is_or  = () => this.current_token.matches(TokenType.KEYWORD, "or") || this.current_token.type === TokenType.OR;
 
         while (this.current_token !== null && (is_and() || is_or())) {
             if (is_and()) {

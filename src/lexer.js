@@ -105,11 +105,9 @@ export class Lexer {
                 this.advance();
                 yield new Token(TokenType.COMMA, null, this.pos);
             } else if (this.current_char === "&") {
-                this.advance();
-                yield new Token(TokenType.LOGICAL_AND, null, this.pos);
+                yield this.make_and();
             } else if (this.current_char === "|") {
-                this.advance();
-                yield new Token(TokenType.LOGICAL_OR, null, this.pos);
+                yield this.make_or();
             } else if (this.current_char === "^") {
                 this.advance();
                 yield new Token(TokenType.LOGICAL_XOR, null, this.pos);
@@ -357,6 +355,32 @@ export class Lexer {
         if (this.current_char === "*") {
             this.advance();
             tok_type = TokenType.POWER;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_or() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.LOGICAL_OR;
+        this.advance();
+
+        if (this.current_char === "|") { // ||
+            this.advance();
+            tok_type = TokenType.OR;
+        }
+
+        return new Token(tok_type, null, pos_start, this.pos);
+    }
+
+    make_and() {
+        let pos_start = this.pos.copy();
+        let tok_type = TokenType.LOGICAL_AND;
+        this.advance();
+
+        if (this.current_char === "&") { // &&
+            this.advance();
+            tok_type = TokenType.AND;
         }
 
         return new Token(tok_type, null, pos_start, this.pos);

@@ -25,7 +25,7 @@ class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON
 expr        : KEYWORD:VAR IDENTIFIER (EQUALS expr)?
             : KEYWORD:DEFINE IDENTIFIER EQUALS expr
             : KEYWORD:DELETE call
-            : comp-expr ((KEYWORD:AND|KEYWORD:OR) comp-expr)*
+            : comp-expr ((KEYWORD:AND|KEYWORD:OR|AND|OR) comp-expr)*
             
 comp-expr   : NOT comp-expr
             : bin-op ((EE|LT|GT|LTE|GTE|NULLISH) bin-op)*

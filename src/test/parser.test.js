@@ -417,4 +417,11 @@ describe('Parser tests', () => {
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof MinusNode);
     });
+
+    it('should work with AND and OR as tokens (&&, ||)', () => {
+        const tokens = new Lexer("1 && 1; 0 || 1").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof AndNode);
+        assert.deepStrictEqual(true, node.element_nodes[1] instanceof OrNode);
+    });
 });
