@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { is_in } from "./miscellaneous.js";
 import { Position } from "./position.js";
@@ -512,14 +512,34 @@ export class Parser {
         let result = this.comp_expr();
         
         const is_and = () => this.current_token.matches(TokenType.KEYWORD, "and") || this.current_token.type === TokenType.AND;
-        const is_or  = () => this.current_token.matches(TokenType.KEYWORD, "or") || this.current_token.type === TokenType.OR;
+        const is_or  = () => this.current_token.matches(TokenType.KEYWORD, "or")  || this.current_token.type === TokenType.OR;
 
         while (this.current_token !== null && (is_and() || is_or())) {
             if (is_and()) {
                 this.advance();
+                if (this.current_token.type === TokenType.EQUALS) {
+                    this.advance();
+                    if (!(result instanceof VarAccessNode) && !(result instanceof ListAccessNode) && !(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
+                    return new AndAssignmentNode(result, this.expr());
+                }
                 result = new AndNode(result, this.comp_expr());
             } else if (is_or()) {
                 this.advance();
+                if (this.current_token.type === TokenType.EQUALS) {
+                    this.advance();
+                    if (!(result instanceof VarAccessNode) && !(result instanceof ListAccessNode) && !(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, this.current_token.pos_end,
+                            "Expected a variable"
+                        );
+                    }
+                    return new OrAssignmentNode(result, this.expr());
+                }
                 result = new OrNode(result, this.comp_expr());
             }
         }

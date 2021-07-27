@@ -415,7 +415,7 @@ export class NullishOperatorNode extends CustomNode {
 }
 
 /**
- * @classdesc A nullish assignment
+ * @classdesc A nullish assignment (??=)
  */
 export class NullishAssignmentNode extends CustomNode {
     /**
@@ -433,6 +433,50 @@ export class NullishAssignmentNode extends CustomNode {
     
     toString() {
         return `(${this.node_a} ??= ${this.node_b})`;
+    }
+}
+
+/**
+ * @classdesc An and assignment (&&=)
+ */
+export class AndAssignmentNode extends CustomNode {
+    /**
+     * @constructs AndAssignmentNode
+     * @param {CustomNode} node_a The value of the wanted value.
+     * @param {CustomNode} node_b The value of the default value.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+        this.pos_start = this.node_a.pos_start;
+        this.pos_end = this.node_b.pos_end;
+    }
+    
+    toString() {
+        return `(${this.node_a} &&= ${this.node_b})`;
+    }
+}
+
+/**
+ * @classdesc An or assignment (||=)
+ */
+export class OrAssignmentNode extends CustomNode {
+    /**
+     * @constructs OrAssignmentNode
+     * @param {CustomNode} node_a The value of the wanted value.
+     * @param {CustomNode} node_b The value of the default value.
+     */
+    constructor(node_a, node_b) {
+        super();
+        this.node_a = node_a;
+        this.node_b = node_b;
+        this.pos_start = this.node_a.pos_start;
+        this.pos_end = this.node_b.pos_end;
+    }
+    
+    toString() {
+        return `(${this.node_a} ||= ${this.node_b})`;
     }
 }
 

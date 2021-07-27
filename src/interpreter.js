@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode } from './nodes.js';
 import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
@@ -244,6 +244,10 @@ export class Interpreter {
             return this.visit_LogicalXORNode(node, context);
         } else if (node instanceof BinaryNotNode) {
             return this.visit_BinaryNotNode(node, context);
+        } else if (node instanceof AndAssignmentNode) {
+            return this.visit_AndAssignmentNode(node, context);
+        } else if (node instanceof OrAssignmentNode) {
+            return this.visit_OrAssignmentNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -1367,6 +1371,114 @@ export class Interpreter {
                 throw new RuntimeError(
                     node.pos_start, node.pos_end,
                     "Invalid type of variable for nullish assignment",
+                    context
+                );
+            }
+        }
+
+        return res.success(left.copy().set_pos(node.pos_start, node.pos_end).set_context(context));
+    }
+
+    /**
+     * Interprets a variable modification only if its true.
+     * @param {AndAssignmentNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_AndAssignmentNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+
+        if (left.is_true()) {
+            if (node.node_a instanceof CallPropertyNode || node.node_a instanceof CallStaticPropertyNode) {
+                let new_value = res.register(this.visit(
+                    new AssignPropertyNode(
+                        node.node_a,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else if (node.node_a instanceof ListAccessNode) {
+                let new_value = res.register(this.visit(
+                    new ListAssignmentNode(
+                        node.node_a,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else if (node.node_a instanceof VarAccessNode) {
+                let new_value = res.register(this.visit(
+                    new VarModifyNode(
+                        node.node_a.var_name_tok,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "Invalid type of variable for and assignment",
+                    context
+                );
+            }
+        }
+
+        return res.success(left.copy().set_pos(node.pos_start, node.pos_end).set_context(context));
+    }
+
+    /**
+     * Interprets a variable modification only if its false.
+     * @param {OrAssignmentNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_OrAssignmentNode(node, context) {
+        let res = new RuntimeResult();
+        let left = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+
+        if (!left.is_true()) {
+            if (node.node_a instanceof CallPropertyNode || node.node_a instanceof CallStaticPropertyNode) {
+                let new_value = res.register(this.visit(
+                    new AssignPropertyNode(
+                        node.node_a,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else if (node.node_a instanceof ListAccessNode) {
+                let new_value = res.register(this.visit(
+                    new ListAssignmentNode(
+                        node.node_a,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else if (node.node_a instanceof VarAccessNode) {
+                let new_value = res.register(this.visit(
+                    new VarModifyNode(
+                        node.node_a.var_name_tok,
+                        node.node_b
+                    ),
+                    context
+                ));
+                if (res.should_return()) return res;
+                return res.success(new_value);
+            } else {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "Invalid type of variable for and assignment",
                     context
                 );
             }

@@ -1,4 +1,7 @@
-var a = 5
-a |= 3
+var a = {"duration": 50, "title": ""}
 
-log(a) # expected: 7
+a["duration"] ||= 10
+log(a["duration"]) # expected: 50
+
+a["title"] ||= "title is empty"
+log(a["title"]) # expected: "title is empty"
