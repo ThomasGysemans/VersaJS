@@ -94,7 +94,7 @@ while-expr  : KEYWORD:WHILE expr KEYWORD:THEN
                 | (NEWLINE statements KEYWORD:END)
 
 func-def    : KEYWORD:FUNC IDENTIFIER?
-                LPAREN (IDENTIFIER (COMMA IDENTIFIER)*|TRIPLE_DOTS IDENTIFIER)? RPAREN
+                LPAREN (IDENTIFIER (QMARK (EQUALS expr)?)? (COMMA IDENTIFIER)*|TRIPLE_DOTS IDENTIFIER)? RPAREN
                 (ARROW expr)
                 | (COLON statements KEYWORD:END)
 
