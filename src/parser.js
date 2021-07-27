@@ -946,10 +946,16 @@ export class Parser {
         // if we have a dot after our atom
         // that means we are calling the atom (and that this atom is a ClassValue)
 
-        const is_dot = () => this.current_token.type === TokenType.DOT;
+        const is_dot    = () => this.current_token.type === TokenType.DOT;
         const is_static = () => this.current_token.type === TokenType.DOUBLE_COLON;
+        const is_qmark  = () => this.current_token.type === TokenType.QMARK;
 
-        if (is_dot() || is_static()) {
+        if (is_dot() || is_static() || is_qmark()) {
+            let is_optional = is_qmark();
+            if (is_optional) {
+                this.advance();
+            }
+
             let is_static_prop = is_static();
             let is_calling = false;
             let result;
@@ -957,32 +963,46 @@ export class Parser {
             while (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
                 is_calling = false;
 
+                if (is_qmark()) {
+                    is_calling = true;
+                    is_optional = true;
+                    this.advance();
+                }
+
                 if (is_dot()) is_calling = true;
-                if (is_static()) is_calling = true;
+                if (is_static()) {
+                    is_calling = true;
+                    is_static_prop = true;
+                }
                 if (!is_calling) break;
                 
                 this.advance();
-                if (!is_static_prop) this.ignore_newlines();
+                if (!is_static_prop && !is_optional) this.ignore_newlines();
                 
-                if (this.current_token.type !== TokenType.IDENTIFIER) {
-                    throw new InvalidSyntaxError(
-                        this.current_token.pos_start, this.current_token.pos_end,
-                        "Expected identifier"
-                    );
-                }
-
-                let property_tok = this.current_token;
-
-                this.advance();
-
-                let call_node = is_static_prop ? new CallStaticPropertyNode(result ? result : node_to_call, property_tok) : new CallPropertyNode(result ? result : node_to_call, property_tok);
-
-                if (this.current_token.type === TokenType.LPAREN) {
-                    result = new CallMethodNode(this.helper_call_func(call_node), node_to_call); // node_to_call will have to be an instance of ClassValue
-                } else if (this.current_token.type === TokenType.LSQUARE) {
-                    result = this.helper_call_list(call_node)
+                // if we have "?.()"
+                if (this.current_token.type === TokenType.LPAREN && is_optional) {
+                    result = new CallMethodNode(this.helper_call_func(result), node_to_call, true);
                 } else {
-                    result = call_node;
+                    if (this.current_token.type !== TokenType.IDENTIFIER) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected identifier"
+                        );
+                    }
+
+                    let property_tok = this.current_token;
+
+                    this.advance();
+
+                    let call_node = is_static_prop ? new CallStaticPropertyNode(result ? result : node_to_call, property_tok, is_optional) : new CallPropertyNode(result ? result : node_to_call, property_tok, is_optional);
+
+                    if (this.current_token.type === TokenType.LPAREN) {
+                        result = new CallMethodNode(this.helper_call_func(call_node), node_to_call); // node_to_call will have to be an instance of ClassValue
+                    } else if (this.current_token.type === TokenType.LSQUARE) {
+                        result = this.helper_call_list(call_node)
+                    } else {
+                        result = call_node;
+                    }
                 }
             }
 

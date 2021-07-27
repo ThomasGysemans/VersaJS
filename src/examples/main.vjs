@@ -1,7 +1,20 @@
-var a = {"duration": 50, "title": ""}
+class Cat:
+    property name = 'Dinah'
+end
 
-a["duration"] ||= 10
-log(a["duration"]) # expected: 50
+class Adventurer:
+    property name = 'Alice'
+    property cat
+    
+    method __init():
+        self.cat = new Cat()
+    end
 
-a["title"] ||= "title is empty"
-log(a["title"]) # expected: "title is empty"
+    method imaginaryMethod():
+        return new Cat()
+    end
+end
+
+var adv = new Adventurer()
+var ret_value = adv.imaginaryMethod?.().name
+log(ret_value)

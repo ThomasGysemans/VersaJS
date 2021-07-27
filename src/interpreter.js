@@ -3956,11 +3956,17 @@ export class Interpreter {
             }
             return res.success(prop);
         } else {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Cannot call a property from this type of value.",
-                context
-            );
+            if (node.is_optional) {
+                return res.success(
+                    new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                );
+            } else {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "Cannot call a property from this type of value.",
+                    context
+                );
+            }
         }
     }
 
@@ -3987,11 +3993,17 @@ export class Interpreter {
         let prop = base.self.get(property_name);
         
         if (prop === undefined || prop === null) {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Undefined static property",
-                context
-            );
+            if (node.is_optional) {
+                return res.success(
+                    new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                );
+            } else {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "Undefined static property",
+                    context
+                );
+            }
         }
 
         if (!prop.static_prop) {
@@ -4033,6 +4045,15 @@ export class Interpreter {
         let base = res.register(this.visit(node.property.node_to_call, context));
         if (res.should_return()) return res;
         let property_name = node.property.property_tok.value;
+
+        // we can't do: `example?.thing = 5`
+        if (node.property.is_optional) {
+            throw new RuntimeError(
+                node.property.pos_start, node.property.pos_end,
+                `Cannot assign a new value to an optional call.`,
+                context
+            );
+        }
 
         if (property_name === "__init" || property_name === "__repr") {
             throw new RuntimeError(
@@ -4122,12 +4143,19 @@ export class Interpreter {
         let value_to_call = res.register(this.visit(node_to_call.node_to_call, context));
         if (res.should_return()) return res;
 
+        // surprisingly, it might be a native function
         if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof NativeFunction)) {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "Cannot call a variable that is not a function.",
-                context
-            );
+            if (node.is_optional) {
+                return res.success(
+                    new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                );
+            } else {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "Cannot call a variable that is not a function.",
+                    context
+                );
+            }
         }
 
         value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);

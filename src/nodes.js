@@ -1116,11 +1116,13 @@ export class CallPropertyNode extends CustomNode {
      * @constructs CallPropertyNode
      * @param {CustomNode} node_to_call The node to call.
      * @param {Token} property_tok The token of the property to be called.
+     * @param {boolean} is_optional Is the optional chaining operator present? (example.first?.second)
      */
-    constructor(node_to_call, property_tok) {
+    constructor(node_to_call, property_tok, is_optional=false) {
         super();
         this.node_to_call = node_to_call;
         this.property_tok = property_tok;
+        this.is_optional = is_optional;
         this.pos_start = this.node_to_call.pos_start;
         this.pos_end = this.property_tok.pos_end;
     }
@@ -1138,11 +1140,13 @@ export class CallStaticPropertyNode extends CustomNode {
      * @constructs CallStaticPropertyNode
      * @param {CustomNode} node_to_call The node to call.
      * @param {Token} property_tok The token of the property to be called.
+     * @param {boolean} is_optional Is the optional chaining operator present? (Example?::first)
      */
-    constructor(node_to_call, property_tok) {
+    constructor(node_to_call, property_tok, is_optional=false) {
         super();
         this.node_to_call = node_to_call;
         this.property_tok = property_tok;
+        this.is_optional = is_optional;
         this.pos_start = this.node_to_call.pos_start;
         this.pos_end = this.property_tok.pos_end;
     }
@@ -1160,11 +1164,13 @@ export class CallMethodNode extends CustomNode {
      * @constructs CallMethodNode
      * @param {CallNode} node_to_call The node to call.
      * @param {CustomNode} origin The token of the property to be called.
+     * @param {boolean} is_optional Is the optional chaining operator present? (test.imaginaryMethod?.())
      */
-    constructor(node_to_call, origin) {
+    constructor(node_to_call, origin, is_optional=false) {
         super();
         this.node_to_call = node_to_call;
         this.origin = origin;
+        this.is_optional = is_optional;
         this.pos_start = this.origin.pos_start;
         this.pos_end = this.node_to_call.pos_end;
     }

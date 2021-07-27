@@ -442,4 +442,25 @@ describe('Parser tests', () => {
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof OrAssignmentNode);
     });
+
+    it('should work with an optional chaining operator', () => {
+        const tokens = new Lexer("example?.thing?.yo").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].is_optional);
+    });
+
+    it('should work with an optional chaining operator and a static property', () => {
+        const tokens = new Lexer("example.thing?::yo").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallStaticPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].is_optional);
+    });
+
+    it('should work with an optional chaining operator and a method', () => {
+        const tokens = new Lexer("example.imaginaryMethod?.()").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallMethodNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].is_optional);
+    });
 });

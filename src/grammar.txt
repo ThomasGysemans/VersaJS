@@ -42,7 +42,7 @@ factor      : (PLUS|MINUS) factor
             : (INC|DEC)* term
             : prop
 
-prop        : call (DOT|DOUBLE_COLON IDENTIFIER call_func|call_list)*
+prop        : call (QMARK (DOT|DOUBLE_COLON (IDENTIFIER)?)|(DOT|DOUBLE_COLON IDENTIFIER) call_func|call_list)*
 
 call_func   : (LPAREN (expr (COMMA expr)*)? RPAREN)*
 

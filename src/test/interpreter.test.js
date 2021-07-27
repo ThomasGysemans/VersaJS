@@ -4027,4 +4027,413 @@ describe('Interpreter', () => {
         ];
         assert.deepStrictEqual(values, expected);
     });
+
+    it('should work with an optional chaining operator on properties', () => {
+        /*
+        class Cat:
+            property name = 'Dinah'
+        end
+
+        class Adventurer:
+            property name = 'Alice'
+            property cat
+            
+            method __init():
+                self.cat = new Cat()
+            end
+        end
+
+        var adv = new Adventurer()
+        var dogName = adv.dog?.name?.yo
+        dogName # expected: none
+        */
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("Cat"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("Dinah"),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new ClassDefNode(
+                    identifier_tok("Adventurer"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("Alice"),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("cat"),
+                            none(),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("cat")
+                                    ),
+                                    new ClassCallNode(
+                                        identifier_tok("Cat"),
+                                        []
+                                    )
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new VarAssignNode(
+                    identifier_tok("adv"),
+                    new ClassCallNode(
+                        identifier_tok("Adventurer"),
+                        []
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("dogName"),
+                    new CallPropertyNode(
+                        new CallPropertyNode(
+                            new CallPropertyNode(
+                                new VarAccessNode(identifier_tok("adv")),
+                                identifier_tok("dog"),
+                                false
+                            ),
+                            identifier_tok("name"),
+                            true
+                        ),
+                        identifier_tok("yo"),
+                        true
+                    )
+                ),
+                new VarAccessNode(identifier_tok("dogName"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[4] instanceof NoneValue, true);
+    });
+
+    it('should work with an optional chaining operator on static property', () => {
+        /*
+        class Example:
+            static property yo = 5
+        end
+
+        Example?::yoyo # expected: none
+        */
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("Example"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("yo"),
+                            number(5),
+                            1,
+                            0,
+                            1
+                        )
+                    ],
+                    [],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new CallStaticPropertyNode(
+                    new VarAccessNode(identifier_tok("Example")),
+                    identifier_tok("yoyo"),
+                    true
+                ),
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[1] instanceof NoneValue, true);
+    });
+
+    it('should work with an optional chaining operator on method', () => {
+        /*
+        class Cat:
+            property name = 'Dinah'
+        end
+
+        class Adventurer:
+            property name = 'Alice'
+            property cat
+            
+            method __init():
+                self.cat = new Cat()
+            end
+        end
+
+        var adv = new Adventurer()
+        var ret_value = adv.imaginaryMethod?.()
+        ret_value # expected: none
+        */
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("Cat"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("Dinah"),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new ClassDefNode(
+                    identifier_tok("Adventurer"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("Alice"),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("cat"),
+                            none(),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("cat")
+                                    ),
+                                    new ClassCallNode(
+                                        identifier_tok("Cat"),
+                                        []
+                                    )
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new VarAssignNode(
+                    identifier_tok("adv"),
+                    new ClassCallNode(
+                        identifier_tok("Adventurer"),
+                        []
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("ret_value"),
+                    new CallMethodNode(
+                        new CallNode(
+                            new CallPropertyNode(
+                                new VarAccessNode(identifier_tok("adv")),
+                                identifier_tok("imaginaryMethod")
+                            ),
+                            []
+                        ),
+                        new VarAccessNode(identifier_tok("adv")),
+                        true
+                    )
+                ),
+                new VarAccessNode(identifier_tok("ret_value"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[4] instanceof NoneValue, true);
+    });
+
+    it('should work with an optional chaining operator on method (complex situation)', () => {
+        /*
+        class Cat:
+            property name = 'Dinah'
+        end
+
+        class Adventurer:
+            property name = 'Alice'
+            property cat
+            
+            method __init():
+                self.cat = new Cat()
+            end
+
+            method imaginaryMethod():
+                return new Cat()
+            end
+        end
+
+        var adv = new Adventurer()
+        var ret_value = adv.imaginaryMethod?.().name
+        ret_value
+        */
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("Cat"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("Dinah"),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new ClassDefNode(
+                    identifier_tok("Adventurer"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("name"),
+                            str("Alice"),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassPropertyDefNode(
+                            identifier_tok("cat"),
+                            none(),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("__init"),
+                                [],
+                                new AssignPropertyNode(
+                                    new CallPropertyNode(
+                                        new VarAccessNode(identifier_tok("self")),
+                                        identifier_tok("cat")
+                                    ),
+                                    new ClassCallNode(
+                                        identifier_tok("Cat"),
+                                        []
+                                    )
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("imaginaryMethod"),
+                                [],
+                                new ClassCallNode(
+                                    identifier_tok("Cat"),
+                                    []
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        ),
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new VarAssignNode(
+                    identifier_tok("adv"),
+                    new ClassCallNode(
+                        identifier_tok("Adventurer"),
+                        []
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("ret_value"),
+                    new CallPropertyNode(
+                        new CallMethodNode(
+                            new CallNode(
+                                new CallPropertyNode(
+                                    new VarAccessNode(identifier_tok("adv")),
+                                    identifier_tok("imaginaryMethod")
+                                ),
+                                []
+                            ),
+                            new VarAccessNode(identifier_tok("adv")),
+                            true
+                        ),
+                        identifier_tok("name"),
+                    ),
+                ),
+                new VarAccessNode(identifier_tok("ret_value"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[4].value, "Dinah");
+    });
 });
