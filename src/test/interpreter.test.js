@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, NullishOperatorNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, BinaryNotNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, NullishOperatorNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode } from '../nodes.js';
 import { BooleanValue, ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js';
@@ -3920,5 +3920,111 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context());
         assert.deepStrictEqual(result.value.elements[2].value, 5);
         assert.deepStrictEqual(result.value.elements[4] instanceof BooleanValue && result.value.elements[4].state === 0, true);
+    });
+
+    it('should work with an and assignment', () => {
+        /*
+        var a = 1
+        var b = 0
+        
+        a &&= 2
+        a # 2
+
+        b &&= 2
+        b # 0
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(identifier_tok("a"), number(1)),
+                new VarAssignNode(identifier_tok("b"), number(0)),
+                new AndAssignmentNode(
+                    new VarAccessNode(identifier_tok("a")),
+                    number(2)
+                ),
+                new VarAccessNode(identifier_tok("a")),
+                new AndAssignmentNode(
+                    new VarAccessNode(identifier_tok("b")),
+                    number(2)
+                ),
+                new VarAccessNode(identifier_tok("b"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        const expected = [
+            2,
+            0
+        ];
+        const values = [
+            result.value.elements[3].value,
+            result.value.elements[5].value,
+        ];
+        assert.deepStrictEqual(values, expected);
+    });
+    
+    it('should work with an or assignment', () => {
+        /*
+        var a = {"duration": 50, "title": ""}
+
+        a["duration"] ||= 10
+        a["duration"] # expected: 50
+
+        a["title"] ||= "title is empty"
+        a["title"] # expected: "title is empty"
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("a"),
+                    new DictionnaryNode(
+                        [
+                            new DictionnaryElementNode(str("duration"), number(50)),
+                            new DictionnaryElementNode(str("title"), str("")),
+                        ],
+                        null,
+                        null
+                    ),
+                ),
+                new OrAssignmentNode(
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("a")),
+                        0,
+                        [str("duration")]
+                    ),
+                    number(10)
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("a")),
+                    0,
+                    [str("duration")]
+                ),
+                new OrAssignmentNode(
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("a")),
+                        0,
+                        [str("title")]
+                    ),
+                    str("title is empty")
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("a")),
+                    0,
+                    [str("title")]
+                ),
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        const expected = [
+            50,
+            "title is empty"
+        ];
+        const values = [
+            result.value.elements[2].value,
+            result.value.elements[4].value,
+        ];
+        assert.deepStrictEqual(values, expected);
     });
 });

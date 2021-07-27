@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, MinusNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, MinusNode, NullishAssignmentNode, AndAssignmentNode, OrAssignmentNode } from '../nodes.js';
 import { InvalidSyntaxError } from '../Exceptions.js';
 
 // npm run test ./test/parser.test.js
@@ -423,5 +423,23 @@ describe('Parser tests', () => {
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof AndNode);
         assert.deepStrictEqual(true, node.element_nodes[1] instanceof OrNode);
+    });
+
+    it('should work with a nullish assignment operator (??=)', () => {
+        const tokens = new Lexer("a ??= b").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof NullishAssignmentNode);
+    });
+
+    it('should work with an and assignment operator (&&=)', () => {
+        const tokens = new Lexer("a &&= b").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof AndAssignmentNode);
+    });
+
+    it('should work with an or assignment operator (||=)', () => {
+        const tokens = new Lexer("a ||= b").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof OrAssignmentNode);
     });
 });
