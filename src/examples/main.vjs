@@ -1,21 +1,13 @@
-class Cat:
-    property name = 'Dinah'
-end
-
 class Adventurer:
-    property name = 'Alice'
-    property cat
-    property list = [1, 2]
-    
-    method __init():
-        self.cat = new Cat()
-    end
+    property test = 5
 
     method imaginaryMethod():
-        return [1, 2]
+        return func (a, b) -> if a == 0: none else: [a + b + self.test]
     end
 end
 
 var adv = new Adventurer()
-var ret_value = adv.list[42]?.[42]
-log(ret_value)
+var first = adv.imaginaryMethod?.()?.(1, 2)?.[0]
+var second = adv.imaginaryMethod?.()?.(0, 2)?.[0] # we can use [0] even though we know it's null (none), thanks to '?.'
+log(first)
+log(second)

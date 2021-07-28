@@ -470,4 +470,17 @@ describe('Parser tests', () => {
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAccessNode);
         assert.deepStrictEqual(true, node.element_nodes[0].list_nodes[1].is_optional);
     });
+
+    it('should work with a complex call including properties, methods and lists', () => {
+        const tokens = new Lexer("example.meth()[0]().name").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallPropertyNode);
+    });
+
+    it('should work with a complex call including methods, lists and optional chaining operator', () => {
+        const tokens = new Lexer("adv.imaginaryMethod?.()?.(1, 2)?.[0]?.[5]").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof ListAccessNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].list_nodes[0].is_optional, true);
+    });
 });

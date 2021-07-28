@@ -946,9 +946,11 @@ export class Parser {
         // if we have a dot after our atom
         // that means we are calling the atom (and that this atom is a ClassValue)
 
-        const is_dot    = () => this.current_token.type === TokenType.DOT;
-        const is_static = () => this.current_token.type === TokenType.DOUBLE_COLON;
-        const is_qmark  = () => this.current_token.type === TokenType.QMARK;
+        const is_dot     = () => this.current_token.type === TokenType.DOT;
+        const is_static  = () => this.current_token.type === TokenType.DOUBLE_COLON;
+        const is_qmark   = () => this.current_token.type === TokenType.QMARK;
+        const is_lparen  = () => this.current_token.type === TokenType.LPAREN;
+        const is_lsquare = () => this.current_token.type === TokenType.LSQUARE;
 
         if (is_dot() || is_static() || is_qmark()) {
             let is_optional = is_qmark();
@@ -970,19 +972,45 @@ export class Parser {
                 }
 
                 if (is_dot()) is_calling = true;
+
                 if (is_static()) {
                     is_calling = true;
                     is_static_prop = true;
                 }
+
+                // if we have prop.method()()()
+                // or prop.method()[0]()
+                // note: useless to use is_optional here because it would mean that we have: '?()' or '?[]'
+                if (is_lparen()) {
+                    if (is_optional) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "The correct syntax is: '?.()'"
+                        );
+                    }
+                    result = new CallMethodNode(this.helper_call_func(result), node_to_call, false);
+                    continue;
+                } else if (is_lsquare()) {
+                    if (is_optional) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "The correct syntax is: '?.[]'"
+                        );
+                    }
+                    result = this.helper_call_list(result, this.current_token.pos_start.copy(), false);
+                    continue;
+                }
+
                 if (!is_calling) break;
                 
                 this.advance();
                 if (!is_static_prop && !is_optional) this.ignore_newlines();
                 
-                // if we have "?.()"
-                // or "?.[]"
-                if (this.current_token.type === TokenType.LPAREN && is_optional) {
+                // if we have "example.meth?.()"
+                if (is_lparen() && is_optional) {
                     result = new CallMethodNode(this.helper_call_func(result), node_to_call, true);
+                } else if (is_lsquare() && is_optional) { // or "example.list?.[0]"
+                    result = this.helper_call_list(result, this.current_token.pos_start.copy(), true);
                 } else {
                     if (this.current_token.type !== TokenType.IDENTIFIER) {
                         throw new InvalidSyntaxError(
@@ -997,10 +1025,10 @@ export class Parser {
 
                     let call_node = is_static_prop ? new CallStaticPropertyNode(result ? result : node_to_call, property_tok, is_optional) : new CallPropertyNode(result ? result : node_to_call, property_tok, is_optional);
 
-                    if (this.current_token.type === TokenType.LPAREN) {
+                    if (is_lparen()) {
                         result = new CallMethodNode(this.helper_call_func(call_node), node_to_call); // node_to_call will have to be an instance of ClassValue
-                    } else if (this.current_token.type === TokenType.LSQUARE) {
-                        result = this.helper_call_list(call_node)
+                    } else if (is_lsquare()) {
+                        result = this.helper_call_list(call_node, this.current_token.pos_start.copy())
                     } else {
                         result = call_node;
                     }
@@ -1094,11 +1122,15 @@ export class Parser {
     /**
      * grammar: `call_list`
      * @param {CustomNode} atom 
-     * @param {Position|null} pos_start 
+     * @param {Position} pos_start
+     * @param {boolean} is_already_optional
      */
-    helper_call_list(atom, pos_start=null) {
+    helper_call_list(atom, pos_start, is_already_optional=false) {
         // if we have a left square bracket after our atom
         // that means we are trying to get an element in a list
+
+        // is_already_optional allows us to call helper_call_list elsewhere
+        // and keep in mind that the first call has been set as optional
 
         // we might have "[42]?.[42]"
         if (this.current_token.type === TokenType.QMARK || this.current_token.type === TokenType.LSQUARE) {
@@ -1108,6 +1140,7 @@ export class Parser {
             let index_nodes = [];
             let is_depth = false;
             let is_pushing = false; // is "list[]" ?
+            let i = 0;
 
             const is_optional = () => {
                 if (this.current_token.type === TokenType.QMARK) {
@@ -1128,7 +1161,7 @@ export class Parser {
 
             while (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
                 is_depth = false;
-                let optional = is_optional();
+                let optional = i === 0 && is_already_optional ? true : is_optional();
 
                 if (this.current_token.type === TokenType.LSQUARE) is_depth = true;
                 if (!is_depth) break;
@@ -1152,7 +1185,7 @@ export class Parser {
                     }
                     index_nodes.push(
                         new ListArgumentNode(
-                            new ListPushBracketsNode(pos_start, this.current_token.pos_end),
+                            new ListPushBracketsNode(this.current_token.pos_start, this.current_token.pos_end),
                             optional
                         )
                     );
@@ -1219,6 +1252,7 @@ export class Parser {
                 }
 
                 this.advance();
+                i++;
             }
 
             const accessor = new ListAccessNode(atom, depth, index_nodes);
@@ -1243,9 +1277,8 @@ export class Parser {
     /**
      * grammar: `call_func`
      * @param {CustomNode} atom 
-     * @param {Position|null} pos_start 
      */
-    helper_call_func(atom, pos_start=null) {
+    helper_call_func(atom) {
         // if we have a left parenthesis after our atom
         // that means we are calling the atom
 

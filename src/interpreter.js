@@ -2092,6 +2092,14 @@ export class Interpreter {
             if (res.should_return()) return res;
         }
 
+        // just in case the first [] is optional
+        // and we are trying to call this first [] on a NoneValue
+        if (value instanceof NoneValue && node.list_nodes[0].is_optional) {
+            return res.success(
+                new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        }
+
         if (!(value instanceof ListValue) && !(value instanceof DictionnaryValue)) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,

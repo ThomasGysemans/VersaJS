@@ -4509,4 +4509,163 @@ describe('Interpreter', () => {
         const result = new Interpreter().visit(tree, context());
         assert.deepStrictEqual(result.value.elements[1] instanceof NoneValue, true);
     });
+
+    it('should work with a complex sequence of operations on properties (?.()?.()?.[])', () => {
+        /*
+        class Adventurer:
+            property test
+
+            method imaginaryMethod():
+                return func (a, b) -> if a == 0: none else: [a + b + self.test]
+            end
+        end
+
+        var adv = new Adventurer()
+        var first = adv.imaginaryMethod?.()?.(1, 2)?.[0] # expected: 8
+        var second = adv.imaginaryMethod?.()?.(0, 2)?.[0] # we can use [0] even though we know it's null (none), thanks to '?.'
+        */
+        const tree = new ListNode(
+            [
+                new ClassDefNode(
+                    identifier_tok("Adventurer"),
+                    null,
+                    [
+                        new ClassPropertyDefNode(
+                            identifier_tok("test"),
+                            number(5),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [
+                        new ClassMethodDefNode(
+                            new FuncDefNode(
+                                identifier_tok("imaginaryMethod"),
+                                [],
+                                new FuncDefNode(
+                                    null,
+                                    [
+                                        new ArgumentNode(identifier_tok("a")),
+                                        new ArgumentNode(identifier_tok("b")),
+                                    ],
+                                    new IfNode(
+                                        [
+                                            [
+                                                new EqualsNode(
+                                                    new VarAccessNode(identifier_tok("a")),
+                                                    number(0)
+                                                ),
+                                                none(),
+                                                false
+                                            ]
+                                        ],
+                                        { code: new ListNode(
+                                            [
+                                                new AddNode(
+                                                    new AddNode(
+                                                        new VarAccessNode(identifier_tok("a")),
+                                                        new VarAccessNode(identifier_tok("b"))
+                                                    ),
+                                                    new CallPropertyNode(
+                                                        new VarAccessNode(identifier_tok("self")),
+                                                        identifier_tok("test")
+                                                    )
+                                                ),
+                                            ],
+                                            null,
+                                            null
+                                        ), should_return_null: false },
+                                        null,
+                                        null
+                                    ),
+                                    true
+                                ),
+                                true
+                            ),
+                            1,
+                            0,
+                            0
+                        )
+                    ],
+                    [],
+                    [],
+                    null,
+                    null
+                ),
+                new VarAssignNode(
+                    identifier_tok("adv"),
+                    new ClassCallNode(
+                        identifier_tok("Adventurer"),
+                        []
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("first"),
+                    new ListAccessNode( // [((method? (adv).(call (method? (adv).(call (prop (adv).imaginaryMethod)(0 args))(2 args))[expr])]
+                        new CallMethodNode(
+                            new CallNode(
+                                new CallMethodNode(
+                                    new CallNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("adv")),
+                                            identifier_tok("imaginaryMethod")
+                                        ),
+                                        []
+                                    ),
+                                    new VarAccessNode(identifier_tok("adv")),
+                                    true
+                                ),
+                                [
+                                    number(1),
+                                    number(2),
+                                ],
+                            ),
+                            new VarAccessNode(identifier_tok("adv")),
+                            true
+                        ),
+                        0,
+                        [
+                            new ListArgumentNode(number(0), true)
+                        ]
+                    )
+                ),
+                new VarAssignNode(
+                    identifier_tok("second"),
+                    new ListAccessNode(
+                        new CallMethodNode(
+                            new CallNode(
+                                new CallMethodNode(
+                                    new CallNode(
+                                        new CallPropertyNode(
+                                            new VarAccessNode(identifier_tok("adv")),
+                                            identifier_tok("imaginaryMethod")
+                                        ),
+                                        []
+                                    ),
+                                    new VarAccessNode(identifier_tok("adv")),
+                                    true
+                                ),
+                                [
+                                    number(0),
+                                    number(2),
+                                ],
+                            ),
+                            new VarAccessNode(identifier_tok("adv")),
+                            true
+                        ),
+                        0,
+                        [
+                            new ListArgumentNode(number(0), true)
+                        ]
+                    )
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[2].value, 8);
+        assert.deepStrictEqual(result.value.elements[3] instanceof NoneValue, true);
+    });
 });

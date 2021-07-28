@@ -200,6 +200,22 @@ Test::static_method()
 Test::__name # default static property, returns "Test"
 ```
 
+```
+class Adventurer:
+    property test = 5
+
+    method imaginaryMethod():
+        return func (a, b) -> if a == 0: none else: [a + b + self.test]
+    end
+end
+
+var adv = new Adventurer()
+var first = adv.imaginaryMethod?.()?.(1, 2)?.[0]
+var second = adv.imaginaryMethod?.()?.(0, 2)?.[0] # we can use [0] even though we know it's null (none), thanks to '?.'
+log(first) # expected: 8
+log(second) # expected: none
+```
+
 ## License
 
 MIT License.
