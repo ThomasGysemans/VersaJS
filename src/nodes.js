@@ -753,7 +753,7 @@ export class ListAccessNode extends CustomNode {
      * @constructs ListAccessNode
      * @param {CustomNode} node_to_access The token that represents a variable.
      * @param {number} depth The depth of the array.
-     * @param {Array<CustomNode>} list_nodes The expressions between the brackets.
+     * @param {Array<ListArgumentNode>} list_nodes The expressions between the brackets.
      */
     constructor(node_to_access, depth, list_nodes) {
         super();
@@ -803,6 +803,25 @@ export class ListPushBracketsNode extends CustomNode {
 
     toString() {
         return `(list[])`;
+    }
+}
+
+export class ListArgumentNode extends CustomNode {
+    /**
+     * @constructs ListArgumentNode
+     * @param {CustomNode} node The expression inside the brackets ([expr])
+     * @param {boolean} is_optional Is the optional chaining operator present? (list[42]?.[42])
+     */
+    constructor(node, is_optional=false) {
+        super();
+        this.node = node;
+        this.is_optional = is_optional;
+        this.pos_start = this.node.pos_start;
+        this.pos_end = this.node.pos_end;
+    }
+
+    toString() {
+        return `${this.is_optional ? '?.' : ''}[${this.node}]`;
     }
 }
 
@@ -1128,7 +1147,7 @@ export class CallPropertyNode extends CustomNode {
     }
 
     toString() {
-        return `(prop ${this.node_to_call}.${this.property_tok.value})`;
+        return `(prop ${this.node_to_call}${this.is_optional ? '?' : ''}.${this.property_tok.value})`;
     }
 }
 
@@ -1152,7 +1171,7 @@ export class CallStaticPropertyNode extends CustomNode {
     }
 
     toString() {
-        return `(prop ${this.node_to_call}::${this.property_tok.value})`;
+        return `(prop ${this.node_to_call}${this.is_optional ? '?' : ''}::${this.property_tok.value})`;
     }
 }
 
@@ -1176,7 +1195,7 @@ export class CallMethodNode extends CustomNode {
     }
 
     toString() {
-        return `(method ${this.origin}.${this.node_to_call})`;
+        return `(method${this.is_optional ? '?' : ''} ${this.origin}.${this.node_to_call}`;
     }
 }
 

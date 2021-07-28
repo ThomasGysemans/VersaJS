@@ -1,5 +1,5 @@
 import { TokenType, Token } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, ListArgumentNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { is_in } from "./miscellaneous.js";
 import { Position } from "./position.js";
@@ -980,6 +980,7 @@ export class Parser {
                 if (!is_static_prop && !is_optional) this.ignore_newlines();
                 
                 // if we have "?.()"
+                // or "?.[]"
                 if (this.current_token.type === TokenType.LPAREN && is_optional) {
                     result = new CallMethodNode(this.helper_call_func(result), node_to_call, true);
                 } else {
@@ -1099,15 +1100,35 @@ export class Parser {
         // if we have a left square bracket after our atom
         // that means we are trying to get an element in a list
 
-        if (this.current_token.type === TokenType.LSQUARE) {
+        // we might have "[42]?.[42]"
+        if (this.current_token.type === TokenType.QMARK || this.current_token.type === TokenType.LSQUARE) {
             // list[(1+1)][index]
             let depth = -1;
+            /** @type {Array<ListArgumentNode>} */
             let index_nodes = [];
             let is_depth = false;
             let is_pushing = false; // is "list[]" ?
 
+            const is_optional = () => {
+                if (this.current_token.type === TokenType.QMARK) {
+                    this.advance();
+                    if (this.current_token.type === TokenType.DOT) {
+                        this.advance();
+                        return true;
+                    } else {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected '.'"
+                        );
+                    }
+                }
+
+                return false;
+            };
+
             while (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
                 is_depth = false;
+                let optional = is_optional();
 
                 if (this.current_token.type === TokenType.LSQUARE) is_depth = true;
                 if (!is_depth) break;
@@ -1123,7 +1144,18 @@ export class Parser {
 
                 // if "list[]"
                 if (this.current_token.type === TokenType.RSQUARE) {
-                    index_nodes.push(new ListPushBracketsNode(pos_start, this.current_token.pos_end));
+                    if (optional) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "A push to a list cannot be optional"
+                        );
+                    }
+                    index_nodes.push(
+                        new ListArgumentNode(
+                            new ListPushBracketsNode(pos_start, this.current_token.pos_end),
+                            optional
+                        )
+                    );
                     is_pushing = true;
                 } else {
                     let index_pos_start = this.current_token.pos_start.copy();
@@ -1162,9 +1194,19 @@ export class Parser {
                             }
                         }
 
-                        index_nodes.push(new ListBinarySelector(expr, right_expr, index_pos_start, this.current_token.pos_end));
+                        index_nodes.push(
+                            new ListArgumentNode(
+                                new ListBinarySelector(expr, right_expr, index_pos_start, this.current_token.pos_end),
+                                optional
+                            )
+                        );
                     } else {
-                        index_nodes.push(expr);
+                        index_nodes.push(
+                            new ListArgumentNode(
+                                expr,
+                                optional
+                            )
+                        );
                     }
                 }
 

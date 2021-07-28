@@ -5,16 +5,17 @@ end
 class Adventurer:
     property name = 'Alice'
     property cat
+    property list = [1, 2]
     
     method __init():
         self.cat = new Cat()
     end
 
     method imaginaryMethod():
-        return new Cat()
+        return [1, 2]
     end
 end
 
 var adv = new Adventurer()
-var ret_value = adv.imaginaryMethod?.().name
+var ret_value = adv.list[42]?.[42]
 log(ret_value)

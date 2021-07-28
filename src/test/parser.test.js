@@ -269,7 +269,7 @@ describe('Parser tests', () => {
         const tokens = new Lexer("example.prop[another.one]").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAccessNode);
-        assert.deepStrictEqual(true, node.element_nodes[0].list_nodes[0] instanceof CallPropertyNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].list_nodes[0].node instanceof CallPropertyNode);
         assert.deepStrictEqual(true, node.element_nodes[0].node_to_access instanceof CallPropertyNode);
     });
 
@@ -462,5 +462,12 @@ describe('Parser tests', () => {
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallMethodNode);
         assert.deepStrictEqual(true, node.element_nodes[0].is_optional);
+    });
+
+    it('should work with an optional chaining operator and a list', () => {
+        const tokens = new Lexer("arr[42]?.[42]").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAccessNode);
+        assert.deepStrictEqual(true, node.element_nodes[0].list_nodes[1].is_optional);
     });
 });

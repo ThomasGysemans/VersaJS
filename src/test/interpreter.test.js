@@ -1,5 +1,5 @@
 import assert from 'assert';
-import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, NullishOperatorNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode } from '../nodes.js';
+import { NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PowerNode, ModuloNode, VarAssignNode, VarModifyNode, NullishOperatorNode, ListNode, ListAccessNode, PrefixOperationNode, MinusNode, DictionnaryNode, DictionnaryElementNode, StringNode, DeleteNode, VarAccessNode, ForNode, WhileNode, IfNode, LessThanNode, PostfixOperationNode, GreaterThanNode, EqualsNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, FuncDefNode, CallNode, ListAssignmentNode, ListBinarySelector, ClassDefNode, ClassPropertyDefNode, ClassMethodDefNode, AssignPropertyNode, CallPropertyNode, ClassCallNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ReturnNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, NotNode, BooleanNode, BinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, ListArgumentNode } from '../nodes.js';
 import { BooleanValue, ClassValue, DictionnaryValue, ListValue, NoneValue, NumberValue, StringValue } from '../values.js';
 import { Interpreter } from '../interpreter.js';
 import { Token, TokenType } from '../tokens.js';
@@ -499,7 +499,7 @@ describe('Interpreter', () => {
                         new VarAccessNode(identifier_tok("list_assignment")),
                         0,
                         [
-                            number(4)
+                            new ListArgumentNode(number(4))
                         ]
                     ),
                     number(5)
@@ -538,11 +538,13 @@ describe('Interpreter', () => {
                     new VarAccessNode(identifier_tok("list_binary_selector")),
                     0,
                     [
-                        new ListBinarySelector(
-                            number(1),
-                            number(-1),
-                            null,
-                            null,
+                        new ListArgumentNode(
+                            new ListBinarySelector(
+                                number(1),
+                                number(-1),
+                                null,
+                                null,
+                            )
                         )
                     ]
                 ),
@@ -588,7 +590,7 @@ describe('Interpreter', () => {
                         new VarAccessNode(identifier_tok("list_with_func")),
                         1,
                         [
-                            number(0)
+                            new ListArgumentNode(number(0))
                         ]
                     ),
                     [
@@ -653,14 +655,14 @@ describe('Interpreter', () => {
                                 new VarAccessNode(identifier_tok("list_with_func_ultimate")),
                                 0,
                                 [
-                                    number(0)
+                                    new ListArgumentNode(number(0))
                                 ]
                             ),
                             []
                         ),
                         0,
                         [
-                            number(1)
+                            new ListArgumentNode(number(1))
                         ]
                     ),
                     [
@@ -3435,7 +3437,7 @@ describe('Interpreter', () => {
                                             new VarAccessNode(identifier_tok("marks")),
                                             0,
                                             [
-                                                new VarAccessNode(identifier_tok("i"))
+                                                new ListArgumentNode(new VarAccessNode(identifier_tok("i")))
                                             ]
                                         )
                                     )
@@ -3781,7 +3783,7 @@ describe('Interpreter', () => {
                         new VarAccessNode(identifier_tok("dict")),
                         0,
                         [
-                            str("duration")
+                            new ListArgumentNode(str("duration"))
                         ]
                     ),
                     number(10)
@@ -3790,7 +3792,7 @@ describe('Interpreter', () => {
                     new VarAccessNode(identifier_tok("dict")),
                     0,
                     [
-                        str("duration")
+                        new ListArgumentNode(str("duration"))
                     ]
                 ),
                 new NullishAssignmentNode(
@@ -3798,7 +3800,7 @@ describe('Interpreter', () => {
                         new VarAccessNode(identifier_tok("dict")),
                         0,
                         [
-                            str("speed")
+                            new ListArgumentNode(str("speed"))
                         ]
                     ),
                     number(25)
@@ -3807,7 +3809,7 @@ describe('Interpreter', () => {
                     new VarAccessNode(identifier_tok("dict")),
                     0,
                     [
-                        str("speed")
+                        new ListArgumentNode(str("speed"))
                     ]
                 ),
             ],
@@ -3845,27 +3847,27 @@ describe('Interpreter', () => {
                     new ListAccessNode(
                         new VarAccessNode(identifier_tok("list")),
                         0,
-                        [number(1)]
+                        [new ListArgumentNode(number(1))]
                     ),
                     number(50)
                 ),
                 new ListAccessNode(
                     new VarAccessNode(identifier_tok("list")),
                     0,
-                    [number(1)]
+                    [new ListArgumentNode(number(1))]
                 ),
                 new NullishAssignmentNode(
                     new ListAccessNode(
                         new VarAccessNode(identifier_tok("list")),
                         0,
-                        [number(3)]
+                        [new ListArgumentNode(number(3))]
                     ),
                     number(25)
                 ),
                 new ListAccessNode(
                     new VarAccessNode(identifier_tok("list")),
                     0,
-                    [number(3)]
+                    [new ListArgumentNode(number(3))]
                 ),
             ],
             null,
@@ -3990,27 +3992,27 @@ describe('Interpreter', () => {
                     new ListAccessNode(
                         new VarAccessNode(identifier_tok("a")),
                         0,
-                        [str("duration")]
+                        [new ListArgumentNode(str("duration"))]
                     ),
                     number(10)
                 ),
                 new ListAccessNode(
                     new VarAccessNode(identifier_tok("a")),
                     0,
-                    [str("duration")]
+                    [new ListArgumentNode(str("duration"))]
                 ),
                 new OrAssignmentNode(
                     new ListAccessNode(
                         new VarAccessNode(identifier_tok("a")),
                         0,
-                        [str("title")]
+                        [new ListArgumentNode(str("title"))]
                     ),
                     str("title is empty")
                 ),
                 new ListAccessNode(
                     new VarAccessNode(identifier_tok("a")),
                     0,
-                    [str("title")]
+                    [new ListArgumentNode(str("title"))]
                 ),
             ],
             null,
@@ -4435,5 +4437,76 @@ describe('Interpreter', () => {
         );
         const result = new Interpreter().visit(tree, context());
         assert.deepStrictEqual(result.value.elements[4].value, "Dinah");
+    });
+
+    it('should work with an optional chaining operator on list', () => {
+        /*
+        var list = [1, 2]
+
+        # should raise an error without "?.", none otherwise
+        list[42]?.[42]
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("list"),
+                    new ListNode([number(1),number(2)],null,null)
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("list")),
+                    1,
+                    [
+                        new ListArgumentNode(number(42)),
+                        new ListArgumentNode(number(42), true)
+                    ]
+                ),
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[1] instanceof NoneValue, true);
+    });
+
+    it('should work with an optional chaining operator on dictionnary', () => {
+        /*
+        var dico = { "person": { "name": "thomas" } }
+        dico["thing"]?.["name"]
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("dico"),
+                    new DictionnaryNode(
+                        [
+                            new DictionnaryElementNode(
+                                str("person"),
+                                new DictionnaryNode(
+                                    [
+                                        new DictionnaryElementNode(str("name"), str("thomas"))
+                                    ],
+                                    null,
+                                    null
+                                )
+                            ),
+                        ],
+                        null,
+                        null
+                    )
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("dico")),
+                    1,
+                    [
+                        new ListArgumentNode(str("thing")),
+                        new ListArgumentNode(str("name"), true),
+                    ]
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[1] instanceof NoneValue, true);
     });
 });

@@ -46,7 +46,8 @@ prop        : call (QMARK (DOT|DOUBLE_COLON (IDENTIFIER)?)|(DOT|DOUBLE_COLON IDE
 
 call_func   : (LPAREN (expr (COMMA expr)*)? RPAREN)*
 
-call_list   : (LSQUARE (expr)|(expr COLON expr) RSQUARE)* (EQUALS expr)? #almost the same for dictionnaries#
+call_list   : (QMARK DOT LSQUARE (expr)|(expr COLON expr) RSQUARE)*
+            : (LSQUARE (expr)|(expr COLON expr) RSQUARE)* (EQUALS expr)? #almost the same for dictionnaries#
 
 call_class  : KEYWORD:new IDENTIFIER call_func
 

@@ -2105,7 +2105,8 @@ export class Interpreter {
         let found_value = null;
 
         for (let i = 0; i < node.list_nodes.length; i++) {
-            let index_node = node.list_nodes[i];
+            let index_node = node.list_nodes[i].node;
+            let is_optional = node.list_nodes[i].is_optional;
             /** @type {StringValue|NumberValue} */
             let visited_value = null;
             let binary_selector = null;
@@ -2129,7 +2130,7 @@ export class Interpreter {
 
                 if (!(expr_a instanceof NumberValue) && (expr_b !== null && expr_b instanceof NumberValue)) {
                     throw new RuntimeError(
-                        node.pos_start, node.pos_end,
+                        index_node.pos_start, index_node.pos_end,
                         `The binary selector of a list must be composed of numbers only.`,
                         context
                     );
@@ -2137,7 +2138,7 @@ export class Interpreter {
 
                 if (expr_a.value < 0) {
                     throw new RuntimeError(
-                        node.pos_start, node.pos_end,
+                        expr_a.pos_start, expr_a.pos_end,
                         `The binary selector of a list cannot start with a negative number.`,
                         context
                     );
@@ -2164,11 +2165,17 @@ export class Interpreter {
                             found_value.elements.slice(binary_selector[0].value, binary_selector[1].value)
                         );
                     } else {
-                        throw new RuntimeError(
-                            node.pos_start, node.pos_end,
-                            `Can't access value at a certain index if this is not an array.`,
-                            context
-                        );
+                        if (is_optional) {
+                            return res.success(
+                                new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                            );
+                        } else {
+                            throw new RuntimeError(
+                                index_node.pos_start, index_node.pos_end,
+                                `Can't access value at a certain index if this is not an array.`,
+                                context
+                            );
+                        }
                     }
                 } else {
                     if (binary_selector[1] === null) {
@@ -2184,7 +2191,7 @@ export class Interpreter {
                     if (found_value instanceof ListValue) {
                         if (visited_value instanceof StringValue) {
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                index_node.pos_start, index_node.pos_end,
                                 "Trying to get a key from a non-dictionnary value.",
                                 context
                             );
@@ -2198,7 +2205,7 @@ export class Interpreter {
                     } else if (found_value instanceof DictionnaryValue) {
                         if (visited_value instanceof NumberValue) {
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                index_node.pos_start, index_node.pos_end,
                                 "Cannot retrieve an element from a dictionnary with a number",
                                 context
                             );
@@ -2206,11 +2213,17 @@ export class Interpreter {
 
                         found_value = found_value.elements.get(visited_value.value);
                     } else {
-                        throw new RuntimeError(
-                            node.pos_start, node.pos_end,
-                            `Can't access value at a certain index if this is not an array.`,
-                            context
-                        );
+                        if (is_optional) {
+                            return res.success(
+                                new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                            );
+                        } else {
+                            throw new RuntimeError(
+                                index_node.pos_start, index_node.pos_end,
+                                `Can't access value at a certain index if this is not an array.`,
+                                context
+                            );
+                        }
                     }
                 } else {
                     if (visited_value instanceof NumberValue && value instanceof ListValue && visited_value.value < 0) {
@@ -2220,7 +2233,7 @@ export class Interpreter {
                     if (value instanceof ListValue) {
                         if (!(visited_value instanceof NumberValue)) {
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                index_node.pos_start, index_node.pos_end,
                                 "Unable to retrieve an element from a list without a number as index.",
                                 context
                             );
@@ -2229,7 +2242,7 @@ export class Interpreter {
                     } else if (value instanceof DictionnaryValue) {
                         if (!(visited_value instanceof StringValue)) {
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                index_node.pos_start, index_node.pos_end,
                                 "Unable to retrieve an element from a dictionnary without a string as index.",
                                 context
                             );
@@ -2292,7 +2305,15 @@ export class Interpreter {
         let index_per_depth = [];
 
         for (let i = 0; i < node.accessor.list_nodes.length; i++) {
-            let index_node = node.accessor.list_nodes[i];
+            let index_node = node.accessor.list_nodes[i].node;
+            let is_optional = node.accessor.list_nodes[i].is_optional;
+            if (is_optional) {
+                throw new RuntimeError(
+                    index_node.pos_start, index_node.pos_end,
+                    "Cannot assign a new value to an optional call",
+                    context
+                );
+            }
             let visited_value = index_node instanceof ListPushBracketsNode || index_node instanceof ListBinarySelector ? index_node : res.register(this.visit(index_node, context));
             if (res.should_return()) return res;
 
@@ -2317,7 +2338,7 @@ export class Interpreter {
 
                 if (!(expr_a instanceof NumberValue) && (expr_b !== null && expr_b instanceof NumberValue)) {
                     throw new RuntimeError(
-                        node.pos_start, node.pos_end,
+                        index_node.pos_start, index_node.pos_end,
                         `The binary selector of '${var_name}' must be composed of numbers only.`,
                         context
                     );
@@ -2325,7 +2346,7 @@ export class Interpreter {
 
                 if (expr_a.value < 0) {
                     throw new RuntimeError(
-                        node.pos_start, node.pos_end,
+                        index_node.pos_start, index_node.pos_end,
                         `The binary selector of '${var_name}' cannot start with a negative number.`,
                         context
                     );
@@ -2334,7 +2355,7 @@ export class Interpreter {
                 index_per_depth.push(new BinarySelectorValues(expr_a, expr_b));
             } else {
                 throw new RuntimeError(
-                    node.pos_start,  node.pos_end,
+                    index_node.pos_start, index_node.pos_end,
                     "Unable to interpret an index. It must be a binary selector, empty square brackets, number or string.",
                     context
                 );
@@ -2350,10 +2371,12 @@ export class Interpreter {
                 index_per_depth[i].value = value.elements.length;
             }
 
+            let current_index = index_per_depth[i];
+
             // NumberValue : `list[5] = something` (modify the index 5 by something)
             // ListPushBracketsNode : `list[] = something` (add something to the array)
             // otherwise, it's a binary selector : `list[0:5] = something` (replace the values from index 0 to 5 by something)
-            if (index_per_depth[i] instanceof NumberValue || index_per_depth[i] instanceof StringValue || index_per_depth[i] instanceof ListPushBracketsNode) {
+            if (current_index instanceof NumberValue || current_index instanceof StringValue || current_index instanceof ListPushBracketsNode) {
                 // have we already been searching for a value?
                 if (value_to_be_replaced) {
                     // we have several depths, therefore the previous value must be a list
@@ -2363,49 +2386,45 @@ export class Interpreter {
                         // then let's modify our current value by the new value
                         if (i === (index_per_depth.length - 1)) {
                             // once again, we might have `list[1][] = something`
-                            let index = index_per_depth[i];
-
-                            if (index instanceof StringValue) {
+                            if (current_index instanceof StringValue) {
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
+                                    current_index.pos_start, current_index.pos_end,
                                     "Cannot retrieve an element from a list with a string as index.",
                                     context
                                 );
                             }
 
-                            if (index instanceof ListPushBracketsNode) {
-                                index.value = value_to_be_replaced.elements.length;
-                            } else if (index.value < 0) { // or `list[-1]` === `list[list.length - 1]`
-                                index.value = value_to_be_replaced.elements.length + index.value;
+                            if (current_index instanceof ListPushBracketsNode) {
+                                current_index.value = value_to_be_replaced.elements.length;
+                            } else if (current_index.value < 0) { // or `list[-1]` === `list[list.length - 1]`
+                                current_index.value = value_to_be_replaced.elements.length + current_index.value;
                             }
 
                             // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
-                            if (index.value > value_to_be_replaced.elements.length) {
-                                for (let e = value_to_be_replaced.elements.length; e < index.value; e++) {
+                            if (current_index.value > value_to_be_replaced.elements.length) {
+                                for (let e = value_to_be_replaced.elements.length; e < current_index.value; e++) {
                                     value_to_be_replaced.elements[e] = new NoneValue();
                                 }
                             }
                             
                             // `value` will be automatically updated
-                            value_to_be_replaced.elements[index.value] = new_value;
+                            value_to_be_replaced.elements[current_index.value] = new_value;
                         } else {
-                            let index = index_per_depth[i];
-
-                            if (index instanceof StringValue) {
+                            if (current_index instanceof StringValue) {
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
+                                    current_index.pos_start, current_index.pos_end,
                                     "Cannot retrieve an element from a list with a string as index.",
                                     context
                                 );
                             }
 
-                            if (index.value < 0) {
-                                index.value = value_to_be_replaced.elements.length + index.value;
+                            if (current_index.value < 0) {
+                                current_index.value = value_to_be_replaced.elements.length + current_index.value;
                             }
 
                             // this is not the last iteration
                             // so just remember the current value
-                            value_to_be_replaced = value_to_be_replaced.elements[index.value];
+                            value_to_be_replaced = value_to_be_replaced.elements[current_index.value];
                         }
                     } else if (value_to_be_replaced instanceof DictionnaryValue) {
                         // if we are at the last iteration of that loop,
@@ -2413,10 +2432,10 @@ export class Interpreter {
                         // then let's modify our current value by the new value
                         if (i === (index_per_depth.length - 1)) {
                             // once again, we might have `list[1][] = something`
-                            if (index_per_depth[i] instanceof ListPushBracketsNode) {
+                            if (current_index instanceof ListPushBracketsNode) {
                                 if (!(new_value instanceof DictionnaryValue)) {
                                     throw new RuntimeError(
-                                        node.pos_start, node.pos_end,
+                                        current_index.pos_start, current_index.pos_end,
                                         "In order to add an element in a dictionnary, the new value must be a dictionnary too.",
                                         context
                                     );
@@ -2424,32 +2443,30 @@ export class Interpreter {
                                 // same as dico1 += dico2
                                 value_to_be_replaced.elements = new Map(Array.from(value_to_be_replaced.elements.entries()).concat(Array.from(new_value.elements.entries())));
                             } else {
-                                let index = index_per_depth[i];
-                                if (index instanceof StringValue) {
-                                    value_to_be_replaced.elements.set(index.value, new_value);
+                                if (current_index instanceof StringValue) {
+                                    value_to_be_replaced.elements.set(current_index.value, new_value);
                                 } else {
                                     throw new RuntimeError(
-                                        node.pos_start, node.pos_end,
-                                        "Cannot retrieve an element from a dictionnary with a number",
+                                        current_index.pos_start, current_index.pos_end,
+                                        "Cannot retrieve an element from a dictionnary without a string",
                                         context
                                     );
                                 }
                             }
                         } else {
-                            let index = index_per_depth[i];
-                            if (index instanceof StringValue) {
-                                value_to_be_replaced = value_to_be_replaced.elements.get(index.value);
+                            if (current_index instanceof StringValue) {
+                                value_to_be_replaced = value_to_be_replaced.elements.get(current_index.value);
                             } else {
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
-                                    "Cannot retrieve an element from a dictionnary with a number",
+                                    current_index.pos_start, current_index.pos_end,
+                                    "Cannot retrieve an element from a dictionnary without a string",
                                     context
                                 );
                             }
                         }
                     } else {
                         throw new RuntimeError(
-                            node.pos_start, node.pos_end,
+                            current_index.pos_start, current_index.pos_end,
                             `Can't access value at a certain index if this is not a list or a dictionnary.`,
                             context
                         );
@@ -2459,47 +2476,43 @@ export class Interpreter {
                     // that's the easiest case
                     if (index_per_depth.length === 1) {
                         if (value instanceof ListValue) {
-                            // i == 0
-                            // so it's the same as not using `i`
-                            let index = index_per_depth[0];
-
-                            if (index instanceof StringValue) {
+                            if (current_index instanceof StringValue) {
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
+                                    current_index.pos_start, current_index.pos_end,
                                     "Cannot retrieve an element from a list with a string as index.",
                                     context
                                 );
                             }
 
-                            if (index.value < 0) {
-                                index.value = value.elements.length + index.value;
+                            if (current_index.value < 0) {
+                                current_index.value = value.elements.length + current_index.value;
                             }
 
                             // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
-                            if (index_per_depth[i].value > value.elements.length) {
-                                for (let e = value.elements.length; e < index_per_depth[i].value; e++) {
+                            if (current_index.value > value.elements.length) {
+                                for (let e = value.elements.length; e < current_index.value; e++) {
                                     value.elements[e] = new NoneValue();
                                 }
                             }
 
-                            value.elements[index.value] = new_value;
+                            value.elements[current_index.value] = new_value;
                         } else if (value instanceof DictionnaryValue) {
-                            if (index_per_depth[0] instanceof ListPushBracketsNode) {
+                            if (current_index instanceof ListPushBracketsNode) {
                                 if (!(new_value instanceof DictionnaryValue)) {
                                     throw new RuntimeError(
-                                        node.pos_start, node.pos_end,
+                                        new_value.pos_start, new_value.pos_end,
                                         "In order to add an element in a dictionnary, the new value must be a dictionnary too.",
                                         context
                                     );
                                 }
                                 value.elements = new Map(Array.from(value.elements.entries()).concat(Array.from(new_value.elements.entries())));
                             } else {
-                                if (index_per_depth[0] instanceof StringValue) {
-                                    value.elements.set(index_per_depth[0].value, new_value);
+                                if (current_index instanceof StringValue) {
+                                    value.elements.set(current_index.value, new_value);
                                 } else {
                                     throw new RuntimeError(
-                                        node.pos_start, node.pos_end,
-                                        "Cannot retrieve an element from a dictionnary with a number",
+                                        current_index.pos_start, current_index.pos_end,
+                                        "Cannot retrieve an element from a dictionnary without a string",
                                         context
                                     );
                                 }
@@ -2508,31 +2521,28 @@ export class Interpreter {
                     } else {
                         if (value instanceof ListValue) {
                             // however, we'll have to loop again if we have: `list[0][1]`
-                            let index = index_per_depth[i];
-
-                            if (index instanceof StringValue) {
+                            if (current_index instanceof StringValue) {
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
+                                    current_index.pos_start, current_index.pos_end,
                                     "Cannot retrieve an element from a list with a string as index.",
                                     context
                                 );
                             }
 
-                            if (index.value < 0) {
-                                index.value = value.elements.length + index.value;
+                            if (current_index.value < 0) {
+                                current_index.value = value.elements.length + current_index.value;
                             }
 
                             // so just remember the value `list[0]`
                             // and continue in order to modify `value_to_be_replaced[1]` (value_to_be_replaced = list[0])
-                            value_to_be_replaced = value.elements[index.value];
+                            value_to_be_replaced = value.elements[current_index.value];
                         } else if (value instanceof DictionnaryValue) {
-                            let index = index_per_depth[i];
-                            if (index instanceof StringValue) {
-                                value_to_be_replaced = value.elements.get(index.value);
+                            if (current_index instanceof StringValue) {
+                                value_to_be_replaced = value.elements.get(current_index.value);
                             } else {
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
-                                    "Cannot retrieve an element from a dictionnary with a number.",
+                                    current_index.pos_start, current_index.pos_end,
+                                    "Cannot retrieve an element from a dictionnary without a string.",
                                     context
                                 );
                             }
@@ -2542,7 +2552,7 @@ export class Interpreter {
             } else { // binary selector `list[a:b]`
                 if (value instanceof DictionnaryValue || value_to_be_replaced instanceof DictionnaryValue) {
                     throw new RuntimeError(
-                        node.pos_start, node.pos_end,
+                        current_index.a.pos_start, current_index.b.pos_end,
                         "Invalid binary selector: cannot get several elements from a dictionnary.",
                         context
                     );
@@ -2553,10 +2563,6 @@ export class Interpreter {
                     // and we are still not finished with the depths
                     // so it must be a list
                     if (value_to_be_replaced instanceof ListValue) {
-                        /** @type {BinarySelectorValues} */
-                        // @ts-ignore
-                        let current_index = index_per_depth[i];
-
                         if (i === (index_per_depth.length - 1)) {
                             if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
                                 current_index.b = new NumberValue(value_to_be_replaced.elements.length);
@@ -2590,7 +2596,7 @@ export class Interpreter {
                             // `a` cannot be greater than the length of the list
                             if (current_index.a.value > value_to_be_replaced.elements.length) {
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
+                                    current_index.a.pos_start, current_index.b.pos_end,
                                     `Can't access values at this starting index.`,
                                     context
                                 );
@@ -2605,28 +2611,24 @@ export class Interpreter {
                     } else {
                         // if we have `list[1][1]`, but `list[1]` is not an array
                         throw new RuntimeError(
-                            node.pos_start, node.pos_end,
+                            current_index.a.pos_start, current_index.b.pos_end,
                             `Can't access value at a certain index if this is not an array.`,
                             context
                         );
                     }
                 } else {
                     if (index_per_depth.length === 1) {
-                        /** @type {BinarySelectorValues} */
-                        // @ts-ignore
-                        let first_index = index_per_depth[0];
-
-                        if (first_index.b === null) { // the current_index.b might be null if we have "list[1:]"
-                            first_index.b = new NumberValue(value.elements.length);
-                        } else if (first_index.b.value < 0) { // we accept negative numbers only for `b`
-                            first_index.b.value = value.elements.length + first_index.b.value;
+                        if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
+                            current_index.b = new NumberValue(value.elements.length);
+                        } else if (current_index.b.value < 0) { // we accept negative numbers only for `b`
+                            current_index.b.value = value.elements.length + current_index.b.value;
                         } 
 
                         // `a` cannot be greater than the length of the list
                         // therefore we add `none` to the previous values that should have a value already.
-                        if (first_index.a.value > value.elements.length) {
+                        if (current_index.a.value > value.elements.length) {
                             // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
-                            for (let e = value.elements.length; e < first_index.a.value; e++) {
+                            for (let e = value.elements.length; e < current_index.a.value; e++) {
                                 value.elements[e] = new NoneValue();
                             }
                         }
@@ -2635,15 +2637,11 @@ export class Interpreter {
                         // therefore, after having searched for the previous values,
                         // we must update the values
                         if (new_value instanceof ListValue) {
-                            value.elements = [...value.elements.slice(0, first_index.a.value), ...new_value.elements, ...value.elements.slice(first_index.b.value)]
+                            value.elements = [...value.elements.slice(0, current_index.a.value), ...new_value.elements, ...value.elements.slice(current_index.b.value)]
                         } else {
-                            value.elements = [...value.elements.slice(0, first_index.a.value), new_value, ...value.elements.slice(first_index.b.value)]
+                            value.elements = [...value.elements.slice(0, current_index.a.value), new_value, ...value.elements.slice(current_index.b.value)]
                         }
                     } else {
-                        /** @type {BinarySelectorValues} */
-                        // @ts-ignore
-                        let current_index = index_per_depth[i]; // intellisense is often annoying
-
                         if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
                             current_index.b = new NumberValue(value.elements.length)
                         } else if (current_index.b.value < 0) { // we accept negative numbers only for `b`
@@ -2653,7 +2651,7 @@ export class Interpreter {
                         // `a` cannot be greater than the length of the list
                         if (current_index.a.value > value.elements.length) { 
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                current_index.a.pos_start, current_index.b.pos_end,
                                 `Can't access values at this starting index.`,
                                 context
                             );
@@ -3087,7 +3085,15 @@ export class Interpreter {
                 let index_per_depth = [];
 
                 for (let i = 0; i < node_to_delete.list_nodes.length; i++) {
-                    let index_node = node_to_delete.list_nodes[i];
+                    let index_node = node_to_delete.list_nodes[i].node;
+                    let is_optional = node_to_delete.list_nodes[i].is_optional;
+                    if (is_optional) {
+                        throw new RuntimeError(
+                            node.pos_start, node.pos_end,
+                            "Cannot delete an optional call",
+                            context
+                        );
+                    }
                     let visited_value = index_node instanceof ListPushBracketsNode || index_node instanceof ListBinarySelector ? index_node : res.register(this.visit(index_node, context));
                     if (res.should_return()) return res;
 
@@ -3096,7 +3102,7 @@ export class Interpreter {
                     } else if (visited_value instanceof ListBinarySelector) {
                         if (value instanceof DictionnaryValue) {
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                index_node.pos_start, index_node.pos_end,
                                 "Invalid binary selector: cannot get several elements from a dictionnary.",
                                 context
                             );
@@ -3112,7 +3118,7 @@ export class Interpreter {
 
                         if (!(expr_a instanceof NumberValue) && (expr_b !== null && expr_b instanceof NumberValue)) {
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                index_node.pos_start, index_node.pos_end,
                                 `The binary selector of '${var_name}' must be composed of numbers only.`,
                                 context
                             );
@@ -3120,7 +3126,7 @@ export class Interpreter {
 
                         if (expr_a.value < 0) {
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                expr_a.pos_start, expr_a.pos_end,
                                 `The binary selector of '${var_name}' cannot start with a negative number.`,
                                 context
                             );
@@ -3129,7 +3135,7 @@ export class Interpreter {
                         index_per_depth.push(new BinarySelectorValues(expr_a, expr_b));
                     } else {
                         throw new RuntimeError(
-                            node.pos_start, node.pos_end,
+                            index_node.pos_start, index_node.pos_end,
                             `Unable to interpret an index. It must be a binary selector, empty square brackets, number or string.`,
                             context
                         );
@@ -3146,22 +3152,22 @@ export class Interpreter {
                     if (index_per_depth[i] instanceof ListPushBracketsNode && value instanceof ListValue) {
                         index_per_depth[i].value = value.elements.length;
                     }
+                    
+                    let current_index = index_per_depth[i];
 
                     // NumberValue : `list[5] = something` (modify the index 5 by something)
                     // ListPushBracketsNode : `list[] = something` (add something to the array)
                     // otherwise, it's a binary selector : `list[0:5] = something` (replace the values from index 0 to 5 by something)
-                    if (index_per_depth[i] instanceof NumberValue || index_per_depth[i] instanceof StringValue || index_per_depth[i] instanceof ListPushBracketsNode) {
+                    if (current_index instanceof NumberValue || current_index instanceof StringValue || current_index instanceof ListPushBracketsNode) {
                         // have we already been searching for a value?
                         if (value_to_be_replaced) {
                             // we have several depths, therefore the previous value must be a list
                             if (value_to_be_replaced instanceof ListValue) {
                                 previous_list_element = value_to_be_replaced;
 
-                                let index = index_per_depth[i];
-
-                                if (index instanceof StringValue) {
+                                if (current_index instanceof StringValue) {
                                     throw new RuntimeError(
-                                        node.pos_start, node.pos_end,
+                                        current_index.pos_start, current_index.pos_end,
                                         "Cannot retrieve an element from a list with a string as index.",
                                         context
                                     );
@@ -3172,29 +3178,29 @@ export class Interpreter {
                                 // then let's modify our current value by the new value
                                 if (i === (index_per_depth.length - 1)) {
                                     // once again, we might have `list[1][] = something`
-                                    if (index instanceof ListPushBracketsNode) {
-                                        index.value = value_to_be_replaced.elements.length;
-                                    } else if (index.value < 0) { // or `list[-1]` === `list[list.length - 1]`
-                                        index.value = value_to_be_replaced.elements.length + index.value;
+                                    if (current_index instanceof ListPushBracketsNode) {
+                                        current_index.value = value_to_be_replaced.elements.length;
+                                    } else if (current_index.value < 0) { // or `list[-1]` === `list[list.length - 1]`
+                                        current_index.value = value_to_be_replaced.elements.length + current_index.value;
                                     }
 
                                     // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
-                                    if (index.value > value_to_be_replaced.elements.length) {
-                                        for (let e = value_to_be_replaced.elements.length; e < index.value; e++) {
+                                    if (current_index.value > value_to_be_replaced.elements.length) {
+                                        for (let e = value_to_be_replaced.elements.length; e < current_index.value; e++) {
                                             value_to_be_replaced.elements[e] = new NoneValue();
                                         }
                                     }
                                     
                                     // `value` will be automatically updated
-                                    value_to_be_replaced.elements[index.value] = undefined;
+                                    value_to_be_replaced.elements[current_index.value] = undefined;
                                 } else {
-                                    if (index.value < 0) {
-                                        index.value = value_to_be_replaced.elements.length + index.value;
+                                    if (current_index.value < 0) {
+                                        current_index.value = value_to_be_replaced.elements.length + current_index.value;
                                     }
 
                                     // this is not the last iteration
                                     // so just remember the current value
-                                    value_to_be_replaced = value_to_be_replaced.elements[index.value];
+                                    value_to_be_replaced = value_to_be_replaced.elements[current_index.value];
                                 }
                             } else if (value_to_be_replaced instanceof DictionnaryValue) {
                                 // if we are at the last iteration of that loop,
@@ -3202,40 +3208,37 @@ export class Interpreter {
                                 // then let's modify our current value by the new value
                                 if (i === (index_per_depth.length - 1)) {
                                     // once again, we might have `list[1][] = something`
-                                    if (index_per_depth[i] instanceof ListPushBracketsNode) {
+                                    if (current_index instanceof ListPushBracketsNode) {
                                         throw new RuntimeError(
-                                            node.pos_start, node.pos_end,
+                                            current_index.pos_start, current_index.pos_end,
                                             "Expected an expression between the square brackets ([]).",
                                             context
                                         );
                                     }
 
-                                    let index = index_per_depth[i];
-                                    if (index instanceof StringValue) {
-                                        // value_to_be_replaced.elements.set(index.value, undefined);
-                                        value_to_be_replaced.elements.delete(index.value);
+                                    if (current_index instanceof StringValue) {
+                                        value_to_be_replaced.elements.delete(current_index.value);
                                     } else {
                                         throw new RuntimeError(
-                                            node.pos_start, node.pos_end,
-                                            "Cannot retrieve an element from a dictionnary with a number",
+                                            current_index.pos_start, current_index.pos_end,
+                                            "Cannot retrieve an element from a dictionnary without a string",
                                             context
                                         );
                                     }
                                 } else {
-                                    let index = index_per_depth[i];
-                                    if (index instanceof StringValue) {
-                                        value_to_be_replaced = value_to_be_replaced.elements.get(index.value);
+                                    if (current_index instanceof StringValue) {
+                                        value_to_be_replaced = value_to_be_replaced.elements.get(current_index.value);
                                     } else {
                                         throw new RuntimeError(
-                                            node.pos_start, node.pos_end,
-                                            "Cannot retrieve an element from a dictionnary with a number",
+                                            current_index.pos_start, current_index.pos_end,
+                                            "Cannot retrieve an element from a dictionnary without a string",
                                             context
                                         );
                                     }
                                 }
                             } else {
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
+                                    current_index.pos_start, current_index.pos_end,
                                     `Can't access value at a certain index if this is not an array or a dictionnary.`,
                                     context
                                 );
@@ -3274,7 +3277,7 @@ export class Interpreter {
                                 } else if (value instanceof DictionnaryValue) {
                                     if (index_per_depth[0] instanceof ListPushBracketsNode) {
                                         throw new RuntimeError(
-                                            node.pos_start, node.pos_end,
+                                            index_per_depth[0].pos_start, index_per_depth[0].pos_end,
                                             "In order to add an element in a dictionnary, the new value must be a dictionnary too.",
                                             context
                                         );
@@ -3283,8 +3286,8 @@ export class Interpreter {
                                             value.elements.delete(index_per_depth[0].value);
                                         } else {
                                             throw new RuntimeError(
-                                                node.pos_start, node.pos_end,
-                                                "Cannot retrieve an element from a dictionnary with a number",
+                                                current_index.pos_start, current_index.pos_end,
+                                                "Cannot retrieve an element from a dictionnary without a string",
                                                 context
                                             );
                                         }
@@ -3311,13 +3314,12 @@ export class Interpreter {
                                     // and continue in order to modify `value_to_be_replaced[1]` (value_to_be_replaced = list[0])
                                     value_to_be_replaced = value.elements[index.value];
                                 } else if (value instanceof DictionnaryValue) {
-                                    let index = index_per_depth[i];
-                                    if (index instanceof StringValue) {
-                                        value_to_be_replaced = value.elements.get(index.value);
+                                    if (current_index instanceof StringValue) {
+                                        value_to_be_replaced = value.elements.get(current_index.value);
                                     } else {
                                         throw new RuntimeError(
-                                            node.pos_start, node.pos_end,
-                                            "Cannot retrieve an element from a dictionnary with a number.",
+                                            current_index.pos_start, current_index.pos_end,
+                                            "Cannot retrieve an element from a dictionnary without a string.",
                                             context
                                         );
                                     }
@@ -3327,7 +3329,7 @@ export class Interpreter {
                     } else { // binary selector `list[a:b]`
                         if (value instanceof DictionnaryValue || value_to_be_replaced instanceof DictionnaryValue) {
                             throw new RuntimeError(
-                                node.pos_start, node.pos_end,
+                                current_index.a.pos_start, current_index.b.pos_end,
                                 "Invalid binary selector: cannot get several elements from a dictionnary.",
                                 context
                             );
@@ -3339,10 +3341,6 @@ export class Interpreter {
                             // so it must be a list
                             if (value_to_be_replaced instanceof ListValue) {
                                 previous_list_element = value_to_be_replaced;
-
-                                /** @type {BinarySelectorValues} */
-                                // @ts-ignore
-                                let current_index = index_per_depth[i];
 
                                 if (i === (index_per_depth.length - 1)) {
                                     if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
@@ -3373,7 +3371,7 @@ export class Interpreter {
                                     // `a` cannot be greater than the length of the list
                                     if (current_index.a.value > value_to_be_replaced.elements.length) {
                                         throw new RuntimeError(
-                                            node.pos_start, node.pos_end,
+                                            current_index.a.pos_start, current_index.a.pos_end,
                                             `Can't access values at this starting index.`,
                                             context
                                         );
@@ -3388,7 +3386,7 @@ export class Interpreter {
                             } else {
                                 // if we have `list[1][1]`, but `list[1]` is not an array
                                 throw new RuntimeError(
-                                    node.pos_start, node.pos_end,
+                                    current_index.a.pos_start, current_index.b.pos_end,
                                     `Can't access value at a certain index if this is not an array.`,
                                     context
                                 );
@@ -3397,21 +3395,17 @@ export class Interpreter {
                             if (index_per_depth.length === 1) {
                                 previous_list_element = value;
 
-                                /** @type {BinarySelectorValues} */
-                                // @ts-ignore
-                                let first_index = index_per_depth[0];
-
-                                if (first_index.b === null) { // the current_index.b might be null if we have "list[1:]"
-                                    first_index.b = new NumberValue(value.elements.length);
-                                } else if (first_index.b.value < 0) { // we accept negative numbers only for `b`
-                                    first_index.b.value = value.elements.length + first_index.b.value;
+                                if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
+                                    current_index.b = new NumberValue(value.elements.length);
+                                } else if (current_index.b.value < 0) { // we accept negative numbers only for `b`
+                                    current_index.b.value = value.elements.length + current_index.b.value;
                                 } 
 
                                 // `a` cannot be greater than the length of the list
                                 // therefore we add `none` to the previous values that should have a value already.
-                                if (first_index.a.value > value.elements.length) {
+                                if (current_index.a.value > value.elements.length) {
                                     // we have to make sure that every previous values of a selected value is defined (new NoneValue()).
-                                    for (let e = value.elements.length; e < first_index.a.value; e++) {
+                                    for (let e = value.elements.length; e < current_index.a.value; e++) {
                                         value.elements[e] = new NoneValue();
                                     }
                                 }
@@ -3419,12 +3413,8 @@ export class Interpreter {
                                 // there is only one depth
                                 // therefore, after having searched for the previous values,
                                 // we must update the values
-                                value.elements = [...value.elements.slice(0, first_index.a.value), undefined, ...value.elements.slice(first_index.b.value)]
+                                value.elements = [...value.elements.slice(0, current_index.a.value), undefined, ...value.elements.slice(current_index.b.value)]
                             } else {
-                                /** @type {BinarySelectorValues} */
-                                // @ts-ignore
-                                let current_index = index_per_depth[i]; // intellisense is often annoying
-
                                 if (current_index.b === null) { // the current_index.b might be null if we have "list[1:]"
                                     current_index.b = new NumberValue(value.elements.length)
                                 } else if (current_index.b.value < 0) { // we accept negative numbers only for `b`
@@ -3434,7 +3424,7 @@ export class Interpreter {
                                 // `a` cannot be greater than the length of the list
                                 if (current_index.a.value > value.elements.length) { 
                                     throw new RuntimeError(
-                                        node.pos_start, node.pos_end,
+                                        current_index.a.pos_start, current_index.a.pos_end,
                                         `Can't access values at this starting index.`,
                                         context
                                     );
