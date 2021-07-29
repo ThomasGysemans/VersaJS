@@ -483,4 +483,18 @@ describe('Parser tests', () => {
         assert.deepStrictEqual(node.element_nodes[0] instanceof ListAccessNode, true);
         assert.deepStrictEqual(node.element_nodes[0].list_nodes[0].is_optional, true);
     });
+
+    it('should work with a basic call to a function and an optional chaining operator', () => {
+        const tokens = new Lexer("myImaginaryFunction?.()").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof CallNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].is_optional, true);
+    });
+
+    it('should work with a double call to a function and an optional chaining operator', () => {
+        const tokens = new Lexer("myImaginaryFunction?.()()").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof CallNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].is_optional, true); // all calls are defined as optional as soon as one of them is defined as optional
+    });
 });

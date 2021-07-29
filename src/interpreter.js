@@ -2300,6 +2300,16 @@ export class Interpreter {
         const new_value = res.register(this.visit(node.new_value_node, context));
         if (res.should_return()) return res;
 
+        // if the value we are trying to access is already null
+        // Example: `list = none; list?.[0] = 5`
+        if (value instanceof NoneValue && node.accessor.list_nodes[0].is_optional) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Cannot assign a new value to an optional call",
+                context
+            );
+        }
+
         if (!(value instanceof ListValue) && !(value instanceof DictionnaryValue)) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
@@ -2970,13 +2980,18 @@ export class Interpreter {
     visit_CallNode(node, context) {
         let res = new RuntimeResult();
         let args = [];
-
         let pos_start = node.pos_start;
         let pos_end = node.pos_end;
 
         /** @type {FunctionValue|NativeFunction} */
         let value_to_call = res.register(this.visit(node.node_to_call, context));
         if (res.should_return()) return res;
+
+        if (value_to_call instanceof NoneValue && node.is_optional) {
+            return res.success(
+                new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        }
 
         if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof NativeFunction)) {
             throw new RuntimeError(
@@ -4125,6 +4140,12 @@ export class Interpreter {
 
         let origin_instance = res.register(this.visit(origin, context));
         if (res.should_return()) return res;
+
+        if (origin_instance instanceof NoneValue && node.is_optional) {
+            return res.success(
+                new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        }
 
         if (!(origin_instance instanceof ClassValue)) {
             throw new RuntimeError(

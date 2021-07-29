@@ -515,4 +515,24 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with the optional chaining operator as a token (?.)', () => {
+        const tokens = Array.from(new Lexer("example?.thing").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "example"),
+            new Token(TokenType.OPTIONAL_CHAINING_OPERATOR),
+            new Token(TokenType.IDENTIFIER, "thing"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with the optional static call (?::)', () => {
+        const tokens = Array.from(new Lexer("example?::thing").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "example"),
+            new Token(TokenType.OPTIONAL_STATIC_CALL),
+            new Token(TokenType.IDENTIFIER, "thing"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

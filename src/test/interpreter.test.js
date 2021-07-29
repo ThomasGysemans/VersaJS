@@ -4668,4 +4668,135 @@ describe('Interpreter', () => {
         assert.deepStrictEqual(result.value.elements[2].value, 8);
         assert.deepStrictEqual(result.value.elements[3] instanceof NoneValue, true);
     });
+
+    it('should work with an optional call to a function', () => {
+        /*
+        var variable = func () -> none
+        variable()?.()
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("variable"),
+                    new FuncDefNode(
+                        null,
+                        [],
+                        none(),
+                        true
+                    )
+                ),
+                new CallNode(
+                    new CallNode(
+                        new VarAccessNode(identifier_tok("variable")),
+                        [],
+                        false
+                    ),
+                    [],
+                    true
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[1] instanceof NoneValue, true);
+    });
+
+    it('should work with a variable and and optional chaining operator, called as a function', () => {
+        /*
+        var variable = none
+        variable?.()?.()
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("variable"),
+                    none(),
+                ),
+                new CallNode(
+                    new CallNode(
+                        new VarAccessNode(identifier_tok("variable")),
+                        [],
+                        true
+                    ),
+                    [],
+                    true
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[1] instanceof NoneValue, true);
+    });
+
+    it('should work with a variable and and optional chaining operator, called as a list', () => {
+        /*
+        var variable = none
+        variable?.[0]?.[0]
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("variable"),
+                    none(),
+                ),
+                new ListAccessNode(
+                    new VarAccessNode(identifier_tok("variable")),
+                    1,
+                    [
+                        new ListArgumentNode(number(0), true),
+                        new ListArgumentNode(number(0), true),
+                    ]
+                )
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[1] instanceof NoneValue, true);
+    });
+
+    it('should work with a short-circuit thanks to an optional chaining operator', () => {
+        /*
+        var object = none
+        var x = 0
+        var variable = object?.[x++]
+
+        x # should be 0
+        */
+        const tree = new ListNode(
+            [
+                new VarAssignNode(
+                    identifier_tok("object"),
+                    none(),
+                ),
+                new VarAssignNode(
+                    identifier_tok("x"),
+                    number(0)
+                ),
+                new VarAssignNode(
+                    identifier_tok("variable"),
+                    new ListAccessNode(
+                        new VarAccessNode(identifier_tok("object")),
+                        0,
+                        [
+                            new ListArgumentNode(
+                                new PostfixOperationNode(
+                                    new VarAccessNode(identifier_tok("x")),
+                                    1,
+                                ),
+                                true
+                            )
+                        ]
+                    )
+                ),
+                new VarAccessNode(identifier_tok("x"))
+            ],
+            null,
+            null
+        );
+        const result = new Interpreter().visit(tree, context());
+        assert.deepStrictEqual(result.value.elements[3].value, 0);
+    });
 });

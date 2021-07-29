@@ -1013,11 +1013,13 @@ export class CallNode extends CustomNode {
      * @constructs CallNode
      * @param {CustomNode} node_to_call The identifier that corresponds to the name of the function to be called.
      * @param {Array<CustomNode>} arg_nodes The list of arguments.
+     * @param {boolean} is_optional Is the optional chaining operator present?
      */
-    constructor(node_to_call, arg_nodes) {
+    constructor(node_to_call, arg_nodes, is_optional=false) {
         super();
         this.node_to_call = node_to_call;
         this.arg_nodes = arg_nodes;
+        this.is_optional = is_optional;
 
         this.pos_start = this.node_to_call.pos_start;
 

@@ -1,7 +1,7 @@
 import KEYWORDS, { Token, TokenType } from './tokens.js';
 import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
-import { ExpectedCharError, IllegalCharError } from './Exceptions.js';
+import { ExpectedCharError, IllegalCharError, InvalidSyntaxError } from './Exceptions.js';
 
 export const WHITESPACE        = " \t";
 export const DIGITS            = "0123456789_"; // we want to allow 100_000 === 100000
@@ -80,7 +80,7 @@ export class Lexer {
             } else if (this.current_char === ">") {
                 yield this.make_greater_than_or_equal_or_binary();
             } else if (this.current_char === "?") {
-                yield this.make_qmark_or_nullish();
+                yield this.make_qmark_or_nullish_or_ocp();
             } else if (this.current_char === "'") {
                 yield this.make_string();
             } else if (this.current_char === '"') {
@@ -262,15 +262,29 @@ export class Lexer {
         return new Token(tok_type, null, pos_start, this.pos);
     }
 
-    make_qmark_or_nullish() {
+    make_qmark_or_nullish_or_ocp() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.QMARK;
         this.advance();
 
-        // we want "??"
+        // we want "??", or "?." or "?::"
         if (this.current_char === "?") {
             this.advance();
             tok_type = TokenType.NULLISH_OPERATOR;
+        } else if (this.current_char === ".") {
+            this.advance();
+            tok_type = TokenType.OPTIONAL_CHAINING_OPERATOR;
+        } else if (this.current_char === ":") {
+            this.advance();
+            if (this.current_char === ":") {
+                this.advance();
+                tok_type = TokenType.OPTIONAL_STATIC_CALL;
+            } else {
+                throw new ExpectedCharError(
+                    pos_start, this.pos,
+                    "Expected '?::'"
+                );
+            }
         }
 
         return new Token(tok_type, null, pos_start, this.pos);
