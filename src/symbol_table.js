@@ -1,4 +1,5 @@
-import { NativeFunction } from "./values.js";
+import { NATIVE_CLASSES, NATIVE_FUNCTIONS } from "./native.js";
+import { NativeClassValue, NativeFunction, NativePropertyValue } from "./values.js";
 
 /**
  * @classdesc Keeps track of all the declared variables in our program.
@@ -130,9 +131,29 @@ export const CONSTANTS = {};
 // comment that if you want to execute `./test/interpreter.test.js` or `./test/maths.test.js`
 // indeed, there is a glitch: apparently mocha doesn't want to us to use static properties from classes outside the classes themselves.
 // Because of that, we cannot use any native function in the tests
-for (let i = 0; i < Object.keys(NativeFunction.NATIVE_FUNCTIONS).length; i++) {
-    let name = Object.keys(NativeFunction.NATIVE_FUNCTIONS)[i];
+for (let i = 0; i < Object.keys(NATIVE_FUNCTIONS).length; i++) {
+    let name = Object.keys(NATIVE_FUNCTIONS)[i];
     global_symbol_table.set(name, new NativeFunction(name));
 }
+
+for (let i = 0; i < Object.keys(NATIVE_CLASSES).length; i++) {
+    let native = Object.values(NATIVE_CLASSES)[i];
+    let name = native.name;
+    let self = new Map(native.properties.map((v) => [v.name, {
+        status: v.status,
+        static_prop: v.static_prop,
+        value: new NativePropertyValue(
+            v.name,
+            v.nature,
+            name,
+            v.status,
+            v.static_prop,
+            v.value.behavior,
+            v.value.args,
+        )
+    }]));
+    global_symbol_table.set(name, new NativeClassValue(name, self, null));
+}
+// ---
 
 export default global_symbol_table;

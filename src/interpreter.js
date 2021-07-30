@@ -1,5 +1,5 @@
 import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode } from './nodes.js';
-import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeFunction, NoneValue, NumberValue, StringValue } from './values.js';
+import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeClassValue, NativeFunction, NativePropertyValue, NoneValue, NumberValue, StringValue } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
@@ -3923,7 +3923,7 @@ export class Interpreter {
             );
         }
 
-        if (base instanceof ClassValue) {
+        if (base instanceof ClassValue || base instanceof NativeClassValue) {
             let prop = base.self.get(property_name);
 
             if (prop === undefined || prop === null) {
@@ -3954,6 +3954,14 @@ export class Interpreter {
                         `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
                         context
                     );
+                }
+            }
+
+            if (value instanceof NativePropertyValue) {
+                if (value.nature === "property") {
+                    let exec_ctx = this.generate_new_context(context, base.context_name, node.pos_start);
+                    exec_ctx.symbol_table.set("self", base);
+                    return res.success(value.behavior(exec_ctx, node.pos_start, node.pos_end).value);
                 }
             }
 
@@ -4147,49 +4155,82 @@ export class Interpreter {
             );
         }
 
-        if (!(origin_instance instanceof ClassValue)) {
+        if (origin_instance instanceof ClassValue) {
+            let exec_ctx = this.generate_new_context(context, origin_instance.context_name, node.pos_start);
+            exec_ctx.symbol_table.set("self", origin_instance);
+
+            /** @type {FunctionValue|NativeFunction} */
+            let value_to_call = res.register(this.visit(node_to_call.node_to_call, context));
+            if (res.should_return()) return res;
+
+            // surprisingly, it might be a native function
+            if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof NativeFunction)) {
+                if (node.is_optional) {
+                    return res.success(
+                        new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                    );
+                } else {
+                    throw new RuntimeError(
+                        node.pos_start, node.pos_end,
+                        "Cannot call a variable that is not a function.",
+                        context
+                    );
+                }
+            }
+
+            value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
+
+            for (let arg_node of node_to_call.arg_nodes) {
+                args.push(res.register(this.visit(arg_node, context)));
+                if (res.should_return()) return res;
+            }
+
+            let return_value = res.register(value_to_call.set_context(exec_ctx).execute(args, pos_start, pos_end));
+            if (res.should_return()) return res;
+
+            return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
+
+            return res.success(return_value);
+        } else if (origin_instance instanceof NativeClassValue) {
+            let exec_ctx = this.generate_new_context(context, origin_instance.context_name, node.pos_start);
+            exec_ctx.symbol_table.set("self", origin_instance);
+
+            /** @type {NativePropertyValue} */
+            let value_to_call = res.register(this.visit(node_to_call.node_to_call, context));
+            if (res.should_return()) return res;
+
+            if (!(value_to_call instanceof NativePropertyValue)) {
+                if (node.is_optional) {
+                    return res.success(
+                        new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                    );
+                } else {
+                    throw new RuntimeError(
+                        node.pos_start, node.pos_end,
+                        "Cannot call a variable that is not a function.",
+                        context
+                    );
+                }
+            }
+
+            for (let arg_node of node_to_call.arg_nodes) {
+                args.push(res.register(this.visit(arg_node, context)));
+                if (res.should_return()) return res;
+            }
+
+            let return_value = res.register(value_to_call.set_context(exec_ctx).execute(args, pos_start, pos_end));
+            if (res.should_return()) return res;
+
+            return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
+
+            return res.success(return_value);
+        } else {
             throw new RuntimeError(
                 pos_start, pos_end,
                 "Cannot call a method from a non-class value.",
                 context
             );
         }
-
-        let exec_ctx = this.generate_new_context(context, origin_instance.context_name, node.pos_start);
-        exec_ctx.symbol_table.set("self", origin_instance);
-
-        /** @type {FunctionValue|NativeFunction} */
-        let value_to_call = res.register(this.visit(node_to_call.node_to_call, context));
-        if (res.should_return()) return res;
-
-        // surprisingly, it might be a native function
-        if (!(value_to_call instanceof FunctionValue) && !(value_to_call instanceof NativeFunction)) {
-            if (node.is_optional) {
-                return res.success(
-                    new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
-                );
-            } else {
-                throw new RuntimeError(
-                    node.pos_start, node.pos_end,
-                    "Cannot call a variable that is not a function.",
-                    context
-                );
-            }
-        }
-
-        value_to_call = value_to_call.copy().set_pos(node.pos_start, node.pos_end);
-
-        for (let arg_node of node_to_call.arg_nodes) {
-            args.push(res.register(this.visit(arg_node, context)));
-            if (res.should_return()) return res;
-        }
-
-        let return_value = res.register(value_to_call.set_context(exec_ctx).execute(args, pos_start, pos_end));
-        if (res.should_return()) return res;
-
-        return_value = return_value.copy().set_pos(node.pos_start, node.pos_end).set_context(context);
-
-        return res.success(return_value);
     }
 
     /**

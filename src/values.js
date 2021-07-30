@@ -1,5 +1,3 @@
-import process from 'process';
-
 import { Position } from "./position.js";
 import { Context } from "./context.js";
 import { SymbolTable } from "./symbol_table.js";
@@ -7,7 +5,7 @@ import { RuntimeResult } from "./runtime.js";
 import { RuntimeError } from "./Exceptions.js";
 import { ArgumentNode, CustomNode } from "./nodes.js";
 import { Interpreter } from "./interpreter.js";
-import { Token, TokenType } from './tokens.js';
+import { NATIVE_FUNCTIONS } from './native.js';
 
 export class Value {
     constructor() {
@@ -29,6 +27,10 @@ export class Value {
 
     is_true() {
         return true;
+    }
+
+    equivalent() {
+        throw new Error("No equivalent method defined.");
     }
 
     /**
@@ -69,6 +71,10 @@ export class NumberValue extends Value {
         return this.value !== 0;
     }
 
+    equivalent() {
+        return this.value;
+    }
+
     /**
      * @override
      * @return {NumberValue}
@@ -97,6 +103,10 @@ export class ListValue extends Value {
 
     is_true() {
         return this.elements.length > 0;
+    }
+
+    equivalent() {
+        return this.elements.map(v => v.equivalent());
     }
 
     /**
@@ -145,6 +155,10 @@ export class DictionnaryValue extends Value {
         return this.elements.size > 0;
     }
 
+    equivalent() {
+        return Array.from(this.elements.entries()).map(v => [v[0], v[1].equivalent()]);
+    }
+
     /**
      * @override
      * @return {DictionnaryValue}
@@ -176,6 +190,10 @@ export class StringValue extends Value {
 
     is_true() {
         return this.value.length > 0;
+    }
+
+    equivalent() {
+        return this.value;
     }
 
     // We don't want the quotes when we console.log a string
@@ -250,7 +268,7 @@ export class BaseFunction extends Value {
             }
         }
 
-        const mandatory_args = args.filter((v) => v.is_optional === false && v.is_rest === false);
+        const mandatory_args = args.filter((v) => v.is_optional === false);
 
         // too few arguments
         if (given_args.length < mandatory_args.length) {
@@ -280,7 +298,11 @@ export class BaseFunction extends Value {
                 let arg_name = args[i].arg_name_tok.value;
                 let arg_value = new ListValue(given_args.slice(i)); // all the given arguments from here
                 arg_value.set_context(exec_ctx);
-                arg_value.set_pos(given_args[i].pos_start, given_args[given_args.length - 1].pos_end);
+                if (i < given_args.length) {
+                    arg_value.set_pos(given_args[i].pos_start, given_args[given_args.length - 1].pos_end);
+                } else {
+                    arg_value.set_pos(args[i].pos_start, args[i].pos_end);
+                }
                 exec_ctx.symbol_table.set(arg_name, arg_value);
                 break; // the rest parameter is the last argument
             }
@@ -343,6 +365,10 @@ export class ClassValue extends Value {
         return true;
     }
 
+    equivalent() {
+        return {}; // todo
+    }
+
     /**
      * @override
      * @return {ClassValue} A copy of that instance.
@@ -366,6 +392,123 @@ export class ClassValue extends Value {
             return return_value.toString();
         }
         return `<Class ${this.name}>`;
+    }
+}
+
+export class NativeClassValue extends Value {
+    /**
+     * @constructs NativeClassValue
+     * @param {string} name The name of the class.
+     * @param {Map<string, {status:number, value:NativePropertyValue, static_prop:number}>} value The class that has been instantiated.
+     * @param {NativeClassValue} parent_class The parent class.
+     */
+    constructor(name, value, parent_class) {
+        super();
+        this.name = name;
+        this.parent_class = parent_class;
+        this.context_name = `<NativeClass ${this.name}>`; // we do it here because this name cannot be changed, it's very important
+        this.self = value;
+    }
+
+    is_true() {
+        return true;
+    }
+
+    equivalent() {
+        return {};
+    }
+
+    /**
+     * @override
+     * @return {NativeClassValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new NativeClassValue(this.name, this.self, this.parent_class);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `<NativeClass ${this.name}>`;
+    }
+}
+
+/**
+ * @classdesc native methods that belong to a native class.
+ */
+export class NativePropertyValue extends BaseFunction {
+    /**
+     * @constructs NativePropertyValue
+     * @param {string} name The name of the native property.
+     * @param {string} nature The nature of the property (method or property)
+     * @param {string} from The name of the native class
+     * @param {number} status The status of the property (public, private, protected)
+     * @param {number} static_prop Is static?
+     * @param {(exec_ctx: Context, pos_start: Position, pos_end: Position) => RuntimeResult} behavior The native behavior
+     * @param {Array<ArgumentNode>} method_args The necessary arguments if this is a method
+     */
+    constructor(name, nature, from, status, static_prop, behavior, method_args=[]) {
+        super(name);
+        this.status = status;
+        this.nature = nature;
+        this.from = from;
+        this.static_prop = static_prop;
+        this.behavior = behavior;
+        this.method_args = method_args;
+    }
+
+    /**
+     * Executes a native method.
+     * @param {Array} args The arguments
+     * @param {Position} pos_start The starting position of the call node.
+     * @param {Position} pos_end The end position of the call node.
+     * @return {RuntimeResult}
+     */
+    execute(args, pos_start, pos_end) {
+        let res = new RuntimeResult();
+        let exec_ctx = this.generate_new_context();
+
+        // essentially for intellisense
+        // but I know that all the default values are instances of Value
+        let default_values = this.method_args.map((v) => v.default_value_node instanceof Value ? v.default_value_node.copy().set_pos(pos_start, pos_end) : null).filter((v) => v !== null);
+
+        res.register(this.check_and_populate_args(this.method_args, default_values, args, exec_ctx));
+        if (res.should_return()) return res;
+
+        exec_ctx.symbol_table.set('arguments', new ListValue([...args]));
+
+        let return_value = res.register(this.behavior(exec_ctx, pos_start, pos_end));
+        if (res.should_return()) return res;
+
+        return res.success(return_value);
+    }
+
+    is_true() {
+        return true;
+    }
+
+    equivalent() {
+        return {};
+    }
+
+    /**
+     * @override
+     * @return {NativePropertyValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new NativePropertyValue(this.name, this.nature, this.from, this.status, this.static_prop, this.behavior);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    /**
+     * @override
+     * @returns {string}
+     */
+    toString() {
+        return `<native-${this.nature} ${this.from}.${this.name}>`;
     }
 }
 
@@ -422,6 +565,10 @@ export class FunctionValue extends BaseFunction {
         return true;
     }
 
+    equivalent() {
+        return {};
+    }
+
     /**
      * @override
      * @return {FunctionValue} A copy of that instance.
@@ -451,78 +598,6 @@ export class NativeFunction extends BaseFunction {
     }
 
     /**
-     * A shortcut to create arguments for native functions faster.
-     * @param {string} name The name of the argument.
-     * @param {boolean} is_rest Is a rest parameter?
-     * @param {boolean} is_optional Is optional?
-     * @param {Value} default_value The default value.
-     */
-    static arg(name, is_rest=false, is_optional=false, default_value=null) {
-        return new ArgumentNode(new Token(TokenType.STRING, name), is_rest, is_optional, default_value);
-    }
-
-    // This static property will have all the arguments of every native functions
-    // and their associated behavior
-    static NATIVE_FUNCTIONS = {
-        log: {
-            args: [ // all the args
-                NativeFunction.arg("value", true),
-            ],
-            // in the right order (from the first option to the last one)
-            default_values: [],
-            /**
-             * Equivalent of `console.log`.
-             * @param {Context} exec_ctx The execution context.
-             */
-            behavior: (exec_ctx, pos_start, pos_end) => {
-                /** @type {ListValue} */
-                let value = exec_ctx.symbol_table.get('value');
-                let str = "";
-                // @ts-ignore
-                for (let el of value.elements) str += el.repr ? el.repr() + " " : el.toString() + " ";
-                console.log(str); // normal
-                return new RuntimeResult().success(new NoneValue());
-            }
-        },
-        len: {
-            args: [
-                NativeFunction.arg("s")
-            ],
-            default_values: [],
-            /**
-             * Equivalent of `len()` in python.
-             * @param {Context} exec_ctx The execution context.
-             */
-            behavior: (exec_ctx, pos_start, pos_end) => {
-                let s = exec_ctx.symbol_table.get('s');
-                let length = 0;
-                if (s instanceof StringValue) {
-                    length = s.value.length;
-                } else if (s instanceof ListValue) {
-                    length = s.elements.length;
-                } else if (s instanceof DictionnaryValue) {
-                    length = s.elements.size;
-                } else {
-                    throw new RuntimeError(
-                        pos_start, pos_end,
-                        "Invalid type of argument for method len()",
-                        exec_ctx
-                    );
-                }
-                return new RuntimeResult().success(new NumberValue(length));
-            }
-        },
-        exit: {
-            /**
-             * Exists the entire program
-             */
-            behavior: (exec_ctx, pos_start, pos_end) => {
-                process.exit()
-            }
-        }
-    };
-
-    /**
      * Executes a native function.
      * @param {Array} args The arguments
      * @param {Position} pos_start The starting position of the call node.
@@ -531,16 +606,26 @@ export class NativeFunction extends BaseFunction {
      */
     execute(args, pos_start, pos_end) {
         let res = new RuntimeResult();
+        let interpreter = new Interpreter();
         let exec_ctx = this.generate_new_context();
-        let native_function = NativeFunction.NATIVE_FUNCTIONS[this.name];
-        if (!native_function) throw new Error(`No method '${this.name}' defined.`);
+        let native_function = NATIVE_FUNCTIONS[this.name];
+        if (!native_function) throw new Error(`No native function '${this.name}' defined.`);
 
         let method = native_function.behavior;
+        let registered_args = native_function.args ?? [];
 
-        let registered_args = native_function.args || [];
-        let registered_default_values = native_function.default_values || [];
-        res.register(this.check_and_populate_args(registered_args, registered_default_values, args, exec_ctx));
+        let default_values_nodes = registered_args.map((v) => v.default_value_node).filter((v) => v !== null);
+        let default_values = [];
+        for (let df of default_values_nodes) {
+            let value = res.register(interpreter.visit(df, exec_ctx));
+            if (res.should_return()) return res;
+            default_values.push(value);
+        }
+
+        res.register(this.check_and_populate_args(registered_args, default_values, args, exec_ctx));
         if (res.should_return()) return res;
+
+        exec_ctx.symbol_table.set('arguments', new ListValue([...args]));
 
         let return_value = res.register(method(exec_ctx, pos_start, pos_end));
         if (res.should_return()) return res;
@@ -550,6 +635,10 @@ export class NativeFunction extends BaseFunction {
 
     is_true() {
         return true;
+    }
+
+    equivalent() {
+        return {};
     }
 
     /**
@@ -588,6 +677,10 @@ export class EnumValue extends Value {
         return true;
     }
 
+    equivalent() {
+        return Object.fromEntries(this.properties.entries());
+    }
+
     /**
      * @override
      * @return {EnumValue} A copy of that instance.
@@ -614,6 +707,10 @@ export class NoneValue extends Value {
 
     is_true() {
         return false;
+    }
+
+    equivalent() {
+        return null;
     }
 
     /**
@@ -645,6 +742,10 @@ export class BooleanValue extends Value {
     }
 
     is_true() {
+        return this.state === 1 ? true : false;
+    }
+
+    equivalent() {
         return this.state === 1 ? true : false;
     }
 

@@ -1,5 +1,6 @@
 import { Position } from "./position.js";
 import { Token } from "./tokens.js";
+import { Value } from "./values.js";
 
 /**
  * @classdesc A node in the program.
@@ -1382,7 +1383,7 @@ export class ArgumentNode extends CustomNode {
      * @param {Token} arg_name_tok The name of the argument.
      * @param {boolean} is_rest Is a rest parameter?
      * @param {boolean} is_optional Is optional?
-     * @param {CustomNode} default_value_node The default value in case the argument is optional.
+     * @param {CustomNode|Value} default_value_node The default value in case the argument is optional. It might be a Value if this is native.
      * @param {Position} pos_start The starting position.
      * @param {Position} pos_end The end position.
      */

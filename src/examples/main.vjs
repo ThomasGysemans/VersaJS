@@ -1,7 +1,2 @@
-var client = {
-    "name": "Carl",
-    "details": { "age": 82 }
-}
-
-var city = client?.["city"] ?? "Unknown city"
-log(city) # expected: "Unknown city"
+var variable = false
+console.assert(variable == true, "Error message", {"age":[{"age":18}]})
