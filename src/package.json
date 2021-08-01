@@ -1,5 +1,5 @@
 {
-  "name": "runjs-v2",
+  "name": "versajs",
   "version": "1.0.0",
   "description": "My own programming language",
   "main": "main.js",
@@ -13,6 +13,23 @@
     "prompt-sync": "^4.2.0"
   },
   "devDependencies": {
-    "mocha": "^9.0.1"
-  }
+    "mocha": "^9.0.3"
+  },
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodoPixel/VersaJS.git"
+  },
+  "keywords": [
+    "language",
+    "website",
+    "javascript"
+  ],
+  "bugs": {
+    "url": "https://github.com/CodoPixel/VersaJS/issues"
+  },
+  "homepage": "https://github.com/CodoPixel/VersaJS#readme"
 }
