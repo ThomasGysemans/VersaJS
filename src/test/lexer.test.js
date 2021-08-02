@@ -16,12 +16,12 @@ const check_tokens = (values, expected) => {
 };
 
 describe('Lexer tests', () => {
-    it('should return empty list', () => {
+    it('should return EOF', () => {
         const tokens = Array.from(new Lexer("").generate_tokens());
         assert.strictEqual(tokens.length, 1); // EOF
     });
 
-    it('should return empty list', () => {
+    it('should return EOF', () => {
         const tokens = Array.from(new Lexer(" \t\t").generate_tokens());
         assert.strictEqual(tokens.length, 1); // EOF
     });

@@ -9,16 +9,15 @@ import { Context } from './context.js';
  * Runs the program.
  * @param {string} text The source code.
  * @param {string} filename The name of the file.
+ * @param {Context|null} context A custom context used only in tests.
  */
-export const run = (text, filename) => {
+export const run = (text, filename, context=null) => {
     try {
-        // We generate the context here
-        // because we might need it inside strings
-        // Indeed, if there is "{var}", then we need to interpret that code
-        // before the creation of the variable.
-        // However, we want the same context everywhere
-        const context = new Context('<program>'); // the context will get modified by visiting the different user's actions.
-        context.symbol_table = global_symbol_table;
+        // the context will get modified by visiting the different user's actions.
+        if (!context) {
+            context = new Context('<program>'); 
+            context.symbol_table = global_symbol_table;
+        }
         
         const lexer = new Lexer(text, filename);
         const tokens = lexer.generate_tokens();

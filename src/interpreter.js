@@ -57,10 +57,13 @@ function array_equals(a, b) {
                 return true;
             } else if (a_element instanceof ClassValue) {
                 return false; // two classes cannot be equal
+            } else if (a_element instanceof DictionnaryValue) {
+                return dictionnary_equals(a_element, b_element);
+            } else if (a_element instanceof BooleanValue) {
+                return a_element.state === b_element.state;
             } else {
                 return false;
             }
-            // dictionnaries are handled by another function
             // todo: change here if there are new types
         }
     }
@@ -643,7 +646,13 @@ export class Interpreter {
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             err_divide_by_zero();
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
-            err_divide_by_zero();
+            if (right.value === 0) {
+                err_divide_by_zero();
+            }
+
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             err_divide_by_zero();
         } else if (left instanceof NumberValue && right instanceof BooleanValue) {
@@ -707,7 +716,13 @@ export class Interpreter {
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             err_divide_by_zero();
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
-            err_divide_by_zero();
+            if (right.value === 0) {
+                err_divide_by_zero();
+            }
+
+            return new RuntimeResult().success(
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             err_divide_by_zero();
         } else if (left instanceof NumberValue && right instanceof BooleanValue) {

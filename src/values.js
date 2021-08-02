@@ -1,11 +1,11 @@
 import { Position } from "./position.js";
 import { Context } from "./context.js";
+import { ArgumentNode, CustomNode } from "./nodes.js";
 import { SymbolTable } from "./symbol_table.js";
 import { RuntimeResult } from "./runtime.js";
 import { RuntimeError } from "./Exceptions.js";
-import { ArgumentNode, CustomNode } from "./nodes.js";
 import { Interpreter } from "./interpreter.js";
-import { NATIVE_FUNCTIONS } from './native.js';
+import { NATIVE_FUNCTIONS } from "./native.js";
 
 export class Value {
     constructor() {
@@ -129,9 +129,13 @@ export class ListValue extends Value {
     }
 
     repr() {
-        // we want a one dimensional array
-        let new_table = this.merge_into_1d_arr(this.elements);
-        return `${new_table.join(', ')}`;
+        if (this.elements.length === 0) {
+            return '[]';
+        } else {
+            // we want a one dimensional array
+            let new_table = this.merge_into_1d_arr(this.elements);
+            return `${new_table.join(', ')}`;
+        }
     }
 }
 

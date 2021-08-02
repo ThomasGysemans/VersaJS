@@ -565,7 +565,7 @@ export class Parser {
             TokenType.NULLISH_OPERATOR,
         ];
 
-        // while because we want to be able to do:
+        // 'while' because we want to be able to do:
         // `5 == 5 == yes`
         while (this.current_token !== null && is_in(this.current_token.type, possible_tokens)) {
             if (this.current_token.type === TokenType.DOUBLE_EQUALS) {
@@ -1992,12 +1992,6 @@ export class Parser {
                     "Invalid parameter after rest parameter."
                 );
             }
-            if (this.current_token.type === TokenType.QMARK) {
-                throw new InvalidSyntaxError(
-                    this.current_token.pos_start, this.current_token.pos_end,
-                    "Rest parameter does not support default value."
-                );
-            }
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
                 "Expected a parenthesis ')'"
@@ -2033,17 +2027,25 @@ export class Parser {
                     this.advance();
 
                     if (is_rest) {
-                        if (is_optional) {
-                            throw new InvalidSyntaxError(
-                                this.current_token.pos_start, this.current_token.pos_end,
-                                "There cannot be a rest parameter after optional arguments."
-                            );
-                        }
                         // there cannot be any more arguments after a rest parameter
-                        if (this.current_token.type !== TokenType.RPAREN) {
-                            error_rest_parameter();
+                        if (this.current_token.type === TokenType.QMARK) {
+                            is_optional = true;
+                            let question_mark_token = this.current_token;
+                            let default_value = new ListNode([], question_mark_token.pos_start, question_mark_token.pos_end);
+                            this.advance();
+
+                            if (this.current_token.type === TokenType.EQUALS) {
+                                    throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "A rest parameter can be optional but a default value can't be assigned. It's an empty list by default."
+                                );
+                            }
+
+                            all_args.push(new ArgumentNode(identifier_token, is_rest, true, default_value));
+                        } else {
+                            all_args.push(new ArgumentNode(identifier_token, is_rest, false));
                         }
-                        all_args.push(new ArgumentNode(identifier_token, is_rest, is_optional));
+                        if (this.current_token.type !== TokenType.RPAREN) error_rest_parameter();
                         return;
                     }
 

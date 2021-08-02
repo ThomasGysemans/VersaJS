@@ -28,7 +28,7 @@ expr        : KEYWORD:VAR IDENTIFIER (EQUALS expr)?
             : comp-expr ((KEYWORD:AND|KEYWORD:OR|AND|OR) comp-expr)*
             
 comp-expr   : NOT comp-expr
-            : bin-op ((EE|LT|GT|LTE|GTE|NULLISH) bin-op)*
+            : bin-op ((DOUBLE_EQUALS|NOT_EQUAL|LT|GT|LTE|GTE|NULLISH) bin-op)*
 
 bin-op      : arith-expr ((BINARY_LEFT|BINARY_RIGHT|BINARY_UNSIGNED_RIGHT|LOGICAL_AND|LOGICAL_XOR|LOGICAL_OR) (EQUALS expr)?|bin-op)*
 

@@ -14,7 +14,7 @@ import { BaseFunction, ClassValue, DictionnaryValue, ListValue, NativeClassValue
  * @param {boolean} is_optional Is optional?
  * @param {Value} default_value The default value.
  */
-const argNode = (name, is_rest=false, is_optional=false, default_value=null) => {
+export function argNode(name, is_rest=false, is_optional=false, default_value=null) {
     return new ArgumentNode(new Token(TokenType.STRING, name), is_rest, is_optional, default_value);
 };
 
@@ -26,7 +26,7 @@ const argNode = (name, is_rest=false, is_optional=false, default_value=null) => 
  * @param {string} property_name The property we want to get
  * @returns {any} It can return any sort of Value
  */
-const getInsideProperty = (exec_ctx, pos_start, pos_end, property_name) => {
+export function getInsideProperty(exec_ctx, pos_start, pos_end, property_name) {
     return exec_ctx.symbol_table.get('self').self.get(property_name).value.behavior(exec_ctx, pos_start, pos_end).value;
 }
 
@@ -93,10 +93,8 @@ export const NATIVE_CLASSES = {
             }
         ],
     }
-};
+}
 
-// This static property will have all the arguments of every native functions
-// and their associated behavior
 export const NATIVE_FUNCTIONS = {
     log: {
         args: [ // all the args
@@ -118,7 +116,7 @@ export const NATIVE_FUNCTIONS = {
     },
     len: {
         args: [
-            argNode("s", true)
+            argNode("s")
         ],
         /**
          * Equivalent of `len()` in python.
@@ -151,4 +149,4 @@ export const NATIVE_FUNCTIONS = {
             process.exit()
         }
     }
-};
+}
