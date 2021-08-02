@@ -386,11 +386,11 @@ export class Interpreter {
             );
         } else if (left instanceof StringValue && right instanceof BooleanValue) { // string + boolean
             return new RuntimeResult().success(
-                new StringValue(left.value + right.state.toString()).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new StringValue(left.value + right.display_name).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof BooleanValue && right instanceof StringValue) { // boolean + string
             return new RuntimeResult().success(
-                new StringValue(left.state.toString() + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new StringValue(left.display_name + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
 
@@ -418,7 +418,7 @@ export class Interpreter {
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof ListValue) { // number + list
-            let new_values = [...right.elements, left];
+            let new_values = [left, ...right.elements];
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
@@ -428,7 +428,7 @@ export class Interpreter {
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof ListValue) { // string + list
-            let new_values = [...right.elements, left];
+            let new_values = [left, ...right.elements];
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
@@ -443,7 +443,7 @@ export class Interpreter {
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof ListValue) { // dict + list
-            let new_values = [...right.elements, left];
+            let new_values = [left, ...right.elements];
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
@@ -453,7 +453,7 @@ export class Interpreter {
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof ClassValue && right instanceof ListValue) { // class + list
-            let new_values = [...right.elements, left];
+            let new_values = [left, ...right.elements];
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
@@ -463,7 +463,7 @@ export class Interpreter {
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof EnumValue && right instanceof ListValue) { // enum + list
-            let new_values = [...right.elements, left];
+            let new_values = [left, ...right.elements];
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
@@ -473,7 +473,7 @@ export class Interpreter {
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof ListValue) { // none + list
-            let new_values = [...right.elements, left];
+            let new_values = [left, ...right.elements];
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
@@ -483,7 +483,7 @@ export class Interpreter {
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof BooleanValue && right instanceof ListValue) { // boolean + list
-            let new_values = [...right.elements, left];
+            let new_values = [left, ...right.elements];
             return new RuntimeResult().success(
                 new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
@@ -770,42 +770,6 @@ export class Interpreter {
         if (left instanceof NumberValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
                 new NumberValue(left.value ** right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof ListValue && right instanceof NumberValue) {
-            let new_values = [];
-            for (let i = 0; i < left.elements.length; i++) {
-                let list_element = left.elements[i];
-                if (list_element instanceof NumberValue) {
-                    new_values.push(new NumberValue(list_element.value ** right.value).set_pos(node.pos_start, node.pos_end).set_context(context));
-                } else if (list_element instanceof BooleanValue) {
-                    new_values.push(new NumberValue(list_element.state ** right.value).set_pos(node.pos_start, node.pos_end).set_context(context));
-                } else if (list_element instanceof NoneValue) {
-                    new_values.push(new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context));
-                } else {
-                    this.illegal_operation(node, context);
-                }
-            }
-
-            return new RuntimeResult().success(
-                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
-            );
-        } else if (left instanceof NumberValue && right instanceof ListValue) {
-            let new_values = [];
-            for (let i = 0; i < right.elements.length; i++) {
-                let list_element = right.elements[i];
-                if (list_element instanceof NumberValue) {
-                    new_values.push(new NumberValue(list_element.value ** left.value).set_pos(node.pos_start, node.pos_end).set_context(context));
-                } else if (list_element instanceof BooleanValue) {
-                    new_values.push(new NumberValue(list_element.state ** left.value).set_pos(node.pos_start, node.pos_end).set_context(context));
-                } else if (list_element instanceof NoneValue) {
-                    new_values.push(new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context));
-                } else {
-                    this.illegal_operation(node, context);
-                }
-            }
-
-            return new RuntimeResult().success(
-                new ListValue(new_values).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof NoneValue) {
             return new RuntimeResult().success(

@@ -16,7 +16,7 @@ const check = (result) => {
             const error = new RuntimeError(
                 line.pos_start, line.pos_end,
                 "Expected true, but got false",
-                new Context("<additions>")
+                new Context("<maths>")
             );
             console.error(error.toString());
         }
@@ -70,21 +70,23 @@ describe("Maths (tests every possible combinations for every kind of arithmetic 
             "string" + "string" == "stringstring"
             "string" + none == "string"
             none + "string" == "string"
-            "string" + true == "string1"
-            false + "string" == "0string"
+            "string" + true == "stringtrue"
+            false + "string" == "falsestring"
+            "string" + yes == "stringyes"
+            no + "string" == "nostring"
 
             # Every possible addition that returns a list
             [0] + 1 == [0, 1]
-            1 + [0] == [0, 1]
+            1 + [0] == [1, 0]
             [0] + "string" == [0, "string"]
-            "string" + [0] == [0, "string"]
+            "string" + [0] == ["string", 0]
             [0] + [1] == [0, 1]
             [0] + {"age":17} == [0, {"age":17}]
-            {"age":17} + [0] == [0, {"age":17}]
+            {"age":17} + [0] == [{"age":17}, 0]
             [0] + none == [0, none]
-            none + [0] == [0, none]
+            none + [0] == [none, 0]
             [0] + true == [0, true]
-            false + [0] == [0, false]
+            false + [0] == [false, 0]
 
             # Every possible addition that returns a dictionnary
             {"age":17} + {"name":"thomas"} == {"age":17,"name":"thomas"}
@@ -152,10 +154,6 @@ describe("Maths (tests every possible combinations for every kind of arithmetic 
             5 ** true == 5
             false ** 5 == 0
             true ** false == 1
-
-            # Every possible power operations that returns a list
-            [5, 10] ** 2 == [25, 100]
-            2 ** [5, 10] == [25, 100]
         `, fn, context).value;
 
         if (result) check(result);
