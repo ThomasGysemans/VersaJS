@@ -349,7 +349,7 @@ describe('Parser tests', () => {
     });
 
     it('should work with an enum', () => {
-        const tokens = new Lexer("enum Status: running, paused end").generate_tokens();
+        const tokens = new Lexer("enum Status: running, paused").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof EnumNode);
         assert.deepStrictEqual(["running", "paused"], node.element_nodes[0].properties.map((v) => v.value));

@@ -11,11 +11,11 @@ statement   : KEYWORD:RETURN expr?
             : enum-expr
             : expr
 
-enum-expr   : KEYWORD:enum IDENTIFIER COLON
+enum-expr   : KEYWORD:enum IDENTIFIER COLON (KEYWORD:pass)? |
                 (IDENTIFIER COMMA)*
                 (KEYWORD:end)
 
-class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON
+class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON (KEYWORD:pass)?
                 (KEYWORD:private|KEYWORD:public|KEYWORD:protected)? (KEYWORD:override)? (KEYWORD:static)? KEYWORD:property IDENTIFIER EQUALS expr
                 | (KEYWORD:PRIVATE|KEYWORD:public|KEYWORD:protected)? (KEYWORD:override)? (KEYWORD:static)? KEYWORD:method IDENTIFIER call_func
                 | (KEYWORD:get) IDENTIFIER call_func
@@ -96,8 +96,8 @@ while-expr  : KEYWORD:WHILE expr KEYWORD:THEN
 
 func-def    : KEYWORD:FUNC IDENTIFIER?
                 LPAREN (IDENTIFIER (QMARK (EQUALS expr)?)? (COMMA IDENTIFIER)*|TRIPLE_DOTS IDENTIFIER)? RPAREN
-                (ARROW expr)
-                | (COLON statements KEYWORD:END)
+                (ARROW expr|KEYWORD:pass)
+                | (COLON statements|KEYWORD:pass KEYWORD:END)
 
 switch-expr : KEYWORD:switch LPAREN expr RPAREN COLON
                 (KEYWORD:case expr (COMMA expr)* COLON statements)* # the comma means "or"

@@ -97,6 +97,7 @@ const KEYWORDS = [
     "no",
     "true",
     "false",
+    "pass",
 ];
 
 export default KEYWORDS;

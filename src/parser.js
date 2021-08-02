@@ -221,11 +221,6 @@ export class Parser {
             return enum_expr;
         }
 
-        // if (this.current_token.matches(TokenType.KEYWORD, "switch")) {
-        //     let switch_expr = this.switch_expr();
-        //     return switch_expr;
-        // }
-
         return this.expr();
     }
 
@@ -242,6 +237,7 @@ export class Parser {
 
         let enum_name_tok = this.current_token;
         let properties = [];
+        let is_multiline = false;
 
         this.advance();
 
@@ -253,47 +249,79 @@ export class Parser {
         }
 
         this.advance();
-        this.ignore_newlines();
+        is_multiline = this.is_newline();
+        if (is_multiline) this.ignore_newlines();
+
+        if (this.current_token.matches(TokenType.KEYWORD, "pass")) {
+            let pos_end = this.current_token.pos_end.copy();
+            this.advance();
+            if (is_multiline) {
+                this.ignore_newlines();
+                if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+                    throw new InvalidSyntaxError(
+                        pos_start, this.current_token.pos_end,
+                        "Expected 'end'"
+                    );
+                }
+                pos_end = this.current_token.pos_end.copy();
+                this.advance();
+            }
+            return new EnumNode(
+                enum_name_tok,
+                properties,
+                pos_start,
+                pos_end
+            );
+        }
 
         if (this.current_token.type !== TokenType.IDENTIFIER) {
             throw new InvalidSyntaxError(
                 pos_start, this.current_token.pos_end,
-                "Expected an identifier"
+                "Expected an identifier or 'pass'"
             );
         }
 
         properties.push(this.current_token);
         this.advance();
-        this.ignore_newlines();
+        if (is_multiline) this.ignore_newlines();
 
         while (this.current_token.type === TokenType.COMMA) {
             this.advance();
-            this.ignore_newlines();
+            if (is_multiline) this.ignore_newlines();
             if (this.current_token.type === TokenType.IDENTIFIER) {
                 properties.push(this.current_token);
                 this.advance();
-                this.ignore_newlines();
+                if (is_multiline) this.ignore_newlines();
             } else {
                 break;
             }
         }
 
-        if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
-            if (this.current_token.type !== TokenType.IDENTIFIER) {
+        if (is_multiline) {
+            if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
                 throw new InvalidSyntaxError(
                     pos_start, this.current_token.pos_end,
                     "Expected 'end'"
                 );
             }
+        } else {
+            // on a single line statement, we expect the end of the enum statement to be a newline or the end of the file
+            if (this.current_token.type !== TokenType.EOF && !this.is_newline()) {
+                throw new InvalidSyntaxError(
+                    pos_start, this.current_token.pos_end,
+                    "Expected newline or ';'"
+                );
+            }
         }
 
-        this.advance();
+        let pos_end = this.current_token.pos_end.copy();
+        if (this.current_token.type !== TokenType.EOF && !this.is_newline()) this.advance();
 
         return new EnumNode(
             enum_name_tok,
             properties,
             pos_start,
-            this.current_token.pos_end
+            pos_end
         );
     }
     
@@ -336,10 +364,12 @@ export class Parser {
             );
         }
 
+        // todo: might want to change that when the 'string_with_arrows' function is better
         let class_pos_end = this.current_token.pos_end.copy();
 
         this.advance();
-        this.ignore_newlines();
+        let is_multiline = this.is_newline();
+        if (is_multiline) this.ignore_newlines();
 
         const is_public = () => this.current_token.matches(TokenType.KEYWORD, "public");
         const is_private = () => this.current_token.matches(TokenType.KEYWORD, "private");
@@ -350,6 +380,40 @@ export class Parser {
         const is_setter = () => this.current_token.matches(TokenType.KEYWORD, "set");
         const is_getter = () => this.current_token.matches(TokenType.KEYWORD, "get");
         const is_static = () => this.current_token.matches(TokenType.KEYWORD, "static");
+
+        // `class Test: end` I want to write "pass" in this case
+        if (this.current_token.matches(TokenType.KEYWORD, "end")) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Use 'pass' to write an empty class"
+            );
+        }
+
+        if (this.current_token.matches(TokenType.KEYWORD, "pass")) {
+            let pos_end = this.current_token.pos_end.copy();
+            this.advance();
+            if (is_multiline) {
+                this.ignore_newlines();
+                if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected 'end'"
+                    );
+                }
+                pos_end = this.current_token.pos_end.copy();
+                this.advance();
+            }
+            return new ClassDefNode(
+                class_name_tok,
+                parent_class_tok,
+                properties,
+                methods,
+                getters,
+                setters,
+                class_pos_start,
+                pos_end,
+            );
+        }
 
         while (
             is_private() ||
@@ -362,6 +426,13 @@ export class Parser {
             is_getter() ||
             is_static()
         ) {
+            if (!is_multiline) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Cannot write a class on a single line."
+                );
+            }
+
             let status = 1;
             if (is_private()) status = 0;
             if (is_protected()) status = 2;
@@ -2149,6 +2220,18 @@ export class Parser {
             // great, enter the body now
             this.advance();
 
+            if (this.current_token.matches(TokenType.KEYWORD, "pass")) {
+                let pos_start = this.current_token.pos_start.copy();
+                let pos_end = this.current_token.pos_end.copy();
+                this.advance();
+                return new FuncDefNode(
+                    var_name_token, // the name
+                    all_args, // all the arguments
+                    new NoneNode(pos_start, pos_end), // the body,
+                    true // should auto return? True because the arrow behaves like the `return` keyword.
+                );
+            }
+
             // what's our body?
             let node_to_return = this.expr();
 
@@ -2164,7 +2247,7 @@ export class Parser {
         //
         // Multiline function
         //
-        // 
+        //
 
         // I want to write a colon when there are several lines
         if (this.current_token.type !== TokenType.COLON) {
@@ -2175,19 +2258,35 @@ export class Parser {
         }
 
         this.advance();
+        this.ignore_newlines();
 
-        // now there might be a new line
+        let body;
 
-        let body = this.statements();
+        // we might need to temporarily write an empty function
+        if (this.current_token.matches(TokenType.KEYWORD, "pass")) {
+            let pos_start = this.current_token.pos_start.copy();
+            let pos_end = this.current_token.pos_end.copy();
+            body = new NoneNode(pos_start, pos_end);
+            this.advance();
+            this.ignore_newlines();
+            if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected 'end'"
+                );
+            }
+            this.advance();
+        } else {
+            body = this.statements();
+            if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected 'end'"
+                );
+            }
 
-        if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
-            throw new InvalidSyntaxError(
-                this.current_token.pos_start, this.current_token.pos_end,
-                "Expected 'end'"
-            );
+            this.advance();
         }
-
-        this.advance();
 
         return new FuncDefNode(
             var_name_token,

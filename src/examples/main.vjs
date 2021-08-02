@@ -1,2 +1,22 @@
-var variable = false
-console.assert(variable == true, "Error message", {"age":[{"age":18}]})
+enum Thing: pass
+enum Count: one, two, three
+enum Other:
+    pass
+end
+
+func singleline() -> pass
+func test():
+    pass
+end
+
+class Test: pass
+class AnotherClass:
+    pass
+end
+
+class SingleLineForbidden:
+    property thing; property other
+end
+
+class Yo:
+    property thing; end

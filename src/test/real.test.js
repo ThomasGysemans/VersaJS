@@ -236,6 +236,12 @@ describe("Interpreter", function() {
         const result = run(`
             func add(a, b?, c?=1) -> if b != 0: a + b + c else: a + c;
             add(5)
+
+            # tests for 'pass' keyword
+            func singleline() -> pass
+            func test():
+                pass
+            end
         `, fn, context).value;
         if (result) assert.deepStrictEqual(result.elements[1].value, 6);
     });
@@ -366,6 +372,12 @@ describe("Interpreter", function() {
 
             var person = new Person("Thomas", "CodoPixel", 17)
             person.getFullname()
+
+            # tests for 'pass' keyword
+            class Test: pass
+            class AnotherTest:
+                pass
+            end
         `, fn, context).value;
         if (result) assert.deepStrictEqual(result.elements[1] instanceof ClassValue, true);
         if (result) assert.deepStrictEqual(result.elements[2].value, "Thomas CodoPixel");
@@ -696,8 +708,16 @@ describe("Interpreter", function() {
                 paused,
             end
 
-            var st = Status.running;
+            var st = Status.running
             st = Status.paused
+
+            # tests for 'pass' keyword
+            # and single line declaration of an enum
+            enum Thing: pass
+            enum Count: one, two, three
+            enum Other:
+                pass
+            end
         `, fn, context).value;
         if (result) assert.deepStrictEqual(result.elements[1].value, 0);
         if (result) assert.deepStrictEqual(result.elements[2].value, 1);
