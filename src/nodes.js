@@ -1,5 +1,5 @@
 import { Position } from "./position.js";
-import { Token } from "./tokens.js";
+import { Token, Types } from "./tokens.js";
 import { Value } from "./values.js";
 
 /**
@@ -379,17 +379,19 @@ export class VarAssignNode extends CustomNode {
      * @constructs VarAssignNode
      * @param {Token} var_name_tok The name of the variable.
      * @param {CustomNode} value_node The value of the variable.
+     * @param {string|null} type The type of variable (by default "ANY")
      */
-    constructor(var_name_tok, value_node) {
+    constructor(var_name_tok, value_node, type) {
         super();
         this.var_name_tok = var_name_tok;
         this.value_node = value_node;
+        this.type = type;
         this.pos_start = this.var_name_tok.pos_start;
         this.pos_end = this.value_node.pos_end;
     }
 
     toString() {
-        return `(var ${this.var_name_tok.value} = ${this.value_node})`;
+        return `(var ${this.var_name_tok.value}${this.type && this.type !== Types.ANY ? ': ' + this.type : ''} = ${this.value_node})`;
     }
 }
 
@@ -1094,17 +1096,19 @@ export class DefineNode extends CustomNode {
      * @constructs DefineNode
      * @param {Token} var_name_tok The name of the variable.
      * @param {CustomNode} value_node The value of the variable.
+     * @param {string|null} type The type of the variable (by default "ANY").
      */
-    constructor(var_name_tok, value_node) {
+    constructor(var_name_tok, value_node, type) {
         super();
         this.var_name_tok = var_name_tok;
         this.value_node = value_node;
+        this.type = type;
         this.pos_start = this.var_name_tok.pos_start;
         this.pos_end = this.value_node.pos_end;
     }
 
     toString() {
-        return `(define ${this.var_name_tok.value} = ${this.value_node})`;
+        return `(define ${this.var_name_tok.value}${this.type && this.type !== Types.ANY ? ': ' + this.type : ''} = ${this.value_node})`;
     }
 }
 
@@ -1210,14 +1214,16 @@ export class ClassPropertyDefNode extends CustomNode {
      * @constructs ClassPropertyDefNode
      * @param {Token} property_name_tok The name of the variable.
      * @param {CustomNode} value_node The value of the variable.
+     * @param {string|null} type The type of the variable.
      * @param {number} status 0 for private, 1 for public, 2 for protected.
      * @param {number} override 1 for override, 0 otherwise.
      * @param {number} static_prop 1 for static, 0 otherwise.
      */
-    constructor(property_name_tok, value_node, status, override, static_prop) {
+    constructor(property_name_tok, value_node, type, status, override, static_prop) {
         super();
         this.property_name_tok = property_name_tok;
         this.value_node = value_node;
+        this.type = type;
         this.status = status;
         this.override = override;
         this.static_prop = static_prop;
@@ -1228,11 +1234,11 @@ export class ClassPropertyDefNode extends CustomNode {
     toString() {
         switch (this.status) {
             case 0:
-                return `(private ${this.override ? 'override' : ''} ${this.property_name_tok.value} = ${this.value_node})`;
+                return `(private ${this.override ? 'override' : ''} ${this.property_name_tok.value}${this.type && this.type !== Types.ANY ? ': ' + this.type : ''} = ${this.value_node})`;
             case 1:
-                return `(public ${this.override ? 'override' : ''} ${this.property_name_tok.value} = ${this.value_node})`;
+                return `(public ${this.override ? 'override' : ''} ${this.property_name_tok.value}${this.type && this.type !== Types.ANY ? ': ' + this.type : ''} = ${this.value_node})`;
             case 2:
-                return `(protected ${this.override ? 'override' : ''} ${this.property_name_tok.value} = ${this.value_node})`;
+                return `(protected ${this.override ? 'override' : ''} ${this.property_name_tok.value}${this.type && this.type !== Types.ANY ? ': ' + this.type : ''} = ${this.value_node})`;
         }
     }
 }
@@ -1381,15 +1387,17 @@ export class ArgumentNode extends CustomNode {
     /**
      * @constructs ArgumentNode
      * @param {Token} arg_name_tok The name of the argument.
+     * @param {string} type The type of the argument.
      * @param {boolean} is_rest Is a rest parameter?
      * @param {boolean} is_optional Is optional?
      * @param {CustomNode|Value} default_value_node The default value in case the argument is optional. It might be a Value if this is native.
      * @param {Position} pos_start The starting position.
      * @param {Position} pos_end The end position.
      */
-    constructor(arg_name_tok, is_rest=false, is_optional=false, default_value_node=null, pos_start=null, pos_end=null) {
+    constructor(arg_name_tok, type=Types.ANY, is_rest=false, is_optional=false, default_value_node=null, pos_start=null, pos_end=null) {
         super();
         this.arg_name_tok = arg_name_tok;
+        this.type = type;
         this.is_rest = is_rest;
         this.is_optional = is_optional;
         this.default_value_node = default_value_node;
@@ -1406,7 +1414,7 @@ export class ArgumentNode extends CustomNode {
     }
 
     toString() {
-        return `(${this.is_rest ? '...' : ''}${this.arg_name_tok.value}${this.is_optional ? '?' : ''}${this.default_value_node ? '=' + this.default_value_node : ''})`;
+        return `(${this.is_rest ? '...' : ''}${this.arg_name_tok.value}${this.is_optional ? '?' : ''}${this.type !== Types.ANY && !this.is_rest ? ': ' + this.type : ''}${this.default_value_node ? '=' + this.default_value_node : ''})`;
     }
 }
 

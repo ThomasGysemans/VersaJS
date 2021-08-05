@@ -1,6 +1,7 @@
 import assert from 'assert';
 import { Context } from '../context.js';
 import { run } from '../run.js';
+import { Types } from '../tokens.js';
 import global_symbol_table, { SymbolTable } from '../symbol_table.js';
 import { BooleanValue, ClassValue, NoneValue } from '../values.js';
 
@@ -184,6 +185,31 @@ describe("Interpreter", function() {
         if (result) assert.deepStrictEqual(result.elements[2].value, 4);
     });
 
+    it("should work with an assignment to a variable (with specified type)", () => {
+        const result = run(`
+            var number: number = 5;
+            var string: string = "hello";
+            var list: list = ["list"];
+            var dict: dict = {"type":"dict"}
+            var anything: any = none
+            var dynamic: dynamic = "anything but none"
+            var bool: boolean = true
+            var function: function = func (a, b) -> a + b;
+
+            class Test: pass;
+
+            var object: object = new Test();
+        `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[0].type, Types.NUMBER);
+        if (result) assert.deepStrictEqual(result.elements[1].type, Types.STRING);
+        if (result) assert.deepStrictEqual(result.elements[2].type, Types.LIST);
+        if (result) assert.deepStrictEqual(result.elements[3].type, Types.DICT);
+        if (result) assert.deepStrictEqual(result.elements[4].type, Types.ANY);
+        if (result) assert.deepStrictEqual(result.elements[5].type, Types.STRING); // string because of the return value, but type 'dynamic' is saved
+        if (result) assert.deepStrictEqual(result.elements[6].type, Types.BOOLEAN);
+        if (result) assert.deepStrictEqual(result.elements[7].type, Types.FUNCTION);
+    });
+
     it("should work with a list", () => {
         const result = run(`
             [0, 1]
@@ -242,6 +268,14 @@ describe("Interpreter", function() {
             func test():
                 pass
             end
+        `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1].value, 6);
+    });
+
+    it("should work with a function declaration (with types)", () => {
+        const result = run(`
+            func add(a: number, b?: number, c?: number = 1) -> if b != 0: a + b + c else: a + c;
+            add(5)
         `, fn, context).value;
         if (result) assert.deepStrictEqual(result.elements[1].value, 6);
     });
@@ -381,6 +415,29 @@ describe("Interpreter", function() {
         `, fn, context).value;
         if (result) assert.deepStrictEqual(result.elements[1] instanceof ClassValue, true);
         if (result) assert.deepStrictEqual(result.elements[2].value, "Thomas CodoPixel");
+    });
+
+    it("should work with a class (with types)", () => {
+        const result = run(`
+            class Test:
+                property number: any = 5
+                property thing: any
+                property anotherthing: string = ""
+                property withouttype
+
+                method __init():
+                    self.number = "yo"
+                end
+
+                method add(a: number, b?: number = 0) -> a + b
+            end
+
+            var t: Test = new Test();
+            var t2: object = new Test();
+            t.add(5)
+        `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof ClassValue, true);
+        if (result) assert.deepStrictEqual(result.elements[3].value, 5);
     });
 
     it("should work with several instances of the same class", () => {
@@ -726,7 +783,7 @@ describe("Interpreter", function() {
     it("should work with switch statement", () => {
         const result = run(`
             var value = 5
-            var response = -1
+            var response: dynamic = -1
 
             switch (value):
                 case 4:
@@ -744,7 +801,7 @@ describe("Interpreter", function() {
     it("should work with switch statement (with default)", () => {
         const result = run(`
             var value = 0
-            var response = -1
+            var response: dynamic = -1
 
             switch (value):
                 case 4:
@@ -765,7 +822,7 @@ describe("Interpreter", function() {
     it("should work with complex cases on switch statement", () => {
         const result = run(`
             var value = 3
-            var response = -1
+            var response: dynamic = -1
 
             switch (value):
                 case 4,3:

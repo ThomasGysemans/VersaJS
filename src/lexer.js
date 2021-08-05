@@ -80,7 +80,7 @@ export class Lexer {
             } else if (this.current_char === ">") {
                 yield this.make_greater_than_or_equal_or_binary();
             } else if (this.current_char === "?") {
-                yield this.make_qmark_or_nullish_or_ocp();
+                yield* this.make_qmark_or_nullish_or_ocp();
             } else if (this.current_char === "'") {
                 yield this.make_string();
             } else if (this.current_char === '"') {
@@ -262,12 +262,14 @@ export class Lexer {
         return new Token(tok_type, null, pos_start, this.pos);
     }
 
-    make_qmark_or_nullish_or_ocp() {
+    // much more complex than expected
+    // because I forgot that '?:' could be used with optional argument and a specified type on function declaration
+    * make_qmark_or_nullish_or_ocp() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.QMARK;
         this.advance();
 
-        // we want "??", or "?." or "?::"
+        // we want "??", or "?." or "?::" (OR "?" & ":" for optional argument & specified type on function declaration)
         if (this.current_char === "?") {
             this.advance();
             tok_type = TokenType.NULLISH_OPERATOR;
@@ -275,19 +277,19 @@ export class Lexer {
             this.advance();
             tok_type = TokenType.OPTIONAL_CHAINING_OPERATOR;
         } else if (this.current_char === ":") {
+            let colon_pos_start = this.pos.copy();
             this.advance();
             if (this.current_char === ":") {
                 this.advance();
                 tok_type = TokenType.OPTIONAL_STATIC_CALL;
             } else {
-                throw new ExpectedCharError(
-                    pos_start, this.pos,
-                    "Expected '?::'"
-                );
+                yield new Token(TokenType.QMARK, null, pos_start, colon_pos_start);
+                yield new Token(TokenType.COLON, null, colon_pos_start, this.pos);
+                return;
             }
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        yield new Token(tok_type, null, pos_start, this.pos);
     }
 
     make_string() {

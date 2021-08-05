@@ -535,4 +535,17 @@ describe('Lexer tests', () => {
         ];
         check_tokens(tokens, expected_tokens);
     });
+
+    it('should work with the assignment of a type to an optional argument', () => {
+        const tokens = Array.from(new Lexer("a?:number=5").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.IDENTIFIER, "a"),
+            new Token(TokenType.QMARK),
+            new Token(TokenType.COLON),
+            new Token(TokenType.IDENTIFIER, "number"),
+            new Token(TokenType.EQUALS),
+            new Token(TokenType.NUMBER, 5),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
 });

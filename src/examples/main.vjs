@@ -1,22 +1,25 @@
-enum Thing: pass
-enum Count: one, two, three
-enum Other:
-    pass
+define PI: number = 3.14
+var list: list = []
+
+func test(a?: number, b?: string = "yo"):
+    return [a, b]
 end
 
-func singleline() -> pass
-func test():
-    pass
+var yo: list = test(none)
+
+class Test:
+    property number: any = 5
+    property thing: any
+    property anotherthing: string = ""
+    property withouttype
+
+    method __init():
+        self.number = "yo"
+    end
+
+    method add(a: number, b?: number = 0) -> a + b
 end
 
-class Test: pass
-class AnotherClass:
-    pass
-end
-
-class SingleLineForbidden:
-    property thing; property other
-end
-
-class Yo:
-    property thing; end
+var t: object = new Test();
+var t2: Test = new Test();
+log(t.add(5))

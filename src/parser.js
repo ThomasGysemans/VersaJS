@@ -1,4 +1,4 @@
-import { TokenType, Token } from "./tokens.js";
+import { TokenType, Token, Types } from "./tokens.js";
 import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, ListArgumentNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { is_in } from "./miscellaneous.js";
@@ -77,6 +77,23 @@ export class Parser {
         while (this.current_token.type === TokenType.NEWLINE) {
             this.advance();
         }
+    }
+
+    /**
+     * Assigns a type
+     * @param {string} token_value The value of the token following ':'
+     */
+    assign_type(token_value) {
+        if (token_value === Types.ANY) return Types.ANY;
+        if (token_value === Types.BOOLEAN) return Types.BOOLEAN;
+        if (token_value === Types.DICT) return Types.DICT;
+        if (token_value === Types.DYNAMIC) return Types.DYNAMIC;
+        if (token_value === Types.FUNCTION) return Types.FUNCTION;
+        if (token_value === Types.LIST) return Types.LIST;
+        if (token_value === Types.NUMBER) return Types.NUMBER;
+        if (token_value === Types.OBJECT) return Types.OBJECT;
+        if (token_value === Types.STRING) return Types.STRING;
+        return token_value; // a class
     }
 
     parse() {
@@ -487,7 +504,13 @@ export class Parser {
                 }
                 let property_name_tok = this.current_token;
                 let property_pos_end = this.current_token.pos_end.copy();
+                let property_type = null;
                 this.advance();
+                if (this.current_token.type === TokenType.COLON) {
+                    this.advance();
+                    property_type = this.assign_type(this.current_token.value);
+                    this.advance();
+                }
                 let value_node;
                 if (this.current_token.type === TokenType.EQUALS) {
                     this.advance();
@@ -498,6 +521,7 @@ export class Parser {
                 let property_def_node = new ClassPropertyDefNode(
                     property_name_tok,
                     value_node,
+                    property_type,
                     status,
                     override,
                     static_prop
@@ -550,6 +574,14 @@ export class Parser {
             const var_name_tok = this.current_token;
             this.advance();
 
+            let type = null;
+
+            if (this.current_token.type === TokenType.COLON) {
+                this.advance();
+                type = this.assign_type(this.current_token.value);
+                this.advance();
+            }
+
             if (is_variable) { // is var?
                 let value_node;
                 if (this.current_token.type === TokenType.EQUALS) {
@@ -558,7 +590,7 @@ export class Parser {
                 } else {
                     value_node = new NoneNode(this.current_token.pos_start.copy(), this.current_token.pos_end.copy());
                 }
-                return new VarAssignNode(var_name_tok, value_node);
+                return new VarAssignNode(var_name_tok, value_node, type);
             } else { // is define?
                 if (this.current_token.type !== TokenType.EQUALS) {
                     throw new InvalidSyntaxError(
@@ -569,7 +601,7 @@ export class Parser {
 
                 this.advance();
                 const value_node = this.expr();
-                return new DefineNode(var_name_tok, value_node);
+                return new DefineNode(var_name_tok, value_node, type);
             }
         } else if (this.current_token.matches(TokenType.KEYWORD, "delete")) {
             let pos_start = this.current_token.pos_start;
@@ -2086,14 +2118,26 @@ export class Parser {
             // just in case we begin with a rest parameter
             if (is_rest) {
                 let identifier_token = this.current_token;
-                all_args.push(new ArgumentNode(identifier_token, is_rest, is_optional));
+                let type = Types.LIST;
                 this.advance();
+                // is optional
+                if (this.current_token.type === TokenType.QMARK) {
+                    this.advance();
+                    is_optional = true;
+                }
+                // is the type specified?
+                if (this.current_token.type === TokenType.COLON) {
+                    this.advance();
+                    type = this.assign_type(this.current_token.value);
+                    this.advance();
+                }
+                all_args.push(new ArgumentNode(identifier_token, type, is_rest, is_optional));
                 // there cannot be any more arguments after a rest parameter
                 if (this.current_token.type !== TokenType.RPAREN) {
                     error_rest_parameter();
                 }
             } else {
-                const check_for_optional_args = () => {
+                const check_for_args = () => {
                     let identifier_token = this.current_token;
                     this.advance();
 
@@ -2101,20 +2145,33 @@ export class Parser {
                         // there cannot be any more arguments after a rest parameter
                         if (this.current_token.type === TokenType.QMARK) {
                             is_optional = true;
+                            let type = Types.LIST;
                             let question_mark_token = this.current_token;
                             let default_value = new ListNode([], question_mark_token.pos_start, question_mark_token.pos_end);
                             this.advance();
 
+                            if (this.current_token.type === TokenType.COLON) {
+                                this.advance();
+                                type = this.assign_type(this.current_token.value);
+                                this.advance();
+                            }
+
                             if (this.current_token.type === TokenType.EQUALS) {
-                                    throw new InvalidSyntaxError(
+                                throw new InvalidSyntaxError(
                                     this.current_token.pos_start, this.current_token.pos_end,
                                     "A rest parameter can be optional but a default value can't be assigned. It's an empty list by default."
                                 );
                             }
 
-                            all_args.push(new ArgumentNode(identifier_token, is_rest, true, default_value));
+                            all_args.push(new ArgumentNode(identifier_token, type, is_rest, true, default_value));
                         } else {
-                            all_args.push(new ArgumentNode(identifier_token, is_rest, false));
+                            let type = Types.LIST;
+                            if (this.current_token.type === TokenType.COLON) {
+                                this.advance();
+                                type = this.assign_type(this.current_token.value);
+                                this.advance();
+                            }
+                            all_args.push(new ArgumentNode(identifier_token, type, is_rest, false));
                         }
                         if (this.current_token.type !== TokenType.RPAREN) error_rest_parameter();
                         return;
@@ -2125,9 +2182,16 @@ export class Parser {
 
                     if (this.current_token.type === TokenType.QMARK) {
                         is_optional = true;
+                        let type = Types.ANY;
                         let question_mark_token = this.current_token;
                         let default_value = new NoneNode(question_mark_token.pos_start, question_mark_token.pos_end);
                         this.advance();
+
+                        if (this.current_token.type === TokenType.COLON) {
+                            this.advance();
+                            type = this.assign_type(this.current_token.value);
+                            this.advance();
+                        }
 
                         // there might be an equal sign
                         // to customise the default value
@@ -2136,8 +2200,7 @@ export class Parser {
                             this.advance();
 
                             try {
-                                let node_default_value = this.expr();
-                                default_value = node_default_value;
+                                default_value = this.expr();
                             } catch(e) {
                                 throw new InvalidSyntaxError(
                                     this.current_token.pos_start, this.current_token.pos_end,
@@ -2146,7 +2209,7 @@ export class Parser {
                             }
                         }
 
-                        all_args.push(new ArgumentNode(identifier_token, is_rest, is_optional, default_value));
+                        all_args.push(new ArgumentNode(identifier_token, type, is_rest, is_optional, default_value));
                     } else { // mandatory with no default value
                         // there was an optional argument already
                         // so there is a mandatory argument after an optional one
@@ -2157,12 +2220,25 @@ export class Parser {
                                 "Expected an optional argument"
                             );
                         } else {
-                            all_args.push(new ArgumentNode(identifier_token, is_rest, is_optional));
+                            let type = Types.ANY;
+                            let is_specified_type = this.current_token.type === TokenType.COLON;
+                            if (is_specified_type) {
+                                this.advance();
+                                type = this.assign_type(this.current_token.value);
+                                this.advance();
+                            }
+                            if (this.current_token.type === TokenType.EQUALS) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    `In order to assign a default value, you must write: '${is_specified_type ? 'a?: type = 0' : 'a?=0'}'`
+                                );
+                            }
+                            all_args.push(new ArgumentNode(identifier_token, type, is_rest, is_optional));
                         }
                     }
                 };
 
-                check_for_optional_args();
+                check_for_args();
 
                 // there are arguments, how many?
                 // we want them all
@@ -2184,7 +2260,7 @@ export class Parser {
                         );
                     }
 
-                    check_for_optional_args();
+                    check_for_args();
 
                     if (is_rest) break;
                 }

@@ -73,19 +73,17 @@ export class InvalidSyntaxError extends CustomError {
     }
 }
 
-/**
- * @classdesc Error thrown when there is an invalid syntax.
- */
-export class RuntimeError extends CustomError {
+class BaseRuntime extends CustomError {
     /**
      * @constructs RuntimeError
      * @param {Position} pos_start The starting position.
      * @param {Position} pos_end The end position.
+     * @param {string} name The name of the error.
      * @param {string} details Details about the error.
      * @param {Context} context The context where the error occured.
      */
-    constructor(pos_start, pos_end, details, context) {
-        super(pos_start, pos_end, "Runtime Error", details);
+    constructor(pos_start, pos_end, name, details, context) {
+        super(pos_start, pos_end, name, details);
         this.context = context;
     }
 
@@ -108,5 +106,37 @@ export class RuntimeError extends CustomError {
         }
 
         return 'Traceback (most recent call last):\n' + result;
+    }
+}
+
+/**
+ * @classdesc Error thrown when there is an error during runtime.
+ */
+export class RuntimeError extends BaseRuntime {
+    /**
+     * @constructs RuntimeError
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     * @param {string} details Details about the error.
+     * @param {Context} context The context where the error occured.
+     */
+    constructor(pos_start, pos_end, details, context) {
+        super(pos_start, pos_end, "Runtime Error", details, context);
+    }
+}
+
+/**
+ * @classdesc Error thrown when there is inconsistency between types of variables.
+ */
+export class CustomTypeError extends BaseRuntime {
+    /**
+     * @constructs CustomTypeError
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     * @param {string} details Details about the error.
+     * @param {Context} context The context where the error occured.
+     */
+    constructor(pos_start, pos_end, details, context) {
+        super(pos_start, pos_end, "Type Error", details, context);
     }
 }

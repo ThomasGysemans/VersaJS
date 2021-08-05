@@ -1,12 +1,13 @@
 import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode } from './nodes.js';
-import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeClassValue, NativeFunction, NativePropertyValue, NoneValue, NumberValue, StringValue } from './values.js';
+import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeClassValue, NativeFunction, NativePropertyValue, NoneValue, NumberValue, StringValue, Value } from './values.js';
 import { RuntimeResult } from './runtime.js';
-import { RuntimeError } from './Exceptions.js';
+import { CustomTypeError, RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
 import { LETTERS_DIGITS } from './lexer.js';
 import { CONSTANTS, SymbolTable } from './symbol_table.js';
 import { is_in } from './miscellaneous.js';
 import { Position } from './position.js';
+import { Types } from './tokens.js';
 
 class BinarySelectorValues {
     /**
@@ -281,6 +282,14 @@ export class Interpreter {
             "Illegal operation",
             context
         );
+    }
+
+    /**
+     * @param {Value} value Checks if the type of that value corresponds to an object.
+     */
+    is_value_object(value) {
+        // Enum is an object and its type remains Types.OBJECT so we're good
+        return value.type === Types.OBJECT || value instanceof NativeClassValue || value instanceof ClassValue;
     }
 
     /**
@@ -1207,6 +1216,8 @@ export class Interpreter {
         let var_name = node.var_name_tok.value;
         let value = res.register(this.visit(node.value_node, context));
         if (res.should_return()) return res;
+
+        let given_type = node.type ?? Types.ANY;
         
         if (context.symbol_table.doesExist(var_name)) {
             throw new RuntimeError(
@@ -1216,7 +1227,31 @@ export class Interpreter {
             );
         }
 
-        context.symbol_table.set(var_name, value);
+        const type_error = (value_type, expected_type) => {
+            throw new CustomTypeError(
+                node.pos_start, node.pos_end,
+                `Type '${value_type}' is not assignable to type '${expected_type}'`,
+                context
+            );
+        };
+
+        if (given_type === Types.OBJECT) {
+            if (!this.is_value_object(value)) {
+                type_error(value.type, given_type);
+            }
+        } else {
+            if (given_type === Types.DYNAMIC) {
+                if (value instanceof NoneValue) {
+                    type_error('none', 'dynamic');
+                }
+            } else if (given_type !== Types.ANY) {
+                if (given_type !== value.type) {
+                    type_error(value.type, given_type);
+                }
+            }
+        }
+
+        context.symbol_table.set(var_name, { type: node.type ? node.type : value.type, value });
 
         return res.success(value);
     }
@@ -1232,6 +1267,8 @@ export class Interpreter {
         let var_name = node.var_name_tok.value;
         let value = res.register(this.visit(node.value_node, context));
         if (res.should_return()) return res;
+
+        let given_type = node.type ?? Types.ANY;
         
         if (context.symbol_table.doesConstantExist(var_name)) {
             throw new RuntimeError(
@@ -1241,7 +1278,31 @@ export class Interpreter {
             );
         }
 
-        context.symbol_table.define_constant(var_name, value);
+        const type_error = (value_type, expected_type) => {
+            throw new CustomTypeError(
+                node.pos_start, node.pos_end,
+                `Type '${value_type}' is not assignable to type '${expected_type}'`,
+                context
+            );
+        };
+
+        if (given_type === Types.OBJECT) {
+            if (!this.is_value_object(value)) {
+                type_error(value.type, given_type);
+            }
+        } else {
+            if (given_type === Types.DYNAMIC) {
+                if (value instanceof NoneValue) {
+                    type_error('none', 'dynamic');
+                }
+            } else if (given_type !== Types.ANY) {
+                if (value.type !== given_type) {
+                    type_error(value.type, given_type);
+                }
+            }
+        }
+
+        context.symbol_table.define_constant(var_name, { type: node.type ? node.type : value.type, value });
         CONSTANTS[var_name] = value; // so that we cannot modify it later
 
         return new RuntimeResult().success(value);
@@ -1256,7 +1317,7 @@ export class Interpreter {
     visit_VarAccessNode(node, context) {
         let res = new RuntimeResult();
         let var_name = node.var_name_tok.value;
-        let value = context.symbol_table.get(var_name);
+        let value = context.symbol_table.get(var_name)?.value;
 
         if (value === undefined || value === null) {
             throw new RuntimeError(
@@ -1297,6 +1358,30 @@ export class Interpreter {
                 `Variable "${var_name}" doesn't exist`,
                 context
             );
+        }
+
+        const type_error = (value_type, expected_type) => {
+            throw new CustomTypeError(
+                node.pos_start, node.pos_end,
+                `Type '${value_type}' is not assignable to type '${expected_type}'`,
+                context
+            );
+        };
+
+        if (variable.type === Types.OBJECT) {
+            if (!this.is_value_object(value)) {
+                type_error(value.type, variable.type);
+            }
+        } else {
+            if (variable.type === Types.DYNAMIC) {
+                if (value.type instanceof NoneValue) {
+                    type_error('none', 'dynamic');
+                }
+            } else if (variable.type !== Types.ANY) {
+                if (value.type !== variable.type) {
+                    type_error(value.type, variable.type);
+                }
+            }
         }
 
         context.symbol_table.modify(var_name, value);
@@ -2057,7 +2142,7 @@ export class Interpreter {
         let var_name = null;
         if (node.node_to_access instanceof VarModifyNode || node.node_to_access instanceof VarAccessNode || node.node_to_access instanceof VarAssignNode) {
             var_name = node.node_to_access.var_name_tok.value;
-            value = context.symbol_table.get(var_name);
+            value = context.symbol_table.get(var_name)?.value;
 
             if (value === undefined || value === null) {
                 throw new RuntimeError(
@@ -2159,7 +2244,7 @@ export class Interpreter {
                         } else {
                             throw new RuntimeError(
                                 index_node.pos_start, index_node.pos_end,
-                                `Can't access value at a certain index if this is not an array.`,
+                                `Cannot access value at a certain index if this is not an array.`,
                                 context
                             );
                         }
@@ -2207,7 +2292,7 @@ export class Interpreter {
                         } else {
                             throw new RuntimeError(
                                 index_node.pos_start, index_node.pos_end,
-                                `Can't access value at a certain index if this is not an array.`,
+                                `Cannot access value at a certain index if this is not an array.`,
                                 context
                             );
                         }
@@ -2266,7 +2351,7 @@ export class Interpreter {
 
         let var_name = node.accessor.node_to_access.var_name_tok.value;
         /** @type {ListValue|DictionnaryValue} */
-        let value = context.symbol_table.get(var_name);
+        let value = context.symbol_table.get(var_name)?.value;
 
         if (value === undefined || value === null) {
             throw new RuntimeError(
@@ -2464,7 +2549,7 @@ export class Interpreter {
                     } else {
                         throw new RuntimeError(
                             current_index.pos_start, current_index.pos_end,
-                            `Can't access value at a certain index if this is not a list or a dictionnary.`,
+                            `Cannot access value at a certain index if this is not a list or a dictionnary.`,
                             context
                         );
                     }
@@ -2594,7 +2679,7 @@ export class Interpreter {
                             if (current_index.a.value > value_to_be_replaced.elements.length) {
                                 throw new RuntimeError(
                                     current_index.a.pos_start, current_index.b.pos_end,
-                                    `Can't access values at this starting index.`,
+                                    `Cannot access values at this starting index.`,
                                     context
                                 );
                             }
@@ -2609,7 +2694,7 @@ export class Interpreter {
                         // if we have `list[1][1]`, but `list[1]` is not an array
                         throw new RuntimeError(
                             current_index.a.pos_start, current_index.b.pos_end,
-                            `Can't access value at a certain index if this is not an array.`,
+                            `Cannot access value at a certain index if this is not an array.`,
                             context
                         );
                     }
@@ -2649,7 +2734,7 @@ export class Interpreter {
                         if (current_index.a.value > value.elements.length) { 
                             throw new RuntimeError(
                                 current_index.a.pos_start, current_index.b.pos_end,
-                                `Can't access values at this starting index.`,
+                                `Cannot access values at this starting index.`,
                                 context
                             );
                         }
@@ -2664,7 +2749,7 @@ export class Interpreter {
             }
         }
 
-        context.symbol_table.set(var_name, value);
+        context.symbol_table.set(var_name, { type: value.type, value });
 
         return res.success(new_value);
     }
@@ -2697,7 +2782,7 @@ export class Interpreter {
                         variable_name += char;
                     }
                     if (variable_name) {
-                        let value = context.symbol_table.get(variable_name);
+                        let value = context.symbol_table.get(variable_name)?.value;
                         if (value === null || value === undefined) {
                             throw new RuntimeError(
                                 node.pos_start, node.pos_end,
@@ -2797,7 +2882,7 @@ export class Interpreter {
         }
 
         while (condition()) {
-            context.symbol_table.set(node.var_name_tok.value, new NumberValue(i));
+            context.symbol_table.set(node.var_name_tok.value, { type: Types.NUMBER, value: new NumberValue(i) });
             const exec_ctx = this.generate_new_context(context, "<for>", node.pos_start);
             
             i += step_value.value;
@@ -2842,16 +2927,18 @@ export class Interpreter {
         while (true) {
             if (node.key_name_tok) {
                 if (list instanceof DictionnaryValue) {
-                    context.symbol_table.set(node.key_name_tok.value, new StringValue(Array.from(list.elements.keys())[i]));
+                    context.symbol_table.set(node.key_name_tok.value, { type: Types.STRING, value: new StringValue(Array.from(list.elements.keys())[i]) });
                 } else {
-                    context.symbol_table.set(node.key_name_tok.value, new NumberValue(i));
+                    context.symbol_table.set(node.key_name_tok.value, { type: Types.NUMBER, value: new NumberValue(i) });
                 }
             }
 
             if (list instanceof DictionnaryValue) {
-                context.symbol_table.set(node.value_name_tok.value, list.elements.get(Array.from(list.elements.keys())[i]));
+                let el = list.elements.get(Array.from(list.elements.keys())[i]);
+                context.symbol_table.set(node.value_name_tok.value, { type: el.type, value: el });
             } else if (list instanceof ListValue) {
-                context.symbol_table.set(node.value_name_tok.value, list.elements[i]);
+                let el = list.elements[i];
+                context.symbol_table.set(node.value_name_tok.value, { type: el.type, value: el });
             }
 
             const exec_ctx = this.generate_new_context(context, "<foreach>", node.pos_start);
@@ -2944,7 +3031,7 @@ export class Interpreter {
         // we want to invoke the function with its name
         // so we use it as a variable in our symbole table
         if (func_name) {
-            context.symbol_table.set(func_name, func_value);
+            context.symbol_table.set(func_name, { type: Types.FUNCTION, value: func_value });
         }
 
         return res.success(func_value);
@@ -3064,7 +3151,7 @@ export class Interpreter {
 
             if (node_to_access instanceof VarAccessNode) {
                 var_name = node_to_access.var_name_tok.value;
-                value = context.symbol_table.get(var_name);
+                value = context.symbol_table.get(var_name)?.value;
 
                 if (value === undefined || value === null) {
                     throw new RuntimeError(
@@ -3241,7 +3328,7 @@ export class Interpreter {
                             } else {
                                 throw new RuntimeError(
                                     current_index.pos_start, current_index.pos_end,
-                                    `Can't access value at a certain index if this is not an array or a dictionnary.`,
+                                    `Cannot access value at a certain index if this is not an array or a dictionnary.`,
                                     context
                                 );
                             }
@@ -3374,7 +3461,7 @@ export class Interpreter {
                                     if (current_index.a.value > value_to_be_replaced.elements.length) {
                                         throw new RuntimeError(
                                             current_index.a.pos_start, current_index.a.pos_end,
-                                            `Can't access values at this starting index.`,
+                                            `Cannot access values at this starting index.`,
                                             context
                                         );
                                     }
@@ -3389,7 +3476,7 @@ export class Interpreter {
                                 // if we have `list[1][1]`, but `list[1]` is not an array
                                 throw new RuntimeError(
                                     current_index.a.pos_start, current_index.b.pos_end,
-                                    `Can't access value at a certain index if this is not an array.`,
+                                    `Cannot access value at a certain index if this is not an array.`,
                                     context
                                 );
                             }
@@ -3427,7 +3514,7 @@ export class Interpreter {
                                 if (current_index.a.value > value.elements.length) { 
                                     throw new RuntimeError(
                                         current_index.a.pos_start, current_index.a.pos_end,
-                                        `Can't access values at this starting index.`,
+                                        `Cannot access values at this starting index.`,
                                         context
                                     );
                                 }
@@ -3464,7 +3551,7 @@ export class Interpreter {
                     }
                 }
 
-                context.symbol_table.set(var_name, value);
+                context.symbol_table.set(var_name, { type: value.type, value });
             } else {
                 throw new RuntimeError(
                     node_to_access.pos_start, node_to_access.pos_end,
@@ -3536,7 +3623,7 @@ export class Interpreter {
             );
         }
 
-        let value = context.symbol_table.get(var_name);
+        let value = context.symbol_table.get(var_name)?.value;
         if (value === null || value === undefined) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
@@ -3590,7 +3677,7 @@ export class Interpreter {
     }
 
     /**
-     * Interprets a variable declaration.
+     * Interprets the declaration of a property.
      * @param {ClassPropertyDefNode} node The node.
      * @param {Context} context The context to use.
      * @returns {RuntimeResult}
@@ -3601,6 +3688,8 @@ export class Interpreter {
         let value = res.register(this.visit(node.value_node, context));
         if (res.should_return()) return res;
 
+        let given_type = node.type ?? Types.ANY;
+
         if (context.symbol_table.doesExist(property_name)) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
@@ -3609,8 +3698,32 @@ export class Interpreter {
             );
         }
 
+        const type_error = (value_type, expected_type) => {
+            throw new CustomTypeError(
+                node.pos_start, node.pos_end,
+                `Type '${value_type}' is not assignable to type '${expected_type}'`,
+                context
+            );
+        };
+
+        if (given_type === Types.OBJECT) {
+            if (!this.is_value_object(value)) {
+                type_error(value.type, given_type);
+            }
+        } else {
+            if (given_type === Types.DYNAMIC) {
+                if (value instanceof NoneValue) {
+                    type_error('none', 'dynamic');
+                }
+            } else if (given_type !== Types.ANY) {
+                if (value.type !== given_type) {
+                    type_error(value.type, given_type);
+                }
+            }
+        }
+
         // add into the context allows us to check if a property, method etc. has already been defined inside the class
-        context.symbol_table.set(property_name, value);
+        context.symbol_table.set(property_name, { type: node.type ? node.type : value.type, value });
 
         return res.success(value);
     }
@@ -3637,7 +3750,7 @@ export class Interpreter {
         }
 
         if (parent_class_name) {
-            parent_class_value = context.symbol_table.get(parent_class_name);
+            parent_class_value = context.symbol_table.get(parent_class_name)?.value;
             if (parent_class_value === null || parent_class_value === undefined) {
                 throw new RuntimeError(
                     node.parent_class_tok.pos_start, node.parent_class_tok.pos_end,
@@ -3656,9 +3769,9 @@ export class Interpreter {
 
         let value = new ClassValue(class_name, parent_class_value ? new Map(Array.from(parent_class_value.self.entries()).map((v) => v[1].status !== 0 ? v : null).filter((v) => v !== null)) : new Map(), parent_class_value).set_pos(node.pos_start, node.pos_end).set_context(context);
         let exec_ctx = this.generate_new_context(context, value.context_name, node.pos_start);
-        value.self.set('__name', { static_prop: 1, status: 1, value: new StringValue(class_name).set_context(exec_ctx) });
-        if (parent_class_value) value.self.set('__parent_name', { static_prop: 1, status: 1, value: new StringValue(parent_class_name) });
-        exec_ctx.symbol_table.set("self", value);
+        value.self.set('__name', { static_prop: 1, status: 1, value: { type: Types.STRING, value: new StringValue(class_name).set_context(exec_ctx) } });
+        if (parent_class_value) value.self.set('__parent_name', { static_prop: 1, status: 1, value: { type: Types.STRING, value: new StringValue(parent_class_name) } });
+        exec_ctx.symbol_table.set("self", { type: value.type, value });
 
         // checks if a property/method/setter/getter already exists
         // useful if we have a parent class (we don't want the child class to declare the same properties as its parent).
@@ -3724,7 +3837,7 @@ export class Interpreter {
             if (!method_node.override) {
                 check_if_already_exists(method_name, "method", method_node.pos_start, method_node.pos_end);
             }
-            value.self.set(method_name, { static_prop: method_node.static_prop, status: method_status, value: method });
+            value.self.set(method_name, { static_prop: method_node.static_prop, status: method_status, value: { type: Types.FUNCTION, value: method } });
         }
 
         for (let i = 0; i < node.properties.length; i++) {
@@ -3750,7 +3863,7 @@ export class Interpreter {
             if (!property_node.override) {
                 check_if_already_exists(property_name, "property", property_node.pos_start, property_node.pos_end);
             }
-            value.self.set(property_name, { static_prop: property_node.static_prop, status: property_status, value: property });
+            value.self.set(property_name, { static_prop: property_node.static_prop, status: property_status, value: { type: property_node.type ? property_node.type : property.type, value: property } });
         }
 
         for (let i = 0; i < node.getters.length; i++) {
@@ -3783,7 +3896,7 @@ export class Interpreter {
             if (!getter_node.override) {
                 check_if_already_exists(getter_name, "getter", getter_node.pos_start, getter_node.pos_end);
             }
-            value.self.set(getter_name, { static_prop: getter_node.static_prop, status: 1, value: getter });
+            value.self.set(getter_name, { static_prop: getter_node.static_prop, status: 1, value: { type: Types.FUNCTION, value: getter } });
         }
 
         for (let i = 0; i < node.setters.length; i++) {
@@ -3823,10 +3936,10 @@ export class Interpreter {
             if (!setter_node.override) {
                 check_if_already_exists(setter_name, "setter", setter_node.pos_start, setter_node.pos_end);
             }
-            value.self.set(setter_name, { static_prop: 0, status: 1, value: setter });
+            value.self.set(setter_name, { static_prop: 0, status: 1, value: { type: Types.FUNCTION, value: setter } });
         }
 
-        context.symbol_table.set(class_name, value);
+        context.symbol_table.set(class_name, { type: value.type, value });
 
         return res.success(new NoneValue());
     }
@@ -3841,7 +3954,7 @@ export class Interpreter {
         let res = new RuntimeResult();
         let class_name = node.class_name_tok.value;
         /** @type {ClassValue} */
-        let value = context.symbol_table.get(class_name);
+        let value = context.symbol_table.get(class_name)?.value;
 
         if (value === undefined || value === null) {
             throw new RuntimeError(
@@ -3865,7 +3978,7 @@ export class Interpreter {
         let __init = new_class_value.self.get("__init");
         
         if (__init) {
-            let method = __init.value;
+            let method = __init.value.value;
             let args = [];
             for (let arg of node.arg_nodes) {
                 let value = res.register(this.visit(arg, context));
@@ -3873,7 +3986,7 @@ export class Interpreter {
                 args.push(value);
             }
 
-            method.context.symbol_table.set('self', new_class_value);
+            method.context.symbol_table.set('self', { type: new_class_value.type, value: new_class_value });
 
             // @ts-ignore
             method.execute(args);
@@ -3911,7 +4024,7 @@ export class Interpreter {
                 );
             }
 
-            let value = prop.value;
+            let value = prop.value.value;
 
             // cannot call a static property like that:
             // self.static_property
@@ -3930,7 +4043,7 @@ export class Interpreter {
                     let status_string = prop.status === 0 ? "private" : "protected";
                     throw new RuntimeError(
                         node.property_tok.pos_start, node.property_tok.pos_end,
-                        `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
+                        `The property '${property_name}' is marked as ${status_string}. You cannot access it outside the class itself.`,
                         context
                     );
                 }
@@ -3939,7 +4052,7 @@ export class Interpreter {
             if (value instanceof NativePropertyValue) {
                 if (value.nature === "property") {
                     let exec_ctx = this.generate_new_context(context, base.context_name, node.pos_start);
-                    exec_ctx.symbol_table.set("self", base);
+                    exec_ctx.symbol_table.set("self", { type: base.type, value: base });
                     return res.success(value.behavior(exec_ctx, node.pos_start, node.pos_end).value);
                 }
             }
@@ -4014,7 +4127,7 @@ export class Interpreter {
             );
         }
 
-        let value = prop.value;
+        let value = prop.value.value;
 
         if (!context.is_context_in(base.context_name)) {
             // this means that we are outside the class
@@ -4023,7 +4136,7 @@ export class Interpreter {
                 let status_string = prop.status === 0 ? "private" : "protected";
                 throw new RuntimeError(
                     node.property_tok.pos_start, node.property_tok.pos_end,
-                    `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
+                    `The property '${property_name}' is marked as ${status_string}. You cannot access it outside the class itself.`,
                     context
                 );
             }
@@ -4046,7 +4159,7 @@ export class Interpreter {
         if (res.should_return()) return res;
         let property_name = node.property.property_tok.value;
 
-        // we can't do: `example?.thing = 5`
+        // we cannot do: `example?.thing = 5`
         if (node.property.is_optional) {
             throw new RuntimeError(
                 node.property.pos_start, node.property.pos_end,
@@ -4063,10 +4176,16 @@ export class Interpreter {
             );
         }
 
-        if (!(base instanceof ClassValue)) {
+        if (base instanceof NativeClassValue) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
-                "Cannot call a property from a non-class value.",
+                "You cannot assign new values to native properties.",
+                context
+            );
+        } else if (!(base instanceof ClassValue)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "Cannot call a property from this type of value.",
                 context
             );
         }
@@ -4096,15 +4215,39 @@ export class Interpreter {
                     let status_string = prop.status === 0 ? "private" : "protected";
                     throw new RuntimeError(
                         node.property.property_tok.pos_start, node.property.property_tok.pos_end,
-                        `The property '${property_name}' is marked as ${status_string}. You can't access it outside the class itself.`,
+                        `The property '${property_name}' is marked as ${status_string}. You cannot access it outside the class itself.`,
                         context
                     );
                 }
             }
         }
 
+        const type_error = (value_type, expected_type) => {
+            throw new CustomTypeError(
+                node.pos_start, node.pos_end,
+                `Type '${value_type}' is not assignable to type '${expected_type}'`,
+                context
+            );
+        };
+
+        if (prop.value.type === Types.OBJECT) {
+            if (!this.is_value_object(new_value)) {
+                type_error(new_value.type, prop.value.type);
+            }
+        } else {
+            if (prop.value.type === Types.DYNAMIC) {
+                if (new_value.type instanceof NoneValue) {
+                    type_error('none', 'dynamic');
+                }
+            } else if (prop.value.type !== Types.ANY) {
+                if (new_value.type !== prop.value.type) {
+                    type_error(new_value.type, prop.value.type);
+                }
+            }
+        }
+
         new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
-        base.self.set(property_name, { static_prop, status, value: new_value });
+        base.self.set(property_name, { static_prop, status, value: { type: prop.value.type, value: new_value } });
 
         return res.success(new_value);
     }
@@ -4136,7 +4279,7 @@ export class Interpreter {
 
         if (origin_instance instanceof ClassValue) {
             let exec_ctx = this.generate_new_context(context, origin_instance.context_name, node.pos_start);
-            exec_ctx.symbol_table.set("self", origin_instance);
+            exec_ctx.symbol_table.set("self", { type: origin_instance.type, value: origin_instance });
 
             /** @type {FunctionValue|NativeFunction} */
             let value_to_call = res.register(this.visit(node_to_call.node_to_call, context));
@@ -4172,7 +4315,7 @@ export class Interpreter {
             return res.success(return_value);
         } else if (origin_instance instanceof NativeClassValue) {
             let exec_ctx = this.generate_new_context(context, origin_instance.context_name, node.pos_start);
-            exec_ctx.symbol_table.set("self", origin_instance);
+            exec_ctx.symbol_table.set("self", { type: origin_instance.type, value: origin_instance });
 
             /** @type {NativePropertyValue} */
             let value_to_call = res.register(this.visit(node_to_call.node_to_call, context));
@@ -4241,11 +4384,12 @@ export class Interpreter {
         let method_name = context.display_name;
 
         /** @type {ClassValue} */
-        let class_value = context.symbol_table.get('self');
+        let class_value = context.symbol_table.get('self')?.value;
+        if (class_value === undefined || class_value === null) err_outside();
         let parent_name = context.parent.display_name.replace('<Class', '').replace('>', '').trim();
         
         try {
-            parent_name = context.symbol_table.get(parent_name).parent_class.name;
+            parent_name = context.symbol_table.get(parent_name).value.parent_class.name;
         } catch(e) {
             err_outside();
         }
@@ -4260,14 +4404,14 @@ export class Interpreter {
 
         /** @type {ClassValue} */
         // @ts-ignore
-        let parent_class = context.symbol_table.get(parent_name);
+        let parent_class = context.symbol_table.get(parent_name)?.value;
 
         for (let arg_node of node.arg_nodes) {
             args.push(res.register(this.visit(arg_node, context)));
             if (res.should_return()) return res;
         }
 
-        let parent_method = parent_class.self.get(method_name) ? parent_class.self.get(method_name).value.copy() : null;
+        let parent_method = parent_class.self.get(method_name)?.value.value.copy();
         if (!parent_method) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
@@ -4275,7 +4419,7 @@ export class Interpreter {
                 context
             );
         }
-        parent_method.context.symbol_table.set('self', class_value);
+        parent_method.context.symbol_table.set('self', { type: class_value.type, value: class_value });
         // @ts-ignore
         parent_method.execute(args);
 
@@ -4301,7 +4445,7 @@ export class Interpreter {
         }
 
         let value = new EnumValue(enum_name, properties);
-        context.symbol_table.define_constant(enum_name, value);
+        context.symbol_table.define_constant(enum_name, { type: value.type, value });
         CONSTANTS[enum_name] = value; // so that we cannot modify it later
 
         return new RuntimeResult().success(new NoneValue());

@@ -54,6 +54,18 @@ export class TokenType {
     static EOF                        = 'EOF'
 }
 
+export class Types {
+    static ANY      = "any" // everything, var a = none, a is of type any
+    static DYNAMIC  = "dynamic" // everything except none
+    static NUMBER   = "number"
+    static STRING   = "string"
+    static LIST     = "list"
+    static DICT     = "dict"
+    static OBJECT   = "object"
+    static BOOLEAN  = "boolean"
+    static FUNCTION = "function"
+}
+
 const KEYWORDS = [
     "var",
     "and",

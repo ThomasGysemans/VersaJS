@@ -16,14 +16,14 @@ enum-expr   : KEYWORD:enum IDENTIFIER COLON (KEYWORD:pass)? |
                 (KEYWORD:end)
 
 class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON (KEYWORD:pass)?
-                (KEYWORD:private|KEYWORD:public|KEYWORD:protected)? (KEYWORD:override)? (KEYWORD:static)? KEYWORD:property IDENTIFIER EQUALS expr
+                (KEYWORD:private|KEYWORD:public|KEYWORD:protected)? (KEYWORD:override)? (KEYWORD:static)? KEYWORD:property IDENTIFIER (COLON Types)? EQUALS expr
                 | (KEYWORD:PRIVATE|KEYWORD:public|KEYWORD:protected)? (KEYWORD:override)? (KEYWORD:static)? KEYWORD:method IDENTIFIER call_func
                 | (KEYWORD:get) IDENTIFIER call_func
                 | (KEYWORD:set) IDENTIFIER call_func
                 # greedy
 
-expr        : KEYWORD:VAR IDENTIFIER (EQUALS expr)?
-            : KEYWORD:DEFINE IDENTIFIER EQUALS expr
+expr        : KEYWORD:VAR IDENTIFIER (COLON Types)? (EQUALS expr)?
+            : KEYWORD:DEFINE IDENTIFIER (COLON Types)? EQUALS expr
             : KEYWORD:DELETE call
             : comp-expr ((KEYWORD:AND|KEYWORD:OR|AND|OR) comp-expr)*
             
@@ -95,7 +95,7 @@ while-expr  : KEYWORD:WHILE expr KEYWORD:THEN
                 | (NEWLINE statements KEYWORD:END)
 
 func-def    : KEYWORD:FUNC IDENTIFIER?
-                LPAREN (IDENTIFIER (QMARK (EQUALS expr)?)? (COMMA IDENTIFIER)*|TRIPLE_DOTS IDENTIFIER)? RPAREN
+                LPAREN (IDENTIFIER (QMARK (COLON Types)? (EQUALS expr)?)? (COMMA IDENTIFIER)*|TRIPLE_DOTS IDENTIFIER)? RPAREN
                 (ARROW expr|KEYWORD:pass)
                 | (COLON statements|KEYWORD:pass KEYWORD:END)
 

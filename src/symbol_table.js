@@ -1,4 +1,5 @@
 import { NATIVE_CLASSES, NATIVE_FUNCTIONS } from "./native.js";
+import { Types } from "./tokens.js";
 import { NativeClassValue, NativeFunction, NativePropertyValue } from "./values.js";
 
 /**
@@ -28,6 +29,7 @@ export class SymbolTable {
     /**
      * Gets a variable.
      * @param {string} name The name of a variable.
+     * @returns {{type: Types, value: any}|null}
      */
     get(name) {
         let value = this.symbols.has(name) ? this.symbols.get(name) : null;
@@ -45,12 +47,14 @@ export class SymbolTable {
      */
     modify(name, new_value) {
         if (this.symbols.has(name)) {
-            this.symbols.set(name, new_value);
+            let type = this.symbols.get(name).type;
+            this.symbols.set(name, { type, value: new_value });
         } else {
             var parent = this.parent;
             while (parent) {
                 if (parent.symbols.has(name)) {
-                    parent.symbols.set(name, new_value);
+                    let type = parent.symbols.get(name).type;
+                    parent.symbols.set(name, { type, value: new_value });
                     break;
                 }
                 parent = parent.parent;
@@ -61,7 +65,7 @@ export class SymbolTable {
     /**
      * Creates a variable.
      * @param {string} name The name of the variable to create.
-     * @param {any} value The value of that variable.
+     * @param {{type: Types, value: any}} value The value of that variable.
      */
     set(name, value) {
         this.symbols.set(name, value);
@@ -116,11 +120,11 @@ export class SymbolTable {
     /**
      * Creates a constant.
      * @param {string} name The name of the constant to create.
-     * @param {any} value The value of that constant.
+     * @param {{type: Types, value: any}} value The value of that constant.
      */
     define_constant(name, value) {
         let table = this.getHighestParentContext();
-        table.symbols.set(name, value);
+        table.symbols.set(name, { type: value.type, value: value.value });
     }
 
     clear() {
@@ -134,7 +138,7 @@ export const CONSTANTS = {};
 
 for (let i = 0; i < Object.keys(NATIVE_FUNCTIONS).length; i++) {
     let name = Object.keys(NATIVE_FUNCTIONS)[i];
-    global_symbol_table.set(name, new NativeFunction(name));
+    global_symbol_table.set(name, { type: Types.FUNCTION, value: new NativeFunction(name) });
 }
 
 for (let i = 0; i < Object.keys(NATIVE_CLASSES).length; i++) {
@@ -143,17 +147,20 @@ for (let i = 0; i < Object.keys(NATIVE_CLASSES).length; i++) {
     let self = new Map(native.properties.map((v) => [v.name, {
         status: v.status,
         static_prop: v.static_prop,
-        value: new NativePropertyValue(
-            v.name,
-            v.nature,
-            name,
-            v.status,
-            v.static_prop,
-            v.value.behavior,
-            v.value.args,
-        )
+        value: {
+            type: v.type,
+            value: new NativePropertyValue(
+                v.name,
+                v.nature,
+                name,
+                v.status,
+                v.static_prop,
+                v.value.behavior,
+                v.value.args,
+            )
+        }
     }]));
-    global_symbol_table.set(name, new NativeClassValue(name, self, null));
+    global_symbol_table.set(name, { type: name, value: new NativeClassValue(name, self, null) });
 }
 
 export default global_symbol_table;

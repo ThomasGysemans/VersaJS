@@ -1,14 +1,20 @@
 import { Position } from "./position.js";
 import { Context } from "./context.js";
-import { ArgumentNode, CustomNode } from "./nodes.js";
+import { ArgumentNode, CustomNode, NoneNode } from "./nodes.js";
 import { SymbolTable } from "./symbol_table.js";
 import { RuntimeResult } from "./runtime.js";
-import { RuntimeError } from "./Exceptions.js";
+import { CustomTypeError, RuntimeError } from "./Exceptions.js";
 import { Interpreter } from "./interpreter.js";
 import { NATIVE_FUNCTIONS } from "./native.js";
+import { Types } from "./tokens.js";
 
 export class Value {
-    constructor() {
+    /**
+     * @constructs Value
+     * @param {Types} type The type of value
+     */
+    constructor(type) {
+        this.type = type;
         this.set_pos();
         this.set_context();
     }
@@ -59,7 +65,7 @@ export class NumberValue extends Value {
      * @param {number} value The value.
      */
     constructor(value) {
-        super();
+        super(Types.NUMBER);
         this.value = value;
     }
 
@@ -93,7 +99,7 @@ export class ListValue extends Value {
      * @param {Array<Value>} elements The elements inside the list.
      */
     constructor(elements) {
-        super();
+        super(Types.LIST);
         this.elements = elements;
     }
 
@@ -145,7 +151,7 @@ export class DictionnaryValue extends Value {
      * @param {Map<string, Value>} elements The elements inside the list.
      */
     constructor(elements) {
-        super();
+        super(Types.DICT);
         this.elements = elements;
     }
 
@@ -184,7 +190,7 @@ export class StringValue extends Value {
      * @param {string} value The value.
      */
     constructor(value) {
-        super();
+        super(Types.STRING);
         this.value = value;
     }
 
@@ -227,7 +233,7 @@ export class BaseFunction extends Value {
      * @param {string} name The name of the function.
      */
     constructor(name) {
-        super();
+        super(Types.FUNCTION);
         this.name = name || "<anonymous>";
     }
 
@@ -256,10 +262,54 @@ export class BaseFunction extends Value {
      * Checks if the number of arguments correspond.
      * @param {Array<ArgumentNode>} args The names of the arguments.
      * @param {Array<Value>} given_args The values of the given arguments (the function has been called by the user).
-     * @return {RuntimeResult}
      */
     check_args(args, given_args) {
-        let res = new RuntimeResult();
+        // checks types
+        for (let i = 0; i < given_args.length; i++) {
+            if (i > args.length) break;
+            let given_arg = given_args[i];
+            let arg = args[i];
+            // a rest parameter can only be of type 'list'
+            if (arg.is_rest && arg.type !== Types.LIST) {
+                throw new CustomTypeError(
+                    arg.pos_start, arg.pos_end,
+                    `A rest parameter must be of type 'list'`,
+                    this.context
+                );
+            }
+            // we must not check if the given arguments are list too
+            if (arg.is_rest) break;
+            // a dynamic argument can't be optional without any default value (except none)
+            if (arg.is_optional && arg.type === Types.DYNAMIC) {
+                if (arg.default_value_node instanceof NoneNode) {
+                    throw new CustomTypeError(
+                        arg.pos_start, arg.pos_end,
+                        `A dynamic optional argument can't be of type 'none'`,
+                        this.context
+                    );
+                }
+            }
+            if (arg.type === Types.DYNAMIC) {
+                if (given_arg instanceof NoneValue) {
+                    throw new CustomTypeError(
+                        given_arg.pos_start, given_arg.pos_end,
+                        `Type 'none' is not assignable to type 'dynamic'`,
+                        this.context
+                    );
+                }
+            } else if (arg.type !== Types.ANY) {
+                if (given_arg.type !== arg.type && !arg.is_rest) {
+                    if (arg.is_optional && given_arg instanceof NoneValue) {
+                        continue;
+                    }
+                    throw new CustomTypeError(
+                        given_arg.pos_start, given_arg.pos_end,
+                        `Type '${given_arg.type}' is not assignable to type '${arg.type}'`,
+                        this.context
+                    );
+                }
+            }
+        }
 
         // too many arguments
         if (!this.has_rest_arg(args)) { // just if there is no rest parameter
@@ -282,8 +332,6 @@ export class BaseFunction extends Value {
                 this.context
             );
         }
-
-        return res.success(null);
     }
 
     /**
@@ -307,7 +355,7 @@ export class BaseFunction extends Value {
                 } else {
                     arg_value.set_pos(args[i].pos_start, args[i].pos_end);
                 }
-                exec_ctx.symbol_table.set(arg_name, arg_value);
+                exec_ctx.symbol_table.set(arg_name, { type: Types.LIST, value: arg_value });
                 break; // the rest parameter is the last argument
             }
 
@@ -316,7 +364,7 @@ export class BaseFunction extends Value {
                 let arg_name = args[i].arg_name_tok.value;
                 let arg_value = given_args[i];
                 arg_value.set_context(exec_ctx);
-                exec_ctx.symbol_table.set(arg_name, arg_value); // create the variables (= args)
+                exec_ctx.symbol_table.set(arg_name, { type: Types.ANY, value: arg_value }); // create the variables (= args)
             } else {
                 // there is more arguments
                 // than the given arguments
@@ -326,7 +374,7 @@ export class BaseFunction extends Value {
                     let arg_name = args[i].arg_name_tok.value;
                     let arg_value = default_values[e];
                     arg_value.set_context(exec_ctx);
-                    exec_ctx.symbol_table.set(arg_name, arg_value); // create the variables (with their default value)
+                    exec_ctx.symbol_table.set(arg_name, { type: Types.ANY, value: arg_value }); // create the variables (with their default value)
                     e++;
                 }
             }
@@ -341,12 +389,8 @@ export class BaseFunction extends Value {
      * @param {Context} exec_ctx The context.
      */
     check_and_populate_args(args, default_values, given_args, exec_ctx) {
-        let res = new RuntimeResult();
-        res.register(this.check_args(args, given_args));
-        if (res.should_return()) return res;
-
+        this.check_args(args, given_args)
         this.populate_args(args, default_values, given_args, exec_ctx);
-        return res.success(null);
     }
 }
 
@@ -354,11 +398,11 @@ export class ClassValue extends Value {
     /**
      * @constructs ClassValue
      * @param {string} name The name of the class.
-     * @param {Map<string, {status:number, value:Value, static_prop:number}>} value The class that has been instantiated.
+     * @param {Map<string, {status:number, value: { type: string, value: Value }, static_prop:number}>} value The class that has been instantiated.
      * @param {ClassValue} parent_class The parent class.
      */
     constructor(name, value, parent_class) {
-        super();
+        super(name);
         this.name = name;
         this.parent_class = parent_class;
         this.context_name = `<Class ${this.name}>`; // we do it here because this name cannot be changed, it's very important
@@ -403,11 +447,11 @@ export class NativeClassValue extends Value {
     /**
      * @constructs NativeClassValue
      * @param {string} name The name of the class.
-     * @param {Map<string, {status:number, value:NativePropertyValue, static_prop:number}>} value The class that has been instantiated.
+     * @param {Map<string, {status:number, value: { type: string, value: NativePropertyValue }, static_prop:number}>} value The class that has been instantiated.
      * @param {NativeClassValue} parent_class The parent class.
      */
     constructor(name, value, parent_class) {
-        super();
+        super(name);
         this.name = name;
         this.parent_class = parent_class;
         this.context_name = `<NativeClass ${this.name}>`; // we do it here because this name cannot be changed, it's very important
@@ -477,10 +521,9 @@ export class NativePropertyValue extends BaseFunction {
         // but I know that all the default values are instances of Value
         let default_values = this.method_args.map((v) => v.default_value_node instanceof Value ? v.default_value_node.copy().set_pos(pos_start, pos_end) : null).filter((v) => v !== null);
 
-        res.register(this.check_and_populate_args(this.method_args, default_values, args, exec_ctx));
-        if (res.should_return()) return res;
+        this.check_and_populate_args(this.method_args, default_values, args, exec_ctx)
 
-        exec_ctx.symbol_table.set('arguments', new ListValue([...args]));
+        exec_ctx.symbol_table.set('arguments', { type: Types.LIST, value: new ListValue([...args]) });
 
         let return_value = res.register(this.behavior(exec_ctx, pos_start, pos_end));
         if (res.should_return()) return res;
@@ -553,10 +596,9 @@ export class FunctionValue extends BaseFunction {
             default_values.push(value);
         }
 
-        res.register(this.check_and_populate_args(this.args, default_values, args, exec_ctx));
-        if (res.should_return()) return res;
+        this.check_and_populate_args(this.args, default_values, args, exec_ctx)
 
-        exec_ctx.symbol_table.set('arguments', new ListValue([...args]));
+        exec_ctx.symbol_table.set('arguments', { type: Types.LIST, value: new ListValue([...args]) });
 
         let value = res.register(interpreter.visit(this.body_node, exec_ctx));
         if (res.should_return() && res.func_return_value == null) return res;
@@ -626,10 +668,9 @@ export class NativeFunction extends BaseFunction {
             default_values.push(value);
         }
 
-        res.register(this.check_and_populate_args(registered_args, default_values, args, exec_ctx));
-        if (res.should_return()) return res;
+        this.check_and_populate_args(registered_args, default_values, args, exec_ctx)
 
-        exec_ctx.symbol_table.set('arguments', new ListValue([...args]));
+        exec_ctx.symbol_table.set('arguments', { type: Types.LIST, value: new ListValue([...args]) });
 
         let return_value = res.register(method(exec_ctx, pos_start, pos_end));
         if (res.should_return()) return res;
@@ -672,7 +713,7 @@ export class EnumValue extends Value {
      * @param {Map<string, NumberValue>} properties The properties of the enum.
      */
     constructor(name, properties) {
-        super();
+        super(Types.OBJECT);
         this.name = name;
         this.properties = properties;
     }
@@ -706,7 +747,7 @@ export class NoneValue extends Value {
      * @constructs NoneValue
      */
     constructor() {
-        super();
+        super(Types.ANY);
     }
 
     is_true() {
@@ -740,7 +781,7 @@ export class BooleanValue extends Value {
      * @param {string} display_name "yes", "true", "no" or "false"
      */
     constructor(state, display_name=null) {
-        super();
+        super(Types.BOOLEAN);
         this.state = state;
         this.display_name = display_name ? display_name : (this.state === 1 ? 'yes' : 'no');
     }
