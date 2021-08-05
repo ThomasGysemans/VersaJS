@@ -1,7 +1,7 @@
 {
   "name": "versajs",
   "version": "1.0.0",
-  "description": "My own programming language",
+  "description": "A language made to create websites in a javascript-like way.",
   "main": "main.js",
   "scripts": {
     "test": "mocha"
