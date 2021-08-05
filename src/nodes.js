@@ -1513,3 +1513,21 @@ export class TypeofNode extends CustomNode {
         return `(typeof ${this.node})`;
     }
 }
+
+export class InstanceofNode extends CustomNode {
+    /**
+     * @constructs InstanceofNode
+     * @param {CustomNode} node_a The node.
+     * @param {Token} class_name_tok The class name.
+     */
+    constructor(node_a, class_name_tok) {
+        super();
+        this.node_a = node_a;
+        this.class_name_tok = class_name_tok;
+        this.set_pos(node_a.pos_start, class_name_tok.pos_end);
+    }
+
+    toString() {
+        return `(${this.node_a} instanceof ${this.class_name_tok.value})`;
+    }
+}

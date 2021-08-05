@@ -111,6 +111,7 @@ const KEYWORDS = [
     "false",
     "pass",
     "typeof",
+    "instanceof",
 ];
 
 export default KEYWORDS;

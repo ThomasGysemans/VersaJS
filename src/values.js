@@ -404,6 +404,7 @@ export class ClassValue extends Value {
     constructor(name, value, parent_class) {
         super(name);
         this.name = name;
+        this.is_instance = false;
         this.parent_class = parent_class;
         this.context_name = `<Class ${this.name}>`; // we do it here because this name cannot be changed, it's very important
         this.self = value;
@@ -453,6 +454,7 @@ export class NativeClassValue extends Value {
     constructor(name, value, parent_class) {
         super(name);
         this.name = name;
+        this.is_instance = false;
         this.parent_class = parent_class;
         this.context_name = `<NativeClass ${this.name}>`; // we do it here because this name cannot be changed, it's very important
         this.self = value;

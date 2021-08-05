@@ -1,4 +1,4 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, TypeofNode } from './nodes.js';
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, TypeofNode, InstanceofNode } from './nodes.js';
 import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeClassValue, NativeFunction, NativePropertyValue, NoneValue, NumberValue, StringValue, Value } from './values.js';
 import { RuntimeResult } from './runtime.js';
 import { CustomTypeError, RuntimeError } from './Exceptions.js';
@@ -254,6 +254,8 @@ export class Interpreter {
             return this.visit_OrAssignmentNode(node, context);
         } else if (node instanceof TypeofNode) {
             return this.visit_TypeofNode(node, context);
+        } else if (node instanceof InstanceofNode) {
+            return this.visit_InstanceofNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -3955,7 +3957,7 @@ export class Interpreter {
     visit_ClassCallNode(node, context) {
         let res = new RuntimeResult();
         let class_name = node.class_name_tok.value;
-        /** @type {ClassValue} */
+        /** @type {ClassValue|NativeClassValue} */
         let value = context.symbol_table.get(class_name)?.value;
 
         if (value === undefined || value === null) {
@@ -3966,7 +3968,7 @@ export class Interpreter {
             );
         }
 
-        if (!(value instanceof ClassValue)) {
+        if (!(value instanceof ClassValue) && !(value instanceof NativeClassValue)) {
             throw new RuntimeError(
                 node.class_name_tok.pos_start, node.class_name_tok.pos_end,
                 `Variable ${class_name} is not a class.`,
@@ -3978,6 +3980,7 @@ export class Interpreter {
         // does not heritate the static properties, methods
         let new_class_value = new ClassValue(class_name, new Map(Array.from(value.self.entries()).map((v) => v[1].static_prop === 0 ? v : null).filter((v) => v !== null)), value.parent_class).set_pos(node.pos_start, node.pos_end).set_context(context);
         let __init = new_class_value.self.get("__init");
+        new_class_value.is_instance = true;
         
         if (__init) {
             let method = __init.value.value;
@@ -4529,6 +4532,50 @@ export class Interpreter {
 
         return res.success(
             new StringValue(value.type).set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
+    }
+
+    /**
+     * Interprets an 'instanceof' node.
+     * @param {InstanceofNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_InstanceofNode(node, context) {
+        let res = new RuntimeResult();
+        let value = res.register(this.visit(node.node_a, context));
+        if (res.should_return()) return res;
+
+        let class_value = context.symbol_table.get(node.class_name_tok.value)?.value;
+        
+        if (class_value === null || class_value === undefined) {
+            throw new RuntimeError(
+                node.class_name_tok.pos_start, node.class_name_tok.pos_end,
+                "Undefined class",
+                context
+            );
+        }
+
+        if (!(class_value instanceof ClassValue) && !(class_value instanceof NativeClassValue)) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "'instaneof' checks whether a value is an instance of a class. This is not a class.",
+                context
+            );
+        }
+
+        if (class_value.is_instance) {
+            throw new RuntimeError(
+                node.pos_start, node.pos_end,
+                "With 'instanceof', use the name of the class, not an instance of that class.",
+                context
+            );
+        }
+
+        let state = value.type === class_value.type ? 1 : 0;
+
+        return res.success(
+            new BooleanValue(state).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
     }
 }

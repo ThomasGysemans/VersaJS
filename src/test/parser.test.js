@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, MinusNode, NullishAssignmentNode, AndAssignmentNode, OrAssignmentNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, MinusNode, NullishAssignmentNode, AndAssignmentNode, OrAssignmentNode, TypeofNode, InstanceofNode } from '../nodes.js';
 import { InvalidSyntaxError } from '../Exceptions.js';
 
 // npm run test ./test/parser.test.js
@@ -496,5 +496,17 @@ describe('Parser tests', () => {
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(node.element_nodes[0] instanceof CallNode, true);
         assert.deepStrictEqual(node.element_nodes[0].is_optional, true); // all calls are defined as optional as soon as one of them is defined as optional
+    });
+
+    it('should work with \'typeof\'', () => {
+        const tokens = new Lexer("typeof something").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof TypeofNode, true); // all calls are defined as optional as soon as one of them is defined as optional
+    });
+
+    it('should work with \'instanceof\'', () => {
+        const tokens = new Lexer("something instanceof something").generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof InstanceofNode, true); // all calls are defined as optional as soon as one of them is defined as optional
     });
 });

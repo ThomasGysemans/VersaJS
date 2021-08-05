@@ -23,3 +23,7 @@ end
 var t: object = new Test();
 var t2: Test = new Test();
 log(t.add(5))
+log(t instanceof Test)
+
+var cons = new console();
+log(cons instanceof console)

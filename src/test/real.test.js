@@ -1091,7 +1091,7 @@ describe("Interpreter", function() {
             typeof (99 + "Yo") == "string"
 
             typeof "" == "string"
-            typeof (typeof 1) == "string"
+            typeof typeof 1 == "string"
 
             typeof true == "boolean"
             typeof false == "boolean"
@@ -1119,5 +1119,19 @@ describe("Interpreter", function() {
                 assert.deepStrictEqual(line.state, 1);
             }
         }
+    });
+
+    it("should work with 'instanceof'", () => {
+        const result = run(`
+            class Test: pass
+
+            var t = new Test()
+            t instanceof Test
+            t instanceof console
+            1 + 1 instanceof Test
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[2].state, 1);
+        if (result) assert.deepStrictEqual(result.elements[3].state, 0);
+        if (result) assert.deepStrictEqual(result.elements[4].state, 0);
     });
 });
