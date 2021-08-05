@@ -110,6 +110,7 @@ const KEYWORDS = [
     "true",
     "false",
     "pass",
+    "typeof",
 ];
 
 export default KEYWORDS;

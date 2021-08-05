@@ -1497,3 +1497,19 @@ export class BooleanNode extends CustomNode {
         return `(${this.display_name})`;
     }
 }
+
+export class TypeofNode extends CustomNode {
+    /**
+     * @constructs TypeofNode
+     * @param {CustomNode} node The node.
+     */
+    constructor(node) {
+        super();
+        this.node = node;
+        this.set_pos(node.pos_start, node.pos_end);
+    }
+
+    toString() {
+        return `(typeof ${this.node})`;
+    }
+}

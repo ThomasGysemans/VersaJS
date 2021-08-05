@@ -5,7 +5,7 @@ import { run } from '../run.js';
 import global_symbol_table, { SymbolTable } from '../symbol_table.js';
 
 const fn = "<stdin>";
-const context = new Context("<tests>");
+const context = new Context("<maths>");
 
 const check = (result) => {
     for (let line of result.elements) {
@@ -16,7 +16,7 @@ const check = (result) => {
             const error = new RuntimeError(
                 line.pos_start, line.pos_end,
                 "Expected true, but got false",
-                new Context("<maths>")
+                context
             );
             console.error(error.toString());
         }

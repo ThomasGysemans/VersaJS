@@ -4,6 +4,7 @@ import { run } from '../run.js';
 import { Types } from '../tokens.js';
 import global_symbol_table, { SymbolTable } from '../symbol_table.js';
 import { BooleanValue, ClassValue, NoneValue } from '../values.js';
+import { RuntimeError } from '../Exceptions.js';
 
 const fn = "<stdin>";
 const context = new Context("<tests>");
@@ -1079,5 +1080,44 @@ describe("Interpreter", function() {
             x # should be 0
         `, fn, context).value;
         if (result) assert.deepStrictEqual(result.elements[3].value, 0);
+    });
+
+    it("should work with 'typeof'", () => {
+        const result = run(`
+            typeof 37 == "number"
+            typeof 3.14 == "number"
+            typeof (42) == "number"
+            typeof 99 + 'Yo' == "numberYo"
+            typeof (99 + "Yo") == "string"
+
+            typeof "" == "string"
+            typeof (typeof 1) == "string"
+
+            typeof true == "boolean"
+            typeof false == "boolean"
+            typeof (not not 1) == "boolean"
+            typeof none == "any"
+
+            class Test: pass
+            typeof Test == "Test"
+            `, fn, context).value;
+        if (result) {
+            for (let i = 0; i < result.elements.length; i++) {
+                if (i === 11) continue;
+                let line = result.elements[i];
+                if (typeof line.state === "undefined") {
+                    console.error("line.state is undefined because it's:", line, "at line", i);
+                }
+                if (line.state === 0) {
+                    const error = new RuntimeError(
+                        line.pos_start, line.pos_end,
+                        "Expected true, but got false",
+                        context
+                    );
+                    console.error(error.toString());
+                }
+                assert.deepStrictEqual(line.state, 1);
+            }
+        }
     });
 });

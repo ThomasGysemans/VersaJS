@@ -40,6 +40,7 @@ term        : factor (((MUL|DIV|POWER|MODULO) factor)*)|((MUL|DIV|POWER|MODULO|N
 factor      : (PLUS|MINUS) factor
             : (BIN_NOT)* factor
             : (INC|DEC)* term
+            : typeof factor
             : prop
 
 prop        : call (QMARK (DOT|DOUBLE_COLON (IDENTIFIER)?)|(DOT|DOUBLE_COLON IDENTIFIER) call_func|call_list)*
