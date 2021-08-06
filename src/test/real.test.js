@@ -786,7 +786,7 @@ describe("Interpreter", function() {
             var value = 5
             var response: dynamic = -1
 
-            switch (value):
+            switch value:
                 case 4:
                     response = "4"
                 
@@ -804,7 +804,7 @@ describe("Interpreter", function() {
             var value = 0
             var response: dynamic = -1
 
-            switch (value):
+            switch value:
                 case 4:
                     response = "4"
                 
@@ -825,7 +825,7 @@ describe("Interpreter", function() {
             var value = 3
             var response: dynamic = -1
 
-            switch (value):
+            switch value:
                 case 4,3:
                     response = "4 or 3"
                 
@@ -849,7 +849,7 @@ describe("Interpreter", function() {
             var state = State.paused
             var response = none
 
-            switch (state):
+            switch state:
                 case State.stopped: response = "stopped"
                 case State.paused: response = "paused"
                 case State.running: response = "running"

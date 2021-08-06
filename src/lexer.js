@@ -1,13 +1,13 @@
 import KEYWORDS, { Token, TokenType } from './tokens.js';
 import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
-import { ExpectedCharError, IllegalCharError, InvalidSyntaxError } from './Exceptions.js';
+import { ExpectedCharError, IllegalCharError } from './Exceptions.js';
 
 export const WHITESPACE        = " \t";
 export const DIGITS            = "0123456789_"; // we want to allow 100_000 === 100000
 export const LETTERS           = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 export const LETTERS_DIGITS    = LETTERS + DIGITS;
-export const ESCAPE_CHARACTERS = new Map([['n', '\n'], ['t', '\t']]);
+export const ESCAPE_CHARACTERS = new Map([['n', '\n'], ['t', '\t'], ['r', '\r']]);
 
 /**
  * @classdesc Reads the code and creates the tokens.
@@ -45,10 +45,11 @@ export class Lexer {
                     this.advance(); // a newline can be sometimes : '\r\n'
                 }
                 this.advance();
-                yield new Token(TokenType.NEWLINE, null, pos_start);
+                yield new Token(TokenType.NEWLINE, "\n", pos_start);
             } else if (this.current_char === ";") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.SEMICOLON, null, this.pos);
+                yield new Token(TokenType.SEMICOLON, ";", pos);
             } else if (is_in(this.current_char, LETTERS + "_")) { // has to be before digits
                 yield this.make_identifier();
             } else if (this.current_char === "." || is_in(this.current_char, DIGITS)) {
@@ -60,17 +61,21 @@ export class Lexer {
             } else if (this.current_char === "*") {
                 yield this.make_mul_or_power();
             } else if (this.current_char === "/") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.DIVIDE, null, this.pos);
+                yield new Token(TokenType.DIVIDE, "/", pos);
             } else if (this.current_char === "%") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.MODULO, null, this.pos);
+                yield new Token(TokenType.MODULO, "%", pos);
             } else if (this.current_char === "(") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.LPAREN, null, this.pos);
+                yield new Token(TokenType.LPAREN, "(", pos);
             } else if (this.current_char === ")") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.RPAREN, null, this.pos);
+                yield new Token(TokenType.RPAREN, ")", pos);
             } else if (this.current_char === "=") {
                 yield this.make_doublearrow_or_equal();
             } else if (this.current_char === "!") {
@@ -90,30 +95,37 @@ export class Lexer {
             } else if (this.current_char === ":") {
                 yield this.make_colon_or_doublecolon();
             } else if (this.current_char === "[") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.LSQUARE, null, this.pos);
+                yield new Token(TokenType.LSQUARE, "[", pos);
             } else if (this.current_char === "]") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.RSQUARE, null, this.pos);
+                yield new Token(TokenType.RSQUARE, "]", pos);
             } else if (this.current_char === "{") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.LBRACK, null, this.pos);
+                yield new Token(TokenType.LBRACK, "{", pos);
             } else if (this.current_char === "}") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.RBRACK, null, this.pos);
+                yield new Token(TokenType.RBRACK, "}", pos);
             } else if (this.current_char === ",") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.COMMA, null, this.pos);
+                yield new Token(TokenType.COMMA, ",", pos);
             } else if (this.current_char === "&") {
                 yield this.make_and();
             } else if (this.current_char === "|") {
                 yield this.make_or();
             } else if (this.current_char === "^") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.LOGICAL_XOR, null, this.pos);
+                yield new Token(TokenType.LOGICAL_XOR, "^", pos);
             } else if (this.current_char === "~") {
+                let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.BIN_NOT, null, this.pos);
+                yield new Token(TokenType.BIN_NOT, "~", pos);
             } else if (this.current_char === "#") {
                 this.skip_comment();
             } else {
@@ -124,7 +136,7 @@ export class Lexer {
             }
         }
 
-        yield new Token(TokenType.EOF, null, this.pos);
+        yield new Token(TokenType.EOF, "EOF", this.pos);
     }
 
     /**
@@ -145,7 +157,7 @@ export class Lexer {
             this.advance();
             if (this.current_char === ".") {
                 this.advance();
-                return new Token(TokenType.TRIPLE_DOTS, null, pos_start, this.pos);
+                return new Token(TokenType.TRIPLE_DOTS, "...", pos_start, this.pos);
             } else {
                 throw new ExpectedCharError(
                     pos_start, this.pos,
@@ -153,7 +165,7 @@ export class Lexer {
                 )
             }
         } else if (is_beginning_with_a_dot && !is_in(this.current_char, DIGITS.replace('_', ''))) {
-            return new Token(TokenType.DOT, null, pos_start);
+            return new Token(TokenType.DOT, ".", pos_start);
         }
         
         while (this.current_char !== null && is_in(this.current_char, DIGITS + ".")) {
@@ -197,17 +209,20 @@ export class Lexer {
     make_doublearrow_or_equal() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.EQUALS;
+        let value = "=";
         this.advance();
 
         if (this.current_char === "=") {
             tok_type = TokenType.DOUBLE_EQUALS;
+            value = "==";
             this.advance();
         } else if (this.current_char === ">") {
             tok_type = TokenType.DOUBLE_ARROW;
+            value = "=>";
             this.advance();
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     make_not_equal() {
@@ -216,10 +231,9 @@ export class Lexer {
 
         if (this.current_char === "=") {
             this.advance();
-            return new Token(TokenType.NOT_EQUAL, null, pos_start, this.pos);
+            return new Token(TokenType.NOT_EQUAL, "!=", pos_start, this.pos);
         }
 
-        this.advance();
         throw new ExpectedCharError(
             pos_start, this.pos,
             "'=' after '!'"
@@ -229,37 +243,44 @@ export class Lexer {
     make_less_than_or_equal_or_binary() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.LT;
+        let value = "<";
         this.advance();
 
         if (this.current_char === "=") { // <=
             this.advance();
             tok_type = TokenType.LTE;
+            value = "<=";
         } else if (this.current_char === "<") { // <<
             this.advance();
             tok_type = TokenType.BINARY_LEFT;
+            value = "<<";
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     make_greater_than_or_equal_or_binary() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.GT;
+        let value = ">";
         this.advance();
 
         if (this.current_char === "=") { // >=
             this.advance();
             tok_type = TokenType.GTE;
+            value = ">=";
         } else if (this.current_char === ">") { // >>
             this.advance();
             tok_type = TokenType.BINARY_RIGHT;
+            value = ">>";
             if (this.current_char === ">") { // >>>
                 this.advance();
                 tok_type = TokenType.BINARY_UNSIGNED_RIGHT;
+                value = ">>>";
             }
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     // much more complex than expected
@@ -267,29 +288,33 @@ export class Lexer {
     * make_qmark_or_nullish_or_ocp() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.QMARK;
+        let value = "?";
         this.advance();
 
         // we want "??", or "?." or "?::" (OR "?" & ":" for optional argument & specified type on function declaration)
         if (this.current_char === "?") {
             this.advance();
             tok_type = TokenType.NULLISH_OPERATOR;
+            value = "??";
         } else if (this.current_char === ".") {
             this.advance();
             tok_type = TokenType.OPTIONAL_CHAINING_OPERATOR;
+            value = "?.";
         } else if (this.current_char === ":") {
             let colon_pos_start = this.pos.copy();
             this.advance();
             if (this.current_char === ":") {
                 this.advance();
                 tok_type = TokenType.OPTIONAL_STATIC_CALL;
+                value = "?::";
             } else {
-                yield new Token(TokenType.QMARK, null, pos_start, colon_pos_start);
-                yield new Token(TokenType.COLON, null, colon_pos_start, this.pos);
+                yield new Token(TokenType.QMARK, "?", pos_start, colon_pos_start);
+                yield new Token(TokenType.COLON, ":", colon_pos_start, this.pos);
                 return;
             }
         }
 
-        yield new Token(tok_type, null, pos_start, this.pos);
+        yield new Token(tok_type, value, pos_start, this.pos);
     }
 
     make_string() {
@@ -324,82 +349,95 @@ export class Lexer {
     make_minus_decrement_or_arrow() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.MINUS;
+        let value = "-";
         this.advance();
 
         if (this.current_char === ">") {
             this.advance();
             tok_type = TokenType.ARROW;
+            value = "->";
         } else if (this.current_char === "-") {
             this.advance();
             tok_type = TokenType.DEC;
+            value = "--";
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     make_plus_or_increment() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.PLUS;
+        let value = "+";
         this.advance();
 
         if (this.current_char === "+") {
             this.advance();
             tok_type = TokenType.INC;
+            value = "++";
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     make_colon_or_doublecolon() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.COLON;
+        let value = ":";
         this.advance();
 
         if (this.current_char === ":") {
             this.advance();
             tok_type = TokenType.DOUBLE_COLON;
+            value = "::";
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     make_mul_or_power() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.MULTIPLY;
+        let value = "*";
         this.advance();
 
         if (this.current_char === "*") {
             this.advance();
             tok_type = TokenType.POWER;
+            value = "**";
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     make_or() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.LOGICAL_OR;
+        let value = "|";
         this.advance();
 
         if (this.current_char === "|") { // ||
             this.advance();
             tok_type = TokenType.OR;
+            value = "||";
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     make_and() {
         let pos_start = this.pos.copy();
         let tok_type = TokenType.LOGICAL_AND;
+        let value = "&";
         this.advance();
 
         if (this.current_char === "&") { // &&
             this.advance();
             tok_type = TokenType.AND;
+            value = "&&";
         }
 
-        return new Token(tok_type, null, pos_start, this.pos);
+        return new Token(tok_type, value, pos_start, this.pos);
     }
 
     skip_comment() {

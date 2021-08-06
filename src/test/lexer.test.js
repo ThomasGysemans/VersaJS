@@ -48,11 +48,11 @@ describe('Lexer tests', () => {
     it('should return all operators', () => {
         const tokens = Array.from(new Lexer("+-*/**").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.PLUS),
-            new Token(TokenType.MINUS),
-            new Token(TokenType.MULTIPLY),
-            new Token(TokenType.DIVIDE),
-            new Token(TokenType.POWER),
+            new Token(TokenType.PLUS, "+"),
+            new Token(TokenType.MINUS, "-"),
+            new Token(TokenType.MULTIPLY, "*"),
+            new Token(TokenType.DIVIDE, "/"),
+            new Token(TokenType.POWER, "**"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -61,20 +61,18 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("10 ** 2").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 10),
-            new Token(TokenType.POWER),
+            new Token(TokenType.POWER, "**"),
             new Token(TokenType.NUMBER, 2)
         ];
         check_tokens(tokens, expected_tokens);
     });
 
-    it('should work with power operations (list)', () => {
-        const tokens = Array.from(new Lexer("[2] ** 2").generate_tokens());
+    it('should work with a list', () => {
+        const tokens = Array.from(new Lexer("[2]").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.LSQUARE),
+            new Token(TokenType.LSQUARE, "["),
             new Token(TokenType.NUMBER, 2),
-            new Token(TokenType.RSQUARE),
-            new Token(TokenType.POWER),
-            new Token(TokenType.NUMBER, 2)
+            new Token(TokenType.RSQUARE,"]"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -82,8 +80,8 @@ describe('Lexer tests', () => {
     it('should return parenthesis', () => {
         const tokens = Array.from(new Lexer("()").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.LPAREN),
-            new Token(TokenType.RPAREN),
+            new Token(TokenType.LPAREN, "("),
+            new Token(TokenType.RPAREN, ")"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -91,17 +89,17 @@ describe('Lexer tests', () => {
     it('should work with modulo', () => {
         const tokens = Array.from(new Lexer("(1+2) % (1+1)").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.LPAREN),
+            new Token(TokenType.LPAREN, "("),
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.PLUS),
+            new Token(TokenType.PLUS, "+"),
             new Token(TokenType.NUMBER, 2),
-            new Token(TokenType.RPAREN),
-            new Token(TokenType.MODULO),
-            new Token(TokenType.LPAREN),
+            new Token(TokenType.RPAREN, ")"),
+            new Token(TokenType.MODULO, "%"),
+            new Token(TokenType.LPAREN, "("),
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.PLUS),
+            new Token(TokenType.PLUS, "+"),
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.RPAREN),
+            new Token(TokenType.RPAREN, ")"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -110,7 +108,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("256 << 2").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 256),
-            new Token(TokenType.BINARY_LEFT),
+            new Token(TokenType.BINARY_LEFT, "<<"),
             new Token(TokenType.NUMBER, 2),
         ];
         check_tokens(tokens, expected_tokens);
@@ -120,7 +118,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("256 >> 2").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 256),
-            new Token(TokenType.BINARY_RIGHT),
+            new Token(TokenType.BINARY_RIGHT, ">>"),
             new Token(TokenType.NUMBER, 2),
         ];
         check_tokens(tokens, expected_tokens);
@@ -130,7 +128,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("256 >>> 2").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 256),
-            new Token(TokenType.BINARY_UNSIGNED_RIGHT),
+            new Token(TokenType.BINARY_UNSIGNED_RIGHT, ">>>"),
             new Token(TokenType.NUMBER, 2),
         ];
         check_tokens(tokens, expected_tokens);
@@ -140,15 +138,15 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("27 + (43 / 36 - 48) * 51").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 27),
-            new Token(TokenType.PLUS),
-            new Token(TokenType.LPAREN),
+            new Token(TokenType.PLUS, "+"),
+            new Token(TokenType.LPAREN, "("),
             new Token(TokenType.NUMBER, 43),
-            new Token(TokenType.DIVIDE),
+            new Token(TokenType.DIVIDE, "/"),
             new Token(TokenType.NUMBER, 36),
-            new Token(TokenType.MINUS),
+            new Token(TokenType.MINUS, "-"),
             new Token(TokenType.NUMBER, 48),
-            new Token(TokenType.RPAREN),
-            new Token(TokenType.MULTIPLY),
+            new Token(TokenType.RPAREN, ")"),
+            new Token(TokenType.MULTIPLY, "*"),
             new Token(TokenType.NUMBER, 51),
         ];
         check_tokens(tokens, expected_tokens);
@@ -159,7 +157,7 @@ describe('Lexer tests', () => {
         const expected_tokens = [
             new Token(TokenType.KEYWORD, "var"),
             new Token(TokenType.IDENTIFIER, "_Vari234_able"),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.NUMBER, 1)
         ];
         check_tokens(tokens, expected_tokens)
@@ -187,7 +185,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("1 == 1").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.DOUBLE_EQUALS),
+            new Token(TokenType.DOUBLE_EQUALS, "=="),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens)
@@ -197,7 +195,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("1 != 1").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.NOT_EQUAL),
+            new Token(TokenType.NOT_EQUAL, "!="),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens)
@@ -207,7 +205,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("1 < 1").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.LT),
+            new Token(TokenType.LT, "<"),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens)
@@ -217,7 +215,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("1 > 1").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.GT),
+            new Token(TokenType.GT, ">"),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens)
@@ -227,7 +225,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("1 <= 1").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.LTE),
+            new Token(TokenType.LTE, "<="),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens)
@@ -237,7 +235,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("1 >= 1").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.GTE),
+            new Token(TokenType.GTE, ">="),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens)
@@ -248,9 +246,9 @@ describe('Lexer tests', () => {
         const expected_tokens = [
             new Token(TokenType.KEYWORD, "var"),
             new Token(TokenType.IDENTIFIER, "a"),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.KEYWORD, "none"),
-            new Token(TokenType.NULLISH_OPERATOR),
+            new Token(TokenType.NULLISH_OPERATOR, "??"),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens)
@@ -261,12 +259,12 @@ describe('Lexer tests', () => {
         const expected_tokens = [
             new Token(TokenType.KEYWORD, "var"),
             new Token(TokenType.IDENTIFIER, "a"),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.SEMICOLON),
+            new Token(TokenType.SEMICOLON, ";"),
             new Token(TokenType.KEYWORD, "var"),
             new Token(TokenType.IDENTIFIER, "b"),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.NUMBER, 2),
         ];
         check_tokens(tokens, expected_tokens);
@@ -284,11 +282,11 @@ describe('Lexer tests', () => {
     it('should work with a list', () => {
         const tokens = Array.from(new Lexer("[1, 3]").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.LSQUARE),
+            new Token(TokenType.LSQUARE, "["),
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.COMMA),
+            new Token(TokenType.COMMA, ","),
             new Token(TokenType.NUMBER, 3),
-            new Token(TokenType.RSQUARE),
+            new Token(TokenType.RSQUARE, "]"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -297,9 +295,9 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("list[0]").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "list"),
-            new Token(TokenType.LSQUARE),
+            new Token(TokenType.LSQUARE, "["),
             new Token(TokenType.NUMBER, 0),
-            new Token(TokenType.RSQUARE),
+            new Token(TokenType.RSQUARE, "]"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -308,9 +306,9 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("list[] = 1").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "list"),
-            new Token(TokenType.LSQUARE),
-            new Token(TokenType.RSQUARE),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.LSQUARE, "["),
+            new Token(TokenType.RSQUARE, "]"),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens);
@@ -320,12 +318,12 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("list[0:5] = 1").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "list"),
-            new Token(TokenType.LSQUARE),
+            new Token(TokenType.LSQUARE, "["),
             new Token(TokenType.NUMBER, 0),
-            new Token(TokenType.COLON),
+            new Token(TokenType.COLON, ":"),
             new Token(TokenType.NUMBER, 5),
-            new Token(TokenType.RSQUARE),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.RSQUARE, "]"),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.NUMBER, 1),
         ];
         check_tokens(tokens, expected_tokens);
@@ -336,18 +334,18 @@ describe('Lexer tests', () => {
         const expected_tokens = [
             new Token(TokenType.KEYWORD, "func"),
             new Token(TokenType.IDENTIFIER, "test"),
-            new Token(TokenType.LPAREN),
+            new Token(TokenType.LPAREN, "("),
             new Token(TokenType.IDENTIFIER, "a"),
-            new Token(TokenType.COMMA),
+            new Token(TokenType.COMMA, ","),
             new Token(TokenType.IDENTIFIER, "b"),
-            new Token(TokenType.QMARK),
-            new Token(TokenType.COMMA),
+            new Token(TokenType.QMARK, "?"),
+            new Token(TokenType.COMMA, ","),
             new Token(TokenType.IDENTIFIER, "c"),
-            new Token(TokenType.QMARK),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.QMARK, "?"),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.NUMBER, 1),
-            new Token(TokenType.RPAREN),
-            new Token(TokenType.ARROW),
+            new Token(TokenType.RPAREN, ")"),
+            new Token(TokenType.ARROW, "->"),
             new Token(TokenType.IDENTIFIER, "a"),
         ];
         check_tokens(tokens, expected_tokens);
@@ -357,8 +355,8 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("5 + ++5").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 5),
-            new Token(TokenType.PLUS),
-            new Token(TokenType.INC),
+            new Token(TokenType.PLUS, "+"),
+            new Token(TokenType.INC, "++"),
             new Token(TokenType.NUMBER, 5),
         ];
         check_tokens(tokens, expected_tokens);
@@ -367,9 +365,9 @@ describe('Lexer tests', () => {
     it('should work with incrementation (2nd test)', () => {
         const tokens = Array.from(new Lexer("++5 + 5").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.INC),
+            new Token(TokenType.INC, "++"),
             new Token(TokenType.NUMBER, 5),
-            new Token(TokenType.PLUS),
+            new Token(TokenType.PLUS, "+"),
             new Token(TokenType.NUMBER, 5),
         ];
         check_tokens(tokens, expected_tokens);
@@ -379,8 +377,8 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("5 - --5").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.NUMBER, 5),
-            new Token(TokenType.MINUS),
-            new Token(TokenType.DEC),
+            new Token(TokenType.MINUS, "-"),
+            new Token(TokenType.DEC, "--"),
             new Token(TokenType.NUMBER, 5),
         ];
         check_tokens(tokens, expected_tokens);
@@ -389,9 +387,9 @@ describe('Lexer tests', () => {
     it('should work with decrementation (2nd test)', () => {
         const tokens = Array.from(new Lexer("--5 - 5").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.DEC),
+            new Token(TokenType.DEC, "--"),
             new Token(TokenType.NUMBER, 5),
-            new Token(TokenType.MINUS),
+            new Token(TokenType.MINUS, "-"),
             new Token(TokenType.NUMBER, 5),
         ];
         check_tokens(tokens, expected_tokens);
@@ -400,11 +398,11 @@ describe('Lexer tests', () => {
     it('should work with a dictionnary', () => {
         const tokens = Array.from(new Lexer("{ 'yo': 5 }").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.LBRACK),
+            new Token(TokenType.LBRACK, "{"),
             new Token(TokenType.STRING, "yo"),
-            new Token(TokenType.COLON),
+            new Token(TokenType.COLON, ":"),
             new Token(TokenType.NUMBER, 5),
-            new Token(TokenType.RBRACK),
+            new Token(TokenType.RBRACK, "}"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -416,7 +414,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.IDENTIFIER, "variable"),
             new Token(TokenType.KEYWORD, "as"),
             new Token(TokenType.IDENTIFIER, "variable"),
-            new Token(TokenType.DOUBLE_ARROW),
+            new Token(TokenType.DOUBLE_ARROW, "=>"),
             new Token(TokenType.IDENTIFIER, "variable"),
         ];
         check_tokens(tokens, expected_tokens);
@@ -426,7 +424,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("example.prop").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "example"),
-            new Token(TokenType.DOT),
+            new Token(TokenType.DOT, "."),
             new Token(TokenType.IDENTIFIER, "prop"),
         ];
         check_tokens(tokens, expected_tokens);
@@ -436,7 +434,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("self::name").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "self"),
-            new Token(TokenType.DOUBLE_COLON),
+            new Token(TokenType.DOUBLE_COLON, "::"),
             new Token(TokenType.IDENTIFIER, "name"),
         ];
         check_tokens(tokens, expected_tokens);
@@ -446,7 +444,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("example_._1_prop").generate_tokens()); // might return a number instead of a DOT, that's why
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "example_"),
-            new Token(TokenType.DOT),
+            new Token(TokenType.DOT, "."),
             new Token(TokenType.IDENTIFIER, "_1_prop"),
         ];
         check_tokens(tokens, expected_tokens);
@@ -457,11 +455,11 @@ describe('Lexer tests', () => {
         const expected_tokens = [
             new Token(TokenType.KEYWORD, "var"),
             new Token(TokenType.IDENTIFIER, "person"),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.KEYWORD, "new"),
             new Token(TokenType.IDENTIFIER, "Person"),
-            new Token(TokenType.LPAREN),
-            new Token(TokenType.RPAREN),
+            new Token(TokenType.LPAREN, "("),
+            new Token(TokenType.RPAREN, ")"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -469,10 +467,10 @@ describe('Lexer tests', () => {
     it('should work with triple dots', () => {
         const tokens = Array.from(new Lexer("(...args)").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.LPAREN),
-            new Token(TokenType.TRIPLE_DOTS),
+            new Token(TokenType.LPAREN, "("),
+            new Token(TokenType.TRIPLE_DOTS, "..."),
             new Token(TokenType.IDENTIFIER, "args"),
-            new Token(TokenType.RPAREN),
+            new Token(TokenType.RPAREN, ")"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -492,9 +490,9 @@ describe('Lexer tests', () => {
     it('should work with logical operators (&, |, ^)', () => {
         const tokens = Array.from(new Lexer("& | ^").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.LOGICAL_AND),
-            new Token(TokenType.LOGICAL_OR),
-            new Token(TokenType.LOGICAL_XOR),
+            new Token(TokenType.LOGICAL_AND, "&"),
+            new Token(TokenType.LOGICAL_OR, "|"),
+            new Token(TokenType.LOGICAL_XOR, "^"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -502,7 +500,7 @@ describe('Lexer tests', () => {
     it('should work with a binary NOT (~)', () => {
         const tokens = Array.from(new Lexer("~").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.BIN_NOT),
+            new Token(TokenType.BIN_NOT, "~"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -510,8 +508,8 @@ describe('Lexer tests', () => {
     it('should work with AND and OR as tokens (&&, ||)', () => {
         const tokens = Array.from(new Lexer("&& ||").generate_tokens());
         const expected_tokens = [
-            new Token(TokenType.AND),
-            new Token(TokenType.OR),
+            new Token(TokenType.AND, "&&"),
+            new Token(TokenType.OR, "||"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -520,7 +518,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("example?.thing").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "example"),
-            new Token(TokenType.OPTIONAL_CHAINING_OPERATOR),
+            new Token(TokenType.OPTIONAL_CHAINING_OPERATOR, "?."),
             new Token(TokenType.IDENTIFIER, "thing"),
         ];
         check_tokens(tokens, expected_tokens);
@@ -530,7 +528,7 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("example?::thing").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "example"),
-            new Token(TokenType.OPTIONAL_STATIC_CALL),
+            new Token(TokenType.OPTIONAL_STATIC_CALL, "?::"),
             new Token(TokenType.IDENTIFIER, "thing"),
         ];
         check_tokens(tokens, expected_tokens);
@@ -540,10 +538,10 @@ describe('Lexer tests', () => {
         const tokens = Array.from(new Lexer("a?:number=5").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "a"),
-            new Token(TokenType.QMARK),
-            new Token(TokenType.COLON),
+            new Token(TokenType.QMARK, "?"),
+            new Token(TokenType.COLON, ":"),
             new Token(TokenType.IDENTIFIER, "number"),
-            new Token(TokenType.EQUALS),
+            new Token(TokenType.EQUALS, "="),
             new Token(TokenType.NUMBER, 5),
         ];
         check_tokens(tokens, expected_tokens);

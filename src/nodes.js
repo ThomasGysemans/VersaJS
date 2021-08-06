@@ -1034,7 +1034,7 @@ export class CallNode extends CustomNode {
     }
 
     toString() {
-        return `(call ${this.node_to_call}(${this.arg_nodes.length} args))`;
+        return `(call ${this.node_to_call}(${this.arg_nodes.length} arg${this.arg_nodes.length > 1 ? 's' : ''}))`;
     }
 }
 
@@ -1456,7 +1456,7 @@ export class SwitchNode extends CustomNode {
     }
 
     toString() {
-        return `(switch (${this.primary_value})(${this.cases.length + (this.default_case ? 1 : 0)} case${this.cases.length + (this.default_case ? 1 : 0) > 1 ? 's' : ''}))`;
+        return `(switch ${this.primary_value}(${this.cases.length + (this.default_case ? 1 : 0)} case${this.cases.length + (this.default_case ? 1 : 0) > 1 ? 's' : ''}))`;
     }
 }
 

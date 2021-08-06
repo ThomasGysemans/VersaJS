@@ -29,7 +29,7 @@ export class Position {
 
         if (current_char === "\n") {
             this.ln += 1;
-            this.col = 0;
+            this.col = -1;
         }
 
         return this;

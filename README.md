@@ -58,7 +58,7 @@ end
 
 var state = Status.paused
 
-switch (state):
+switch state:
     case Status.stopped: log("stopped") # log is a temporary native function (same as console.log)
     case Status.paused: log("paused")
     case Status.running: log("running")

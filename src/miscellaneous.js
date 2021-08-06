@@ -21,14 +21,15 @@ export function string_with_arrows(text, pos_start, pos_end) {
         let line = text.substring(index_start, index_end);
         let col_start = i == 0 ? pos_start.col : 0;
         let col_end = i == line_count - 1 ? pos_end.col : line.length - 1;
+        let n = col_end - col_start;
 
         // Append to result
         result += line + '\n';
-        result += ' '.repeat(col_start) + '^'.repeat(col_end - col_start);
+        result += ' '.repeat(col_start) + '^'.repeat(n > 0 ? n : 1);
 
         // Re-calculate indices
         index_start = index_end;
-        index_end = text.substring(index_start + 1).indexOf('\n');
+        index_end = text.indexOf('\n', index_start + 1);
         if (index_end < 0) index_end = text.length;
     }
 

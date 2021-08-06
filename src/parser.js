@@ -103,18 +103,17 @@ export class Parser {
 
         let result = this.statements();
 
-        // not normal
+        // we've reached the end of the parsing
+        // but not the end of the file
         if (this.current_token !== null && this.current_token.type !== TokenType.EOF) {
+            let invalid_token = this.current_token;
             let pos_start = this.current_token.pos_start.copy();
             this.advance();
             let pos_end = this.current_token ? this.current_token.pos_end : pos_start.copy();
-            if (this.current_token) {
-                pos_end = this.current_token.pos_end;
-            } else {
-                pos_end = pos_start.copy();
-                pos_end.advance(null);
-            }
-            throw new InvalidSyntaxError(pos_start, pos_end, "Unexpected end of parsing.");
+            throw new InvalidSyntaxError(
+                pos_start, pos_end,
+                `Unexpected end of parsing: unable to parse '${invalid_token.value}'.`
+            );
         }
 
         return result;
@@ -225,7 +224,7 @@ export class Parser {
             this.advance();
             if (this.current_token.type !== TokenType.LPAREN) {
                 throw new InvalidSyntaxError(
-                    pos_start, this.current_token.pos_end,
+                    this.current_token.pos_start, this.current_token.pos_end,
                     "Expected parenthesis"
                 );
             }
@@ -247,7 +246,7 @@ export class Parser {
         
         if (this.current_token.type !== TokenType.IDENTIFIER) {
             throw new InvalidSyntaxError(
-                pos_start, this.current_token.pos_end,
+                this.current_token.pos_start, this.current_token.pos_end,
                 "Expected an identifier"
             );
         }
@@ -261,7 +260,7 @@ export class Parser {
         if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
-                "Expected a colon ':'"
+                "Expected ':'"
             );
         }
 
@@ -276,7 +275,7 @@ export class Parser {
                 this.ignore_newlines();
                 if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
                     throw new InvalidSyntaxError(
-                        pos_start, this.current_token.pos_end,
+                        this.current_token.pos_start, this.current_token.pos_end,
                         "Expected 'end'"
                     );
                 }
@@ -293,7 +292,7 @@ export class Parser {
 
         if (this.current_token.type !== TokenType.IDENTIFIER) {
             throw new InvalidSyntaxError(
-                pos_start, this.current_token.pos_end,
+                this.current_token.pos_start, this.current_token.pos_end,
                 "Expected an identifier or 'pass'"
             );
         }
@@ -317,7 +316,7 @@ export class Parser {
         if (is_multiline) {
             if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
                 throw new InvalidSyntaxError(
-                    pos_start, this.current_token.pos_end,
+                    this.current_token.pos_start, this.current_token.pos_end,
                     "Expected 'end'"
                 );
             }
@@ -325,7 +324,7 @@ export class Parser {
             // on a single line statement, we expect the end of the enum statement to be a newline or the end of the file
             if (this.current_token.type !== TokenType.EOF && !this.is_newline()) {
                 throw new InvalidSyntaxError(
-                    pos_start, this.current_token.pos_end,
+                    this.current_token.pos_start, this.current_token.pos_end,
                     "Expected newline or ';'"
                 );
             }
@@ -348,7 +347,7 @@ export class Parser {
 
         if (this.current_token.type !== TokenType.IDENTIFIER) {
             throw new InvalidSyntaxError(
-                class_pos_start, this.current_token.pos_end,
+                this.current_token.pos_start, this.current_token.pos_end,
                 "Expected an identifier"
             );
         }
@@ -376,13 +375,10 @@ export class Parser {
 
         if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
-                class_pos_start, this.current_token.pos_end,
-                "Expected ':'"
+                class_name_tok.pos_start, class_name_tok.pos_end,
+                `Expected ':'`
             );
         }
-
-        // todo: might want to change that when the 'string_with_arrows' function is better
-        let class_pos_end = this.current_token.pos_end.copy();
 
         this.advance();
         let is_multiline = this.is_newline();
@@ -450,6 +446,8 @@ export class Parser {
                 );
             }
 
+            let beginning_pos_start = this.current_token.pos_start.copy();
+
             let status = 1;
             if (is_private()) status = 0;
             if (is_protected()) status = 2;
@@ -487,18 +485,17 @@ export class Parser {
                     status,
                     override,
                     static_prop
-                );
+                ).set_pos(beginning_pos_start, func_expr.pos_end);
                 if (is_get) getters.push(node);
                 if (is_set) setters.push(node);
                 if (is_met) methods.push(node);
                 this.advance()
                 this.ignore_newlines();
             } else if (is_property()) { // property
-                let property_pos_start = this.current_token.pos_start.copy();
                 this.advance();
                 if (this.current_token.type !== TokenType.IDENTIFIER) {
                     throw new InvalidSyntaxError(
-                        property_pos_start, this.current_token.pos_end,
+                        this.current_token.pos_start, this.current_token.pos_end,
                         "Expected an identifier"
                     );
                 }
@@ -516,7 +513,7 @@ export class Parser {
                     this.advance();
                     value_node = this.expr();
                 } else {
-                    value_node = new NoneNode(property_pos_start, property_pos_end);
+                    value_node = new NoneNode(beginning_pos_start, property_pos_end);
                 }
                 let property_def_node = new ClassPropertyDefNode(
                     property_name_tok,
@@ -525,7 +522,7 @@ export class Parser {
                     status,
                     override,
                     static_prop
-                );
+                ).set_pos(beginning_pos_start, value_node.pos_end);
                 properties.push(property_def_node);
                 this.advance();
                 this.ignore_newlines();
@@ -543,6 +540,8 @@ export class Parser {
                 "Expected 'end'"
             );
         }
+
+        let class_pos_end = this.current_token.pos_end;
 
         this.advance();
 
@@ -566,7 +565,7 @@ export class Parser {
             
             if (this.current_token.type !== TokenType.IDENTIFIER) {
                 throw new InvalidSyntaxError(
-                    pos_start, this.current_token.pos_end,
+                    this.current_token.pos_start, this.current_token.pos_end,
                     "Expected identifier"
                 );
             }
@@ -595,7 +594,7 @@ export class Parser {
                 if (this.current_token.type !== TokenType.EQUALS) {
                     throw new InvalidSyntaxError(
                         pos_start, this.current_token.pos_end,
-                        "Expected equals"
+                        "You must assign a value to a constant."
                     );
                 }
 
@@ -618,32 +617,38 @@ export class Parser {
         const is_or  = () => this.current_token.matches(TokenType.KEYWORD, "or")  || this.current_token.type === TokenType.OR;
 
         while (this.current_token !== null && (is_and() || is_or())) {
-            if (is_and()) {
+            if (this.current_token.matches(TokenType.KEYWORD, "and")) {
                 this.advance();
-                if (this.current_token.type === TokenType.EQUALS) {
-                    this.advance();
-                    if (!(result instanceof VarAccessNode) && !(result instanceof ListAccessNode) && !(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
-                        throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
-                            "Expected a variable"
-                        );
-                    }
-                    return new AndAssignmentNode(result, this.expr());
-                }
                 result = new AndNode(result, this.comp_expr());
-            } else if (is_or()) {
+            } else if (this.current_token.matches(TokenType.KEYWORD, "or")) {
                 this.advance();
-                if (this.current_token.type === TokenType.EQUALS) {
+                result = new OrNode(result, this.comp_expr());
+            } else if (this.current_token.type === TokenType.OR) { // ||
+                this.advance();
+                if (this.current_token.type === TokenType.EQUALS) { // ||=
                     this.advance();
                     if (!(result instanceof VarAccessNode) && !(result instanceof ListAccessNode) && !(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
                     return new OrAssignmentNode(result, this.expr());
                 }
                 result = new OrNode(result, this.comp_expr());
+            } else if (this.current_token.type === TokenType.AND) { // &&
+                this.advance();
+                if (this.current_token.type === TokenType.EQUALS) { // &&=
+                    this.advance();
+                    if (!(result instanceof VarAccessNode) && !(result instanceof ListAccessNode) && !(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
+                        throw new InvalidSyntaxError(
+                            result.pos_start, result.pos_end,
+                            "Expected a variable"
+                        );
+                    }
+                    return new AndAssignmentNode(result, this.expr());
+                }
+                result = new AndNode(result, this.comp_expr());
             }
         }
 
@@ -695,7 +700,7 @@ export class Parser {
                     this.advance();
                     if (!(result instanceof VarAccessNode) && !(result instanceof ListAccessNode) && !(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -739,7 +744,7 @@ export class Parser {
                         return new AssignPropertyNode(result, new BinaryShiftLeftNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -757,7 +762,7 @@ export class Parser {
                         return new AssignPropertyNode(result, new BinaryShiftRightNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -775,7 +780,7 @@ export class Parser {
                         return new AssignPropertyNode(result, new UnsignedBinaryShiftRightNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -793,7 +798,7 @@ export class Parser {
                         return new AssignPropertyNode(result, new LogicalAndNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -811,7 +816,7 @@ export class Parser {
                         return new AssignPropertyNode(result, new LogicalOrNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -829,7 +834,7 @@ export class Parser {
                         return new AssignPropertyNode(result, new LogicalXORNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -863,7 +868,7 @@ export class Parser {
                         return new AssignPropertyNode(result, new AddNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -881,7 +886,7 @@ export class Parser {
                         return new AssignPropertyNode(result, new SubtractNode(result, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            result.pos_start, this.current_token.pos_end,
+                            result.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -949,7 +954,7 @@ export class Parser {
                         return new AssignPropertyNode(node_a, new MultiplyNode(node_a, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            node_a.pos_start, this.current_token.pos_end,
+                            node_a.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -967,7 +972,7 @@ export class Parser {
                         return new AssignPropertyNode(node_a, new DivideNode(node_a, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            node_a.pos_start, this.current_token.pos_end,
+                            node_a.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -985,7 +990,7 @@ export class Parser {
                         return new AssignPropertyNode(node_a, new PowerNode(node_a, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            node_a.pos_start, this.current_token.pos_end,
+                            node_a.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -1003,7 +1008,7 @@ export class Parser {
                         return new AssignPropertyNode(node_a, new ModuloNode(node_a, this.expr()));
                     } else {
                         throw new InvalidSyntaxError(
-                            node_a.pos_start, this.current_token.pos_end,
+                            node_a.pos_start, result.pos_end,
                             "Expected a variable"
                         );
                     }
@@ -1141,7 +1146,7 @@ export class Parser {
             if (this.current_token.type === TokenType.EQUALS) {
                 if (!(result instanceof CallPropertyNode) && !(result instanceof CallStaticPropertyNode)) {
                     throw new InvalidSyntaxError(
-                        this.current_token.pos_start, this.current_token.pos_end,
+                        result.pos_start, result.pos_end,
                         "Unable to assign a new value for that call.",
                     );
                 }
@@ -1162,7 +1167,7 @@ export class Parser {
             this.advance();
             if (this.current_token.type !== TokenType.IDENTIFIER) {
                 throw new InvalidSyntaxError(
-                    pos_start, this.current_token.pos_end,
+                    this.current_token.pos_start, this.current_token.pos_end,
                     "Expected an identifier"
                 );
             }
@@ -1171,7 +1176,7 @@ export class Parser {
             this.advance();
             if (this.current_token.type !== TokenType.LPAREN) {
                 throw new InvalidSyntaxError(
-                    pos_start, this.current_token.pos_end,
+                    this.current_token.pos_start, this.current_token.pos_end,
                     "Expected '('"
                 );
             }
@@ -1262,9 +1267,11 @@ export class Parser {
             let is_depth = false;
             let is_pushing = false; // is "list[]" ?
             let i = 0;
+            let newest_qmark_tok;
 
             const is_optional = () => {
                 if (this.current_token.type === TokenType.OPTIONAL_CHAINING_OPERATOR) {
+                    newest_qmark_tok = this.current_token;
                     this.advance();
                     return true;
                 }
@@ -1289,9 +1296,10 @@ export class Parser {
 
                 // if "list[]"
                 if (this.current_token.type === TokenType.RSQUARE) {
-                    if (optional) {
+                    if (optional && newest_qmark_tok) {
                         throw new InvalidSyntaxError(
-                            this.current_token.pos_start, this.current_token.pos_end,
+                            // @ts-ignore
+                            newest_qmark_tok.pos_start, newest_qmark_tok.pos_end,
                             "A push to a list cannot be optional"
                         );
                     }
@@ -1310,15 +1318,8 @@ export class Parser {
                     if (this.current_token.type === TokenType.COLON) {
                         expr = null;
                     } else {
-                        try {
-                            expr = this.expr();
-                            this.ignore_newlines();
-                        } catch(e) {
-                            throw new InvalidSyntaxError(
-                                pos_start, index_pos_start,
-                                "Expected expression"
-                            );
-                        }
+                        expr = this.expr();
+                        this.ignore_newlines();
                     }
 
                     if (this.current_token.type === TokenType.COLON) {
@@ -1328,15 +1329,8 @@ export class Parser {
                         if (this.current_token.type === TokenType.RSQUARE) {
                             right_expr = null;
                         } else {
-                            try {
-                                right_expr = this.expr();
-                                this.ignore_newlines();
-                            } catch(e) {
-                                throw new InvalidSyntaxError(
-                                    pos_start, index_pos_start,
-                                    "Expected expression or ']'"
-                                );
-                            }
+                            right_expr = this.expr();
+                            this.ignore_newlines();
                         }
 
                         index_nodes.push(
@@ -1398,6 +1392,7 @@ export class Parser {
         if (this.current_token.type === TokenType.LPAREN || this.current_token.type === TokenType.OPTIONAL_CHAINING_OPERATOR) {
             let is_calling = false;
             let result;
+            let pos_end;
 
             const is_optional = () => {
                 if (this.current_token.type === TokenType.OPTIONAL_CHAINING_OPERATOR) {
@@ -1424,6 +1419,7 @@ export class Parser {
                 this.ignore_newlines();
 
                 if (this.current_token.type === TokenType.RPAREN) {
+                    pos_end = this.current_token.pos_end.copy();
                     this.advance();
                 } else {
                     arg_nodes.push(this.expr());
@@ -1444,10 +1440,12 @@ export class Parser {
                         );
                     }
 
+                    pos_end = this.current_token.pos_end.copy();
+
                     this.advance();
                 }
 
-                result = new CallNode(result ? result : atom, arg_nodes, optional);
+                result = new CallNode(result ? result : atom, arg_nodes, optional).set_pos(result ? result.pos_start : atom.pos_start, pos_end);
             }
 
             return result;
@@ -1460,14 +1458,18 @@ export class Parser {
      * @returns {CustomNode}
      */
     atom() {
-        let pos_start = this.current_token.pos_start.copy();
         let token = this.current_token;
 
         if (token.type === TokenType.LPAREN) {
             this.advance();
+            this.ignore_newlines();
             let result = this.expr();
+            this.ignore_newlines();
             if (this.current_token.type !== TokenType.RPAREN) {
-                throw new InvalidSyntaxError(pos_start, this.current_token.pos_end, "Expected ')'");
+                throw new InvalidSyntaxError(
+                    this.current_token.pos_start, this.current_token.pos_end,
+                    "Expected ')'"
+                );
             }
 
             this.advance();
@@ -1533,12 +1535,7 @@ export class Parser {
             this.advance();
             return new BooleanNode(state, display_name, token.pos_start, token.pos_end);
         } else {
-            this.advance();
-            let pos_end = pos_start.copy();
-            if (this.current_token) {
-                pos_end = this.current_token.pos_end
-            }
-            throw new InvalidSyntaxError(pos_start, pos_end, "Unexpected node");
+            throw new InvalidSyntaxError(token.pos_start, token.pos_end, `Unexpected token '${token.value}'`);
         }
     }
 
@@ -1604,8 +1601,8 @@ export class Parser {
                 if (key instanceof StringNode) {
                     if (this.current_token.type !== TokenType.COLON) {
                         throw new InvalidSyntaxError(
-                            pos_start, this.current_token.pos_end,
-                            "Expected a colon (':')"
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected ':'"
                         );
                     }
 
@@ -1624,7 +1621,7 @@ export class Parser {
                     // because he's trying to do: `{ age: 17 }`
                     if (this.current_token.type === TokenType.COLON) {
                         throw new InvalidSyntaxError(
-                            pos_start, this.current_token.pos_end,
+                            this.current_token.pos_start, this.current_token.pos_end,
                             "Expected a comma, or change the key to a string"
                         );
                     }
@@ -1935,9 +1932,6 @@ export class Parser {
         let pos_start = this.current_token.pos_start.copy();
         this.advance();
 
-        // after the "foreach" keyword,
-        // we start with a loop
-
         let list_node = this.prop();
 
         if (!this.current_token.matches(TokenType.KEYWORD, "as")) {
@@ -1970,7 +1964,7 @@ export class Parser {
         if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
-                "Expected a colon ':'"
+                "Expected ':'"
             );
         }
 
@@ -2141,6 +2135,13 @@ export class Parser {
                     type = this.assign_type(this.current_token.value);
                     this.advance();
                 }
+                // just in case a default value has been assigned
+                if (this.current_token.type === TokenType.EQUALS) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "A rest parameter can be optional but a default value can't be assigned. It's an empty list by default."
+                    );
+                }
                 all_args.push(new ArgumentNode(identifier_token, type, is_rest, is_optional));
                 // there cannot be any more arguments after a rest parameter
                 if (this.current_token.type !== TokenType.RPAREN) {
@@ -2208,15 +2209,7 @@ export class Parser {
                         // which is null by default
                         if (this.current_token.type === TokenType.EQUALS) {
                             this.advance();
-
-                            try {
-                                default_value = this.expr();
-                            } catch(e) {
-                                throw new InvalidSyntaxError(
-                                    this.current_token.pos_start, this.current_token.pos_end,
-                                    "Expected default value for the argument."
-                                );
-                            }
+                            default_value = this.expr();
                         }
 
                         all_args.push(new ArgumentNode(identifier_token, type, is_rest, is_optional, default_value));
@@ -2240,7 +2233,7 @@ export class Parser {
                             if (this.current_token.type === TokenType.EQUALS) {
                                 throw new InvalidSyntaxError(
                                     this.current_token.pos_start, this.current_token.pos_end,
-                                    `In order to assign a default value, you must write: '${is_specified_type ? 'a?: type = 0' : 'a?=0'}'`
+                                    `In order to assign a default value, you must write: '${is_specified_type ? 'a?: type = 0' : '?='}'`
                                 );
                             }
                             all_args.push(new ArgumentNode(identifier_token, type, is_rest, is_optional));
@@ -2386,33 +2379,12 @@ export class Parser {
         let pos_start = this.current_token.pos_start.copy();
         this.advance();
 
-        if (this.current_token.type !== TokenType.LPAREN) {
-            throw new InvalidSyntaxError(
-                this.current_token.pos_start, this.current_token.pos_end,
-                "Expected a parenthesis '('"
-            );
-        }
-
-        this.advance();
-        this.ignore_newlines();
-
         let primary_value = this.expr();
-
-        this.ignore_newlines();
-
-        if (this.current_token.type !== TokenType.RPAREN) {
-            throw new InvalidSyntaxError(
-                this.current_token.pos_start, this.current_token.pos_end,
-                "Expected a parenthesis ')'"
-            );
-        }
-
-        this.advance();
 
         if (this.current_token.type !== TokenType.COLON) {
             throw new InvalidSyntaxError(
                 this.current_token.pos_start, this.current_token.pos_end,
-                "Expected a colon ':'"
+                "Expected ':'"
             );
         }
 
@@ -2449,7 +2421,7 @@ export class Parser {
                 if (this.current_token.type !== TokenType.COLON) {
                     throw new InvalidSyntaxError(
                         this.current_token.pos_start, this.current_token.pos_end,
-                        "Expected a colon ':'"
+                        "Expected ':'"
                     );
                 }
                 this.advance();
@@ -2461,7 +2433,7 @@ export class Parser {
                 if (this.current_token.type !== TokenType.COLON) {
                     throw new InvalidSyntaxError(
                         this.current_token.pos_start, this.current_token.pos_end,
-                        "Expected a colon ':'"
+                        "Expected ':'"
                     );
                 }
                 this.advance();

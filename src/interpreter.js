@@ -3696,7 +3696,7 @@ export class Interpreter {
 
         if (context.symbol_table.doesExist(property_name)) {
             throw new RuntimeError(
-                node.pos_start, node.pos_end,
+                node.property_name_tok.pos_start, node.property_name_tok.pos_end,
                 `Property '${property_name}' already exists.`,
                 context
             );
@@ -3747,7 +3747,7 @@ export class Interpreter {
 
         if (context.symbol_table.doesExist(class_name)) {
             throw new RuntimeError(
-                node.pos_start, node.pos_end,
+                node.class_name_tok.pos_start, node.class_name_tok.pos_end,
                 `Class "${class_name}" already exists`,
                 context
             );
@@ -3784,7 +3784,7 @@ export class Interpreter {
             if (value.self.has(name)) {
                 throw new RuntimeError(
                     pos_start, pos_end,
-                    `The ${type} ${name} already exists.`,
+                    `The ${type} "${name}" already exists.`,
                     exec_ctx
                 );
             }
@@ -3839,7 +3839,7 @@ export class Interpreter {
             }
             method.type_name = "method";
             if (!method_node.override) {
-                check_if_already_exists(method_name, "method", method_node.pos_start, method_node.pos_end);
+                check_if_already_exists(method_name, "method", method_node.func.var_name_tok.pos_start, method_node.func.var_name_tok.pos_end);
             }
             value.self.set(method_name, { static_prop: method_node.static_prop, status: method_status, value: { type: Types.FUNCTION, value: method } });
         }
@@ -3865,7 +3865,7 @@ export class Interpreter {
             let property = res.register(this.visit(property_node, exec_ctx));
             if (res.should_return()) return res;
             if (!property_node.override) {
-                check_if_already_exists(property_name, "property", property_node.pos_start, property_node.pos_end);
+                check_if_already_exists(property_name, "property", property_node.property_name_tok.pos_start, property_node.property_name_tok.pos_end);
             }
             value.self.set(property_name, { static_prop: property_node.static_prop, status: property_status, value: { type: property_node.type ? property_node.type : property.type, value: property } });
         }
@@ -3898,7 +3898,7 @@ export class Interpreter {
             if (res.should_return()) return res;
             getter.type_name = "getter";
             if (!getter_node.override) {
-                check_if_already_exists(getter_name, "getter", getter_node.pos_start, getter_node.pos_end);
+                check_if_already_exists(getter_name, "getter", getter_node.func.var_name_tok.pos_start, getter_node.func.var_name_tok.pos_end);
             }
             value.self.set(getter_name, { static_prop: getter_node.static_prop, status: 1, value: { type: Types.FUNCTION, value: getter } });
         }
@@ -3938,7 +3938,7 @@ export class Interpreter {
             if (res.should_return()) return res;
             setter.type_name = "setter";
             if (!setter_node.override) {
-                check_if_already_exists(setter_name, "setter", setter_node.pos_start, setter_node.pos_end);
+                check_if_already_exists(setter_name, "setter", setter_node.func.var_name_tok.pos_start, setter_node.func.var_name_tok.pos_end);
             }
             value.self.set(setter_name, { static_prop: 0, status: 1, value: { type: Types.FUNCTION, value: setter } });
         }
