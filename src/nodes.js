@@ -1,3 +1,5 @@
+"use strict";
+
 import { Position } from "./position.js";
 import { Token, Types } from "./tokens.js";
 import { Value } from "./values.js";
@@ -874,16 +876,19 @@ export class StringNode extends CustomNode {
 export class IfNode extends CustomNode {
     /**
      * @constructs IfNode
-     * @param {Array} cases The cases [[condition, expr, should_return_null]].
-     * @param {{code: any, should_return_null: boolean}} else_case The else case.
+     * @param {[CustomNode, CustomNode][]} cases The cases [[condition, expr, should_return_null]].
+     * @param {CustomNode} else_case The else case.
+     * @param {boolean} should_return_null Should return null? False for inline loops.
+     * @param {boolean} prevent_null_return Prevents the loop from returning "none" in an HTML structure.
      * @param {Position} pos_start The starting position.
      * @param {Position} pos_end The end position.
      */
-    constructor(cases, else_case, pos_start, pos_end) {
+    constructor(cases, else_case, should_return_null, prevent_null_return, pos_start, pos_end) {
         super();
         this.cases = cases;
         this.else_case = else_case;
-        
+        this.should_return_null = should_return_null;
+        this.prevent_null_return = prevent_null_return;
         this.pos_start = pos_start;
         this.pos_end = pos_end;
     }
@@ -902,8 +907,9 @@ export class ForNode extends CustomNode {
      * @param {CustomNode} step_value_node The step between each iteration.
      * @param {CustomNode} body_node What gets evaluated on every iteration.
      * @param {boolean} should_return_null Should return null? False for inline loops.
+     * @param {boolean} prevent_null_return Prevents the loop from returning "none" in an HTML structure.
      */
-    constructor(var_name_tok, start_value_node, end_value_node, step_value_node, body_node, should_return_null) {
+    constructor(var_name_tok, start_value_node, end_value_node, step_value_node, body_node, should_return_null, prevent_null_return) {
         super();
         this.var_name_tok = var_name_tok;
         this.start_value_node = start_value_node;
@@ -911,6 +917,7 @@ export class ForNode extends CustomNode {
         this.step_value_node = step_value_node;
         this.body_node = body_node;
         this.should_return_null = should_return_null;
+        this.prevent_null_return = prevent_null_return;
 
         this.pos_start = this.var_name_tok.pos_start;
         this.pos_end = this.body_node.pos_end;
@@ -929,16 +936,18 @@ export class ForeachNode extends CustomNode {
      * @param {Token} value_name_tok The variable that will be the value
      * @param {CustomNode} body_node The body of the foreach statement.
      * @param {boolean} should_return_null Should return null? `true` for a multiline statement.
+     * @param {boolean} prevent_null_return Prevents the loop from returning "none" in an HTML structure.
      * @param {Position} pos_start The starting position.
      * @param {Position} pos_end The end position.
      */
-    constructor(list_node, key_name_tok, value_name_tok, body_node, should_return_null, pos_start, pos_end) {
+    constructor(list_node, key_name_tok, value_name_tok, body_node, should_return_null, prevent_null_return, pos_start, pos_end) {
         super();
         this.list_node = list_node;
         this.key_name_tok = key_name_tok;
         this.value_name_tok = value_name_tok;
         this.body_node = body_node;
         this.should_return_null = should_return_null;
+        this.prevent_null_return = prevent_null_return;
         this.pos_start = pos_start;
         this.pos_end = pos_end;
     }
@@ -1154,7 +1163,7 @@ export class CallPropertyNode extends CustomNode {
     }
 
     toString() {
-        return `(prop ${this.node_to_call}${this.is_optional ? '?' : ''}.${this.property_tok.value})`;
+        return `(property ${this.node_to_call}${this.is_optional ? '?' : ''}.${this.property_tok.value})`;
     }
 }
 
@@ -1178,7 +1187,7 @@ export class CallStaticPropertyNode extends CustomNode {
     }
 
     toString() {
-        return `(prop ${this.node_to_call}${this.is_optional ? '?' : ''}::${this.property_tok.value})`;
+        return `(property ${this.node_to_call}${this.is_optional ? '?' : ''}::${this.property_tok.value})`;
     }
 }
 
@@ -1244,7 +1253,7 @@ export class ClassPropertyDefNode extends CustomNode {
 }
 
 /**
- * @classdesc Describes the declaration of a function.
+ * @classdesc Describes the declaration of a method.
  */
 export class ClassMethodDefNode extends CustomNode {
     /**
@@ -1288,8 +1297,8 @@ export class ClassDefNode extends CustomNode {
      * @param {Array<ClassMethodDefNode>} methods All the methods of the class.
      * @param {Array<ClassMethodDefNode>} getters All the getters of the class.
      * @param {Array<ClassMethodDefNode>} setters All the setters of the class.
-     * @param {Position} pos_start The starting position of the declaration (first line).
-     * @param {Position} pos_end The end position of the declaration (first line).
+     * @param {Position} pos_start The starting position of the declaration.
+     * @param {Position} pos_end The end position of the declaration.
      */
     constructor(class_name_tok, parent_class_tok, properties, methods, getters, setters, pos_start, pos_end) {
         super();
@@ -1305,6 +1314,84 @@ export class ClassDefNode extends CustomNode {
 
     toString() {
         return `(Class ${this.class_name_tok.value})`;
+    }
+}
+
+/**
+ * @classdesc Describes the declaration of a tag.
+ */
+export class TagDefNode extends CustomNode {
+    /**
+     * @constructs TagDefNode
+     * @param {Token} tag_name_tok The identifier that corresponds to the name of the tag.
+     * @param {Array<TagPropDefNode>} props All the props of the tag.
+     * @param {Array<TagStateDefNode>} states All the state variables of the tag.
+     * @param {Array<FuncDefNode>} methods All the methods of the tag.
+     * @param {Position} pos_start The starting position of the declaration.
+     * @param {Position} pos_end The end position of the declaration.
+     */
+    constructor(tag_name_tok, props, states, methods, pos_start, pos_end) {
+        super();
+        this.tag_name_tok = tag_name_tok;
+        this.props = props;
+        this.states = states;
+        this.methods = methods;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `(tag ${this.tag_name_tok.value})`;
+    }
+}
+
+/**
+ * @classdesc Describes the declaration of a prop in a tag.
+ */
+export class TagPropDefNode extends CustomNode {
+    /**
+     * @constructs TagPropDefNode
+     * @param {Token} property_name_tok The name of the variable.
+     * @param {CustomNode} value_node The value of the variable.
+     * @param {string|null} type The type of the variable.
+     * @param {number} optional Is the prop optional? 1 for true.
+     */
+    constructor(property_name_tok, value_node, type, optional) {
+        super();
+        this.property_name_tok = property_name_tok;
+        this.value_node = value_node;
+        this.type = type;
+        this.optional = optional;
+        this.pos_start = this.property_name_tok.pos_start;
+        this.pos_end = this.value_node.pos_end;
+    }
+
+    toString() {
+        return `(prop ${this.property_name_tok.value}${this.type && this.type !== Types.ANY ? ': ' + this.type : ''} = ${this.value_node})`;
+    }
+}
+
+/**
+ * @classdesc Describes the declaration of a state variable in a tag.
+ */
+export class TagStateDefNode extends CustomNode {
+    /**
+     * @constructs TagStateDefNode
+     * @param {Token} property_name_tok The name of the variable.
+     * @param {CustomNode} value_node The value of the variable.
+     * @param {string|null} type The type of the variable.
+     */
+    constructor(property_name_tok, value_node, type) {
+        super();
+        this.property_name_tok = property_name_tok;
+        this.value_node = value_node;
+        this.type = type;
+        this.pos_start = this.property_name_tok.pos_start;
+        this.pos_end = this.value_node.pos_end;
+    }
+
+    toString() {
+        return `(state ${this.property_name_tok.value}${this.type && this.type !== Types.ANY ? ': ' + this.type : ''} = ${this.value_node})`;
     }
 }
 
@@ -1529,5 +1616,32 @@ export class InstanceofNode extends CustomNode {
 
     toString() {
         return `(${this.node_a} instanceof ${this.class_name_tok.value})`;
+    }
+}
+
+export class HtmlNode extends CustomNode {
+    /**
+     * @constructs HtmlNode
+     * @param {Token|null} tagname_tok The name of the tag. Null for fragment.
+     * @param {string[]} classes The classes attached to that tag.
+     * @param {string|null} id The id attached to that tag. Null because it's optional.
+     * @param {[Token, CustomNode][]} attributes The attributes attached to that tag.
+     * @param {CustomNode[]} children The children elements. Might be other HtmlNodes or any other CustomNode
+     * @param {Position} pos_start The starting position
+     * @param {Position} pos_end The end position.
+     */
+    constructor(tagname_tok, classes, id, attributes, children, pos_start, pos_end) {
+        super();
+        this.tagname_tok = tagname_tok;
+        this.classes = classes;
+        this.id = id;
+        this.attributes = attributes;
+        this.children = children;
+        this.pos_start = pos_start;
+        this.pos_end = pos_end;
+    }
+
+    toString() {
+        return `<${this.tagname_tok?.value ?? ''}${this.classes.map((v) => '.' + v)}${this.id ? '#' + this.id : ''} (${this.attributes.length} attribute${this.attributes.length > 1 ? 's' : ''})> (${this.children.length} ${this.children.length > 1 ? 'children' : 'child'})`;
     }
 }

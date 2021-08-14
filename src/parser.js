@@ -1,5 +1,7 @@
+"use strict";
+
 import { TokenType, Token, Types } from "./tokens.js";
-import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, ListArgumentNode, TypeofNode, InstanceofNode } from "./nodes.js";
+import { CustomNode, AddNode, DivideNode, MinusNode, ModuloNode, MultiplyNode, NumberNode, PlusNode, PowerNode, SubtractNode, VarAssignNode, VarAccessNode, VarModifyNode, OrNode, NotNode, AndNode, EqualsNode, LessThanNode, LessThanOrEqualNode, GreaterThanNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryElementNode, DictionnaryNode, ForeachNode, ClassPropertyDefNode, ClassMethodDefNode, ClassDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, ArgumentNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, ListArgumentNode, TypeofNode, InstanceofNode, TagStateDefNode, TagPropDefNode, TagDefNode, HtmlNode } from "./nodes.js";
 import { InvalidSyntaxError } from "./Exceptions.js";
 import { is_in } from "./miscellaneous.js";
 import { Position } from "./position.js";
@@ -62,6 +64,19 @@ export class Parser {
         return this.current_token.type === TokenType.NEWLINE || this.current_token.type === TokenType.SEMICOLON;
     }
 
+    is_indentation() {
+        return this.current_token.type === TokenType.INDENTATION;
+    }
+
+    count_indentation() {
+        let count = 0;
+        while (this.is_indentation()) {
+            count++;
+            this.advance();
+        }
+        return count;
+    }
+
     // we just want to avoid the newlines (\n)
     // but not the semicolons.
     // That allows us to make the difference between the wanted syntax of the user
@@ -73,27 +88,34 @@ export class Parser {
     // return
     //     (5 + 5)
     // ```
-    ignore_newlines() {
-        while (this.current_token.type === TokenType.NEWLINE) {
-            this.advance();
+    ignore_newlines(ignore_indentation=true) {
+        while (true) {
+            if (this.current_token.type === TokenType.NEWLINE) {
+                this.advance();
+            } else if (ignore_indentation && this.current_token.type === TokenType.INDENTATION) {
+                this.advance();
+            } else {
+                break;
+            }
+        }
+    }
+
+    ignore_indentation() {
+        while (true) {
+            if (this.current_token.type === TokenType.INDENTATION) {
+                this.advance();
+            } else {
+                break;
+            }
         }
     }
 
     /**
-     * Assigns a type
+     * Assigns a type.
      * @param {string} token_value The value of the token following ':'
      */
     assign_type(token_value) {
-        if (token_value === Types.ANY) return Types.ANY;
-        if (token_value === Types.BOOLEAN) return Types.BOOLEAN;
-        if (token_value === Types.DICT) return Types.DICT;
-        if (token_value === Types.DYNAMIC) return Types.DYNAMIC;
-        if (token_value === Types.FUNCTION) return Types.FUNCTION;
-        if (token_value === Types.LIST) return Types.LIST;
-        if (token_value === Types.NUMBER) return Types.NUMBER;
-        if (token_value === Types.OBJECT) return Types.OBJECT;
-        if (token_value === Types.STRING) return Types.STRING;
-        return token_value; // a class
+        return token_value;
     }
 
     parse() {
@@ -123,9 +145,7 @@ export class Parser {
         let statements = [];
         let pos_start = this.current_token.pos_start.copy();
 
-        while (this.is_newline()) {
-            this.advance();
-        }
+        this.ignore_newlines();
 
         // the file is empty
         if (this.current_token.type === TokenType.EOF) {
@@ -142,6 +162,7 @@ export class Parser {
                 let newline_count = 0;
                 while (this.is_newline()) {
                     this.advance();
+                    this.ignore_indentation();
                     newline_count++;
                 }
 
@@ -196,7 +217,6 @@ export class Parser {
 
         if (this.current_token.matches(TokenType.KEYWORD, "return")) {
             this.advance();
-            this.ignore_newlines();
 
             let expr = null;
             if (!this.is_newline() && this.current_token.type !== TokenType.EOF) expr = this.expr();
@@ -219,6 +239,11 @@ export class Parser {
             return class_expr;
         }
 
+        if (this.current_token.matches(TokenType.KEYWORD, "tag")) {
+            let tag_expr = this.tag_expr();
+            return tag_expr;
+        }
+
         if (this.current_token.matches(TokenType.KEYWORD, "super")) {
             let pos_start = this.current_token.pos_start.copy();
             this.advance();
@@ -238,6 +263,172 @@ export class Parser {
         }
 
         return this.expr();
+    }
+
+    tag_expr() {
+        let pos_start = this.current_token.pos_start.copy();
+        this.advance();
+
+        if (this.current_token.type !== TokenType.IDENTIFIER) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected an identifier"
+            );
+        }
+        
+        let tag_tok = this.current_token;
+        let props = [];
+        let states = [];
+        let methods = [];
+        
+        this.advance();
+
+        if (this.current_token.type !== TokenType.COLON) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected ':'"
+            );
+        }
+
+        this.advance();
+        let is_multiline = this.is_newline();
+        if (is_multiline) this.ignore_newlines();
+
+        // `prop Test: end` I want to write "pass" in this case
+        if (this.current_token.matches(TokenType.KEYWORD, "end")) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Use 'pass' to write an empty class"
+            );
+        }
+
+        if (this.current_token.matches(TokenType.KEYWORD, "pass")) {
+            let pos_end = this.current_token.pos_end.copy();
+            this.advance();
+            if (is_multiline) {
+                this.ignore_newlines();
+                if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected 'end'"
+                    );
+                }
+                pos_end = this.current_token.pos_end.copy();
+                this.advance();
+            }
+            return new TagDefNode(
+                tag_tok,
+                props,
+                states,
+                methods,
+                pos_start,
+                pos_end
+            );
+        }
+
+        const is_state  = () => this.current_token.matches(TokenType.KEYWORD, "state");
+        const is_prop   = () => this.current_token.matches(TokenType.KEYWORD, "prop");
+        const is_method = () => this.current_token.matches(TokenType.KEYWORD, "method");
+
+        while (
+            is_state() ||
+            is_prop() ||
+            is_method()
+        ) {
+            let beginning_pos_start = this.current_token.pos_start.copy();
+            let prop = is_prop();
+            let state = is_state();
+
+            if (state || prop) {
+                this.advance();
+                let optional = 0;
+                if (this.current_token.type === TokenType.QMARK) {
+                    if (state) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Cannot declare an optional variable."
+                        );
+                    }
+                    optional = 1;
+                    this.advance();
+                }
+                if (this.current_token.type !== TokenType.IDENTIFIER) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected an identifier"
+                    );
+                }
+                let property_name_tok = this.current_token;
+                let property_type = null;
+                this.advance();
+                if (this.current_token.type === TokenType.COLON) {
+                    this.advance();
+                    property_type = this.assign_type(this.current_token.value);
+                    this.advance();
+                }
+                let value_node;
+                if (this.current_token.type === TokenType.EQUALS) {
+                    this.advance();
+                    value_node = this.expr();
+                } else {
+                    value_node = new NoneNode(beginning_pos_start, property_name_tok.pos_end);
+                }
+                if (state) {
+                    states.push(
+                        new TagStateDefNode(
+                            property_name_tok,
+                            value_node,
+                            property_type
+                        ).set_pos(beginning_pos_start, value_node.pos_end)
+                    );
+                } else if (prop) {
+                    props.push(
+                        new TagPropDefNode(
+                            property_name_tok,
+                            value_node,
+                            property_type,
+                            optional
+                        ).set_pos(beginning_pos_start, value_node.pos_end)
+                    );
+                }
+                this.advance();
+                this.ignore_newlines();
+            } else if (is_method()) {
+                let pos_start = this.current_token.pos_start.copy();
+                let pos_end = this.current_token.pos_end.copy();
+                let func_expr = this.func_expr();
+                if (func_expr.var_name_tok === null) {
+                    throw new InvalidSyntaxError(
+                        pos_start, pos_end,
+                        "A method cannot be anonymous"
+                    );
+                }
+                func_expr.set_pos(beginning_pos_start, func_expr.pos_end);
+                methods.push(func_expr);
+                this.advance()
+                this.ignore_newlines();
+            }
+        }
+
+        if (!this.current_token.matches(TokenType.KEYWORD, "end")) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected 'end'"
+            );
+        }
+
+        let tag_pos_end = this.current_token.pos_end;
+
+        this.advance();
+
+        return new TagDefNode(
+            tag_tok,
+            props,
+            states,
+            methods,
+            pos_start,
+            tag_pos_end
+        );
     }
 
     enum_expr() {
@@ -611,6 +802,345 @@ export class Parser {
             return new DeleteNode(node_to_delete, pos_start, node_to_delete.pos_end);
         }
 
+        return this.html_expr();
+    }
+    
+    html_expr() {
+        if (this.current_token.type === TokenType.LCHEVRON) {
+            let pos_start = this.current_token.pos_start.copy();
+            this.advance();
+
+            const parse_html = () => {
+                let tagname_tok = null;
+                let classes = [];
+                let id = null;
+                let attributes = [];
+                let beginning_pos_start = this.current_token.pos_start.copy();
+                let pos_end = null;
+
+                // we are after "<"
+                if (this.current_token.type === TokenType.IDENTIFIER) {
+                    tagname_tok = this.current_token;
+                    this.advance();
+
+                    let potential_tokens = [
+                        TokenType.HASH,
+                        TokenType.DOT
+                    ];
+
+                    while (is_in(this.current_token.type, potential_tokens)) {
+                        if (this.current_token.type === TokenType.DOT) {
+                            this.advance();
+                            let classname = this.current_token.value;
+                            if (is_in(classname, classes)) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "This class has already been declared."
+                                );
+                            }
+                            classes.push(classname);
+                            this.advance();
+                        } else {
+                            if (id) {
+                                // we have already declared an ID
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "An ID has already been declared."
+                                );
+                            }
+                            this.advance();
+                            id = this.current_token.value;
+                            this.advance();
+                        }
+                    }
+                    
+                    while (this.current_token.type === TokenType.IDENTIFIER) {
+                        let attr_tok = this.current_token;
+                        let value_node;
+                        this.advance();
+                        if (this.current_token.type === TokenType.EQUALS) {
+                            this.advance();
+                            if (this.current_token.type === TokenType.LBRACK) {
+                                this.advance();
+                                value_node = this.cond_expr();
+                                if (this.current_token.type !== TokenType.RBRACK) {
+                                    throw new InvalidSyntaxError(
+                                        this.current_token.pos_start, this.current_token.pos_end,
+                                        "Expected '}'"
+                                    );
+                                }
+                                this.advance();
+                            } else {
+                                if (this.current_token.type !== TokenType.STRING) {
+                                    throw new InvalidSyntaxError(
+                                        this.current_token.pos_start, this.current_token.pos_end,
+                                        "For more readability and consistency, you must use brackets {} around your value, or a simple string"
+                                    );
+                                }
+                                value_node = this.atom();
+                            }
+                        } else {
+                            value_node = new StringNode(attr_tok); // <button disabled> === <button disabled="disabled">
+                        }
+                        attributes.push([attr_tok, value_node]);
+                    }
+
+                    if (this.current_token.type !== TokenType.RCHEVRON) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected '>'"
+                        );
+                    }
+
+                    pos_end = this.current_token.pos_end.copy();
+
+                    this.advance();
+                } else {
+                    if (this.current_token.type !== TokenType.RCHEVRON) {
+                        throw new InvalidSyntaxError(
+                            this.current_token.pos_start, this.current_token.pos_end,
+                            "Expected identifier or '>'"
+                        );
+                    }
+                    pos_end = this.current_token.pos_end.copy();
+                    this.advance();
+                }
+
+                return new HtmlNode(
+                    tagname_tok,
+                    classes,
+                    id,
+                    attributes,
+                    [],
+                    beginning_pos_start,
+                    pos_end
+                );
+            };
+
+            if (this.current_token.type === TokenType.IDENTIFIER) { // oneline
+                let element = parse_html();
+                if (!this.is_newline() && this.current_token.type !== TokenType.EOF) {
+                    let child = this.cond_expr();
+                    element.children.push(child);
+                }
+                return element;
+            } else { // multiline
+                if (this.current_token.type !== TokenType.RCHEVRON) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected identifier or '>'"
+                    );
+                }
+                this.advance();
+                
+                if (!this.is_newline()) {
+                    throw new InvalidSyntaxError(
+                        this.current_token.pos_start, this.current_token.pos_end,
+                        "Expected a newline after an opening fragment"
+                    );
+                }
+
+                this.ignore_newlines(false);
+
+                // count_indentation also ignores indentation
+                let starting_indentation = this.count_indentation();
+                let children = [];
+                let pos_end = null;
+
+                /** @type {Array<{element:any, level: number}} */
+                let all_elements = [];
+                let previous_indentation = starting_indentation;
+                let idx = 0;
+                
+                /** @type {Array<{element: any, idx: number}>} */
+                const mainElements = [];
+
+                const is_if      = () => this.current_token.matches(TokenType.KEYWORD, "if");
+                const is_for     = () => this.current_token.matches(TokenType.KEYWORD, "for");
+                const is_foreach = () => this.current_token.matches(TokenType.KEYWORD, "foreach");
+                const is_lbrack  = () => this.current_token.type === TokenType.LBRACK;
+
+                while (
+                    this.current_token.type === TokenType.LCHEVRON ||
+                    is_if() ||
+                    is_for() ||
+                    is_foreach() ||
+                    is_lbrack()
+                ) {
+                    let is_element = this.current_token.type === TokenType.LCHEVRON;
+                    if (is_element) {
+                        this.advance();
+                        if (this.current_token.type === TokenType.SLASH) {
+                            this.advance();
+                            if (this.current_token.type !== TokenType.RCHEVRON) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "Expected '>'"
+                                );
+                            }
+                            pos_end = this.current_token.pos_end;
+                            this.advance();
+                            break;
+                        }
+                        let tag = parse_html();
+                        all_elements.push({
+                            element: tag,
+                            level: previous_indentation
+                        });
+                        if (previous_indentation === starting_indentation) {
+                            mainElements.push({
+                                element: tag,
+                                idx
+                            });
+                        }
+                    } else if (
+                        is_if() ||
+                        is_for() ||
+                        is_foreach()
+                    ) {
+                        let statement;
+                        if (is_if()) statement = this.if_expr(true);
+                        if (is_for()) statement = this.for_expr(true);
+                        if (is_foreach()) statement = this.foreach_expr(true);
+                        all_elements.push({
+                            element: statement,
+                            level: previous_indentation
+                        });
+                        if (previous_indentation === starting_indentation) {
+                            mainElements.push({
+                                element: statement,
+                                idx
+                            });
+                        }
+                    } else if (is_lbrack()) {
+                        this.advance();
+                        let value_node = this.cond_expr();
+                        if (this.current_token.type !== TokenType.RBRACK) {
+                            throw new InvalidSyntaxError(
+                                this.current_token.pos_start, this.current_token.pos_end,
+                                "Expected '}'"
+                            );
+                        }
+                        this.advance();
+                        if (!this.is_newline()) {
+                            throw new InvalidSyntaxError(
+                                this.current_token.pos_start, this.current_token.pos_end,
+                                "Expected a newline"
+                            );
+                        }
+                        all_elements.push({
+                            element: value_node,
+                            level: previous_indentation
+                        });
+                        if (previous_indentation === starting_indentation) {
+                            mainElements.push({
+                                element: value_node,
+                                idx
+                            });
+                        }
+                    }
+                    if (is_element && !this.is_newline()) { // <div> "Content"
+                        let value_node;
+                        if (this.current_token.type === TokenType.LBRACK) { // <div> {variable}
+                            this.advance();
+                            value_node = this.cond_expr();
+                            if (this.current_token.type !== TokenType.RBRACK) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "Expected '}'"
+                                );
+                            }
+                            this.advance();
+                        } else {
+                            if (this.current_token.type !== TokenType.STRING) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "For more readability and consistency, you must use brackets {} around your value, or a simple string"
+                                );
+                            }
+                            value_node = this.atom();
+                        }
+                        if (!this.is_newline()) {
+                            throw new InvalidSyntaxError(
+                                this.current_token.pos_start, this.current_token.pos_end,
+                                "Expected a newline"
+                            );
+                        }
+                        all_elements.push({
+                            element: value_node,
+                            level: previous_indentation + 1 // + 1 because it's a child of the current indentation
+                        });
+                        idx++; // we add a new child, a child that counts as a new element in the tree
+                    }
+                    // prepare the following element
+                    this.ignore_newlines(false);
+                    previous_indentation = this.count_indentation();
+                    idx++;
+                }
+
+                const getDeepestIndex = (arr) => {
+                    let max = arr[0].level;
+                    let index = 0;
+                    for (let i = 0; i < arr.length; i++) {
+                        if (arr[i].level >= max) { // >= because we want the last one
+                            max = arr[i].level;
+                            index = i;
+                        }
+                    }
+                    return index;
+                };
+
+                const getNearestIndex = (from, lvl, arr) => {
+                    for (let i = from; i >= 0; i--) {
+                        if (arr[i].level === (lvl - 1)) {
+                            return i;
+                        }
+                    }
+                    return null;
+                };
+
+                for (let i = 0; i < mainElements.length; i++) {
+                    let mainElement = mainElements[i];
+                    let childrenElements = all_elements.slice(mainElement.idx + 1, mainElements[i + 1]?.idx);
+
+                    while (childrenElements.length > 0) {
+                        let index_deepest = getDeepestIndex(childrenElements);
+                        let deepest = childrenElements[index_deepest];
+                        let nearest_index = getNearestIndex(index_deepest, deepest.level, childrenElements);
+                        let nearest = nearest_index !== null ? childrenElements[nearest_index] : all_elements[mainElement.idx];
+                        
+                        if (!(nearest.element instanceof HtmlNode)) {
+                            throw new InvalidSyntaxError(
+                                nearest.element.pos_start, nearest.element.pos_end,
+                                "This element cannot be interpreted as an html node during the parsing. Change the structure of your html."
+                            );
+                        }
+
+                        nearest.element.children.unshift(deepest.element); // nearest will become the mainElement
+                        childrenElements.splice(index_deepest, 1);
+                    }
+
+                    children.push(mainElement.element);
+                }
+
+                let node = new HtmlNode(
+                    null, // because this is a fragment
+                    [],
+                    null,
+                    [],
+                    children,
+                    pos_start,
+                    pos_end
+                );
+
+                return node;
+            }
+        }
+
+        return this.cond_expr();
+    }
+
+    cond_expr() {
         let result = this.comp_expr();
         
         const is_and = () => this.current_token.matches(TokenType.KEYWORD, "and") || this.current_token.type === TokenType.AND;
@@ -936,7 +1466,7 @@ export class Parser {
         let result;
         let possible_tokens = [
             TokenType.MULTIPLY,
-            TokenType.DIVIDE,
+            TokenType.SLASH,
             TokenType.POWER,
             TokenType.MODULO
         ];
@@ -960,7 +1490,7 @@ export class Parser {
                     }
                 }
                 result = new MultiplyNode(result ? result : node_a, this.factor());
-            } else if (this.current_token.type === TokenType.DIVIDE) {
+            } else if (this.current_token.type === TokenType.SLASH) {
                 this.advance();
                 if (this.current_token.type === TokenType.EQUALS) { // /=
                     this.advance();
@@ -1674,28 +2204,37 @@ export class Parser {
         );
     }
 
-    if_expr() {
+    if_expr(prevent_null_return=false) {
         const pos_start = this.current_token.pos_start.copy();
         const all_cases = this.if_expr_cases("if");
         const cases = all_cases.cases;
         const else_case = all_cases.else_case;
+        const should_return_null = all_cases.should_return_null;
         let pos_end;
-        if (else_case.code) {
-            pos_end = else_case.code.pos_end;
+        if (else_case) {
+            pos_end = else_case.pos_end;
         } else {
-            pos_end = cases[cases.length - 1][0].pos_end;
+            pos_end = cases[cases.length - 1][1].pos_end;
         }
-        return new IfNode(cases, else_case, pos_start, pos_end);
+        return new IfNode(
+            cases,
+            else_case,
+            should_return_null,
+            prevent_null_return,
+            pos_start,
+            pos_end
+        );
     }
 
     /**
      * Gets the cases of a condition, including: "if", "elif" and "else"
      * @param {string} case_keyword The keyword for a case ("if" or "elif").
-     * @returns {{cases, else_case: {code, should_return_null: boolean}}}
+     * @returns {{cases: [CustomNode, CustomNode][], else_case: CustomNode, should_return_null: boolean}}
      */
     if_expr_cases(case_keyword) {
         let cases = [];
-        let else_case = { code: null, should_return_null: false };
+        let else_case = null;
+        let should_return_null = false;
 
         // we must have a "if" (or "elif")
 
@@ -1730,7 +2269,8 @@ export class Parser {
             // true = should return null?
             // before, we returned the evaluated expr
             // now if we are on several lines, we don't want to return anything
-            cases.push([condition, statements, true]);
+            cases.push([condition, statements]);
+            should_return_null = true;
 
             if (this.current_token.matches(TokenType.KEYWORD, "end")) {
                 this.advance();
@@ -1747,7 +2287,8 @@ export class Parser {
         } else {
             // inline condition
             let statement = this.statement();
-            cases.push([condition, statement, false]); // we want the return value of a if statement (that's why false)
+            cases.push([condition, statement]); // we want the return value of a if statement (that's why false)
+            should_return_null = false;
 
             const all_cases = this.if_expr_elif_or_else();
             let new_cases = all_cases.cases;
@@ -1758,31 +2299,33 @@ export class Parser {
             }
         }
 
-        return { cases, else_case };
+        return { cases, else_case, should_return_null };
     }
 
     /**
      * Checks if there is `elif` cases or an `else` case
-     * @returns {{cases, else_case: {code, should_return_null: boolean}}}
+     * @returns {{cases: [CustomNode, CustomNode][], else_case: CustomNode, should_return_null: boolean}}
      */
     if_expr_elif_or_else() {
         let cases = [];
-        let else_case = { code: null, should_return_null: false };
+        let else_case = null;
+        let should_return_null = false;
 
         if (this.current_token.matches(TokenType.KEYWORD, "elif")) {
             const all_cases = this.if_expr_elif();
             cases = all_cases.cases;
             else_case = all_cases.else_case;
+            should_return_null = all_cases.should_return_null;
         } else {
             else_case = this.if_expr_else();
         }
 
-        return { cases, else_case };
+        return { cases, else_case, should_return_null };
     }
 
     /**
      * Checks if there is an `elif` case.
-     * @returns {{cases, else_case: {code, should_return_null: boolean}}}
+     * @returns {{cases: [CustomNode, CustomNode][], else_case: CustomNode, should_return_null: boolean}}
      */
     if_expr_elif() {
         return this.if_expr_cases("elif"); // same as "if"
@@ -1790,10 +2333,10 @@ export class Parser {
 
     /**
      * Checks if there is an `else` case.
-     * @returns {{code, should_return_null: boolean}}
+     * @returns {CustomNode}
      */
     if_expr_else() {
-        let else_case = { code: null, should_return_null: false };
+        let else_case = null;
         
         if (this.current_token.matches(TokenType.KEYWORD, "else")) {
             this.advance();
@@ -1811,7 +2354,7 @@ export class Parser {
                 this.advance();
                 
                 let statements = this.statements();
-                else_case = { code: statements, should_return_null: true };
+                else_case = statements;
 
                 if (this.current_token.matches(TokenType.KEYWORD, "end")) {
                     this.advance();
@@ -1823,14 +2366,14 @@ export class Parser {
                 }
             } else {
                 let statement = this.statement();
-                else_case = { code: statement, should_return_null: false };
+                else_case = statement;
             }
         }
 
         return else_case;
     }
 
-    for_expr() {
+    for_expr(prevent_null_return=false) {
         this.advance();
 
         // after the "for" keyword,
@@ -1909,7 +2452,8 @@ export class Parser {
                 end_value,
                 step_value,
                 extended_body,
-                true // should return null
+                !prevent_null_return, // true == should return null
+                prevent_null_return
             );
         }
 
@@ -1924,11 +2468,12 @@ export class Parser {
             end_value,
             step_value,
             body,
+            false,
             false
         );
     }
 
-    foreach_expr() {
+    foreach_expr(prevent_null_return=false) {
         let pos_start = this.current_token.pos_start.copy();
         this.advance();
 
@@ -1989,7 +2534,8 @@ export class Parser {
                 value_name_tok ? var_name_tok : null,
                 value_name_tok ? value_name_tok : var_name_tok,
                 extended_body,
-                true,
+                !prevent_null_return,
+                prevent_null_return,
                 pos_start,
                 extended_body.pos_end
             );
@@ -2002,6 +2548,7 @@ export class Parser {
             value_name_tok ? var_name_tok : null,
             value_name_tok ? value_name_tok : var_name_tok,
             body,
+            false,
             false,
             pos_start,
             body.pos_end

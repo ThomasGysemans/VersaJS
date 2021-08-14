@@ -1,1 +1,19 @@
-"yo".yo
+tag Counter:
+    prop? start: number = 0
+    prop? max = none
+    state counter: number = self.start
+
+    method render():
+        return <>
+            <span> {self.count}
+            if self.max && self.start >= self.max:
+                <span> "Maximum reached"
+            else:
+                <button> "Click"
+            end
+        </>
+    end
+end
+
+var counter = <Counter start={5}>
+log(counter)

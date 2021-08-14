@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, MinusNode, NullishAssignmentNode, AndAssignmentNode, OrAssignmentNode, TypeofNode, InstanceofNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, MinusNode, NullishAssignmentNode, AndAssignmentNode, OrAssignmentNode, TypeofNode, InstanceofNode, TagDefNode, HtmlNode, IfNode } from '../nodes.js';
 import { InvalidSyntaxError } from '../Exceptions.js';
 
 // npm run test ./test/parser.test.js
@@ -11,49 +11,42 @@ describe('Parser tests', () => {
         const tokens = new Lexer("100_000.2").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof NumberNode);
-        // new NumberNode(new Token(TokenType.NUMBER, 100_000.2))
     });
 
     it('should work with an addition', () => {
         const tokens = new Lexer("27 + 14 + 8").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof AddNode);
-        // new AddNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14)))
     });
 
     it('should work with a subtraction', () => {
         const tokens = new Lexer("27 - 14").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof SubtractNode);
-        // new SubtractNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14)))
     });
 
     it('should work with a multiplication', () => {
         const tokens = new Lexer("27 * 14").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof MultiplyNode);
-        // new MultiplyNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14)))
     });
 
     it('should work with a division', () => {
         const tokens = new Lexer("27 / 14").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof DivideNode);
-        // new DivideNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14)))
     });
 
     it('should work with a modulo', () => {
         const tokens = new Lexer("27 % 14").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof ModuloNode);
-        // new ModuloNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14)))
     });
 
     it('should work with a power', () => {
         const tokens = new Lexer("27 ** 14").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof PowerNode);
-        // new PowerNode(new NumberNode(new Token(TokenType.NUMBER, 27)), new NumberNode(new Token(TokenType.NUMBER, 14)))
     });
 
     it('should work with a power (list)', () => {
@@ -70,36 +63,12 @@ describe('Parser tests', () => {
             assert.deepStrictEqual(true, node.element_nodes[0].node_a instanceof AddNode);
             assert.deepStrictEqual(true, node.element_nodes[0].node_b instanceof AddNode);
         }
-        /* new PowerNode(
-            new AddNode(
-                new NumberNode(new Token(TokenType.NUMBER, 1)),
-                new NumberNode(new Token(TokenType.NUMBER, 2))
-            ),
-            new AddNode(
-                new NumberNode(new Token(TokenType.NUMBER, 1)),
-                new NumberNode(new Token(TokenType.NUMBER, 2))
-            ),
-        )
-        */
     });
 
     it('should work with a full expression', () => {
         const tokens = new Lexer("27 + (43 / 36 - 48) * 51").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof AddNode);
-        /* new AddNode(new NumberNode(new Token(TokenType.NUMBER, 27)),
-            new MultiplyNode(
-                new SubtractNode(
-                    new DivideNode(
-                        new NumberNode(new Token(TokenType.NUMBER, 10)),
-                        new NumberNode(new Token(TokenType.NUMBER, 2))
-                    ),
-                    new NumberNode(new Token(TokenType.NUMBER, 48))
-                ),
-                new NumberNode(new Token(TokenType.NUMBER, 51))
-            )
-        )
-        */
     });
 
     it('should return a variable declaration', () => {
@@ -241,23 +210,21 @@ describe('Parser tests', () => {
     });
 
     it('should work with a property call (property)', () => {
-        const tokens = new Lexer("example.prop").generate_tokens();
+        const tokens = new Lexer("example.prop_").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallPropertyNode);
     });
 
     it('should work with a property call (method)', () => {
-        const tokens = new Lexer("example.prop()").generate_tokens();
+        const tokens = new Lexer("example.prop_()").generate_tokens();
         const node = new Parser(tokens).parse();
-        // assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallNode); // will call example.prop
-        // assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallPropertyNode);
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallMethodNode);
         assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallNode);
         assert.deepStrictEqual(true, node.element_nodes[0].origin instanceof VarAccessNode);
     });
 
     it('should work with a property call (method and property)', () => {
-        const tokens = new Lexer("example.prop().another").generate_tokens();
+        const tokens = new Lexer("example.prop_().another").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallPropertyNode);
         assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallMethodNode);
@@ -266,7 +233,7 @@ describe('Parser tests', () => {
     });
 
     it('should work with a property call (list)', () => {
-        const tokens = new Lexer("example.prop[another.one]").generate_tokens();
+        const tokens = new Lexer("example.prop_[another.one]").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAccessNode);
         assert.deepStrictEqual(true, node.element_nodes[0].list_nodes[0].node instanceof CallPropertyNode);
@@ -274,7 +241,7 @@ describe('Parser tests', () => {
     });
 
     it('should work with a property call (complex list)', () => {
-        const tokens = new Lexer("example[0].prop[another.one]").generate_tokens();
+        const tokens = new Lexer("example[0].prop_[another.one]").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof ListAccessNode);
         assert.deepStrictEqual(true, node.element_nodes[0].node_to_access instanceof CallPropertyNode);
@@ -317,7 +284,7 @@ describe('Parser tests', () => {
     });
 
     it('should work with an assignment to a property (all)', () => {
-        const tokens = new Lexer("person.names().list[0].prop = 5").generate_tokens();
+        const tokens = new Lexer("person.names().list[0].prop_ = 5").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof AssignPropertyNode);
         assert.deepStrictEqual(true, node.element_nodes[0].property instanceof CallPropertyNode);
@@ -334,7 +301,7 @@ describe('Parser tests', () => {
     });
 
     it('should work with a static property call (method)', () => {
-        const tokens = new Lexer("example::prop()").generate_tokens();
+        const tokens = new Lexer("example::prop_()").generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof CallMethodNode);
         assert.deepStrictEqual(true, node.element_nodes[0].node_to_call instanceof CallNode);
@@ -501,12 +468,125 @@ describe('Parser tests', () => {
     it('should work with \'typeof\'', () => {
         const tokens = new Lexer("typeof something").generate_tokens();
         const node = new Parser(tokens).parse();
-        assert.deepStrictEqual(node.element_nodes[0] instanceof TypeofNode, true); // all calls are defined as optional as soon as one of them is defined as optional
+        assert.deepStrictEqual(node.element_nodes[0] instanceof TypeofNode, true);
     });
 
     it('should work with \'instanceof\'', () => {
         const tokens = new Lexer("something instanceof something").generate_tokens();
         const node = new Parser(tokens).parse();
-        assert.deepStrictEqual(node.element_nodes[0] instanceof InstanceofNode, true); // all calls are defined as optional as soon as one of them is defined as optional
+        assert.deepStrictEqual(node.element_nodes[0] instanceof InstanceofNode, true);
+    });
+
+    it('should work with a tag', () => {
+        const tokens = new Lexer(`
+            tag Test:
+                prop item: any = 5
+                prop? anotheritem: any = none
+                state status: number = 1
+
+                method one() -> 1
+
+                method __init():
+                    self.yo = "yo"
+                end
+            end
+
+            tag Test: pass
+            tag Test:
+                pass
+            end
+        `).generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof TagDefNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].props[0].property_name_tok.value, "item");
+        assert.deepStrictEqual(node.element_nodes[0].states[0].property_name_tok.value, "status");
+        assert.deepStrictEqual(node.element_nodes[0].methods[0].var_name_tok.value, "one");
+    });
+
+    it('should work with a basic HTML structure', () => {
+        const tokens = new Lexer(`
+            var div = <div.class1#id attr="5"> "Content"
+            var test = 5
+        `).generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof VarAssignNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].value_node instanceof HtmlNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].value_node.tagname_tok.value, "div");
+        assert.deepStrictEqual(node.element_nodes[0].value_node.classes, ["class1"]);
+        assert.deepStrictEqual(node.element_nodes[0].value_node.id, "id");
+        assert.deepStrictEqual(node.element_nodes[0].value_node.attributes.length, 1);
+        assert.deepStrictEqual(node.element_nodes[0].value_node.attributes[0][0].value, "attr");
+        assert.deepStrictEqual(node.element_nodes[0].value_node.attributes[0][1].token.value, "5");
+        assert.deepStrictEqual(node.element_nodes[0].value_node.children[0].token.value, "Content");
+        assert.deepStrictEqual(node.element_nodes[1] instanceof VarAssignNode, true);
+    });
+
+    it('should work with a complex HTML structure', () => {
+        const tokens = new Lexer(`
+            <>
+                <div.class1.class2#id>
+                    <span#id.class1 attr="5">
+                    <strong>
+            </>
+        `).generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof HtmlNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children.length, 1); // the fragment has 1 child
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children.length, 2); // div has 2 children
+        assert.deepStrictEqual(node.element_nodes[0].children[0].tagname_tok.value, "div"); // div
+        assert.deepStrictEqual(node.element_nodes[0].children[0].classes, ["class1", "class2"]); // div
+        assert.deepStrictEqual(node.element_nodes[0].children[0].id, "id"); // div
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].tagname_tok.value, "span"); // span
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].classes, ["class1"]); // span
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].id, "id"); // span
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].attributes[0][0].value, "attr"); // span
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].attributes[0][1].token.value, "5"); // span
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[1].tagname_tok.value, "strong"); // strong
+    });
+
+    it('should work with a complex HTML structure (2)', () => {
+        const tokens = new Lexer(`
+            <>
+                <div complex_attr={5 + 5}>
+                    <span>
+                        <strong>
+                        <mark>
+                <div>
+            </>
+        `).generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof HtmlNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children.length, 2);
+        assert.deepStrictEqual(node.element_nodes[0].children[0].tagname_tok.value, "div"); // div
+        assert.deepStrictEqual(node.element_nodes[0].children[0].attributes[0][0].value, "complex_attr"); // div
+        assert.deepStrictEqual(node.element_nodes[0].children[0].attributes[0][1] instanceof AddNode, true); // div
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children.length, 1);
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].tagname_tok.value, "span"); // span
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].children[0].tagname_tok.value, "strong"); // strong
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].children[1].tagname_tok.value, "mark"); // mark
+        assert.deepStrictEqual(node.element_nodes[0].children[1].tagname_tok.value, "div"); // div
+    });
+
+    it('should work with a if statement inside an html structure', () => {
+        const tokens = new Lexer(`
+            var status = true
+
+            <>
+                <div.class1.class2#id>
+                    <span#id.class1 attr={5}>
+                        if status:
+                            <strong>
+                                <span>
+                        end
+                        <div>
+            </>
+        `).generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[1] instanceof HtmlNode, true);
+        assert.deepStrictEqual(node.element_nodes[1].children.length, 1); // just the div, child of the fragment
+        assert.deepStrictEqual(node.element_nodes[1].children[0].tagname_tok.value, "div");
+        assert.deepStrictEqual(node.element_nodes[1].children[0].children[0].tagname_tok.value, "span");
+        assert.deepStrictEqual(node.element_nodes[1].children[0].children[0].children[0] instanceof IfNode, true);
+        assert.deepStrictEqual(node.element_nodes[1].children[0].children[0].children[1].tagname_tok.value, "div");
     });
 });

@@ -1,3 +1,5 @@
+"use strict";
+
 import { Position } from "./position.js";
 import { string_with_arrows } from "./miscellaneous.js";
 import { Context } from "./context.js";

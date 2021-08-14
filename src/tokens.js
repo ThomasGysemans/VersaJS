@@ -1,3 +1,5 @@
+"use strict";
+
 import { Position } from "./position.js";
 
 export class TokenType {
@@ -5,7 +7,7 @@ export class TokenType {
     static PLUS                       = 'PLUS'
     static MINUS                      = 'MINUS'
     static MULTIPLY                   = 'MULTIPLY'
-    static DIVIDE                     = 'DIVIDE'
+    static SLASH                      = 'SLASH'
     static POWER                      = 'POWER'
     static MODULO                     = 'MODULO'
     static LPAREN                     = 'LPAREN'
@@ -51,6 +53,10 @@ export class TokenType {
     static OR                         = 'OR' // ||
     static OPTIONAL_CHAINING_OPERATOR = 'OPTIONAL_CHAINING_OPERATOR' // '?.'
     static OPTIONAL_STATIC_CALL       = 'OPTIONAL_STATIC_CALL' // '?::'
+    static LCHEVRON                   = 'LCHEVRON' // <
+    static RCHEVRON                   = 'RCHEVRON' // >
+    static HASH                       = 'HASH' // #
+    static INDENTATION                = 'INDENTATION' // \t
     static EOF                        = 'EOF'
 }
 
@@ -64,6 +70,8 @@ export class Types {
     static OBJECT   = "object"
     static BOOLEAN  = "boolean"
     static FUNCTION = "function"
+    static HTML     = "html"
+    static TAG      = "TAG"
 }
 
 const KEYWORDS = [
@@ -112,6 +120,9 @@ const KEYWORDS = [
     "pass",
     "typeof",
     "instanceof",
+    "tag",
+    "prop",
+    "state",
 ];
 
 export default KEYWORDS;
@@ -148,6 +159,10 @@ export class Token {
     }
 
     toString() {
-        return this.type + (this.value !== null ? `:${this.value}` : '');
+        if (this.value === "\t" || this.value === "\n") {
+            return this.type;
+        } else {
+            return this.type + (`:${this.value ?? ''}`);
+        }
     }
 }

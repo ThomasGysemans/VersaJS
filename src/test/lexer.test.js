@@ -21,9 +21,21 @@ describe('Lexer tests', () => {
         assert.strictEqual(tokens.length, 1); // EOF
     });
 
-    it('should return EOF', () => {
+    it('should work with indentation', () => {
         const tokens = Array.from(new Lexer(" \t\t").generate_tokens());
-        assert.strictEqual(tokens.length, 1); // EOF
+        assert.strictEqual(tokens.length, 3); // EOF, INDENTATION, INDENTATION
+    });
+
+    it('should work with indentation (2)', () => {
+        const tokens = Array.from(new Lexer("    var a = 5").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.KEYWORD, "var"),
+            new Token(TokenType.IDENTIFIER, "a"),
+            new Token(TokenType.EQUALS, "="),
+            new Token(TokenType.NUMBER, 5),
+        ];
+        check_tokens(tokens, expected_tokens);
     });
 
     it('should return numbers', () => {
@@ -51,7 +63,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.PLUS, "+"),
             new Token(TokenType.MINUS, "-"),
             new Token(TokenType.MULTIPLY, "*"),
-            new Token(TokenType.DIVIDE, "/"),
+            new Token(TokenType.SLASH, "/"),
             new Token(TokenType.POWER, "**"),
         ];
         check_tokens(tokens, expected_tokens);
@@ -141,7 +153,7 @@ describe('Lexer tests', () => {
             new Token(TokenType.PLUS, "+"),
             new Token(TokenType.LPAREN, "("),
             new Token(TokenType.NUMBER, 43),
-            new Token(TokenType.DIVIDE, "/"),
+            new Token(TokenType.SLASH, "/"),
             new Token(TokenType.NUMBER, 36),
             new Token(TokenType.MINUS, "-"),
             new Token(TokenType.NUMBER, 48),
@@ -421,11 +433,11 @@ describe('Lexer tests', () => {
     });
 
     it('should work with a property call', () => {
-        const tokens = Array.from(new Lexer("example.prop").generate_tokens());
+        const tokens = Array.from(new Lexer("example.prop_").generate_tokens());
         const expected_tokens = [
             new Token(TokenType.IDENTIFIER, "example"),
             new Token(TokenType.DOT, "."),
-            new Token(TokenType.IDENTIFIER, "prop"),
+            new Token(TokenType.IDENTIFIER, "prop_"),
         ];
         check_tokens(tokens, expected_tokens);
     });
@@ -543,6 +555,80 @@ describe('Lexer tests', () => {
             new Token(TokenType.IDENTIFIER, "number"),
             new Token(TokenType.EQUALS, "="),
             new Token(TokenType.NUMBER, 5),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with an HTML element', () => {
+        const tokens = Array.from(new Lexer("<div attr={5>5}>").generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.LCHEVRON, "<"),
+            new Token(TokenType.IDENTIFIER, "div"),
+            new Token(TokenType.IDENTIFIER, "attr"),
+            new Token(TokenType.EQUALS, "="),
+            new Token(TokenType.LBRACK, "{"),
+            new Token(TokenType.NUMBER, 5),
+            new Token(TokenType.GT, ">"),
+            new Token(TokenType.NUMBER, 5),
+            new Token(TokenType.RBRACK, "}"),
+            new Token(TokenType.RCHEVRON, ">"),
+        ];
+        check_tokens(tokens, expected_tokens);
+    });
+
+    it('should work with a complex HTML architecture', () => {
+        const tokens = Array.from(new Lexer(`
+            <div> "yo"
+                <div>
+                    <div>
+                <div>
+            <div>
+        `).generate_tokens());
+        const expected_tokens = [
+            new Token(TokenType.NEWLINE, "\n"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.LCHEVRON, "<"),
+            new Token(TokenType.IDENTIFIER, "div"),
+            new Token(TokenType.RCHEVRON, ">"),
+            new Token(TokenType.STRING, "yo"),
+            new Token(TokenType.NEWLINE, "\n"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.LCHEVRON, "<"),
+            new Token(TokenType.IDENTIFIER, "div"),
+            new Token(TokenType.RCHEVRON, ">"),
+            new Token(TokenType.NEWLINE, "\n"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.LCHEVRON, "<"),
+            new Token(TokenType.IDENTIFIER, "div"),
+            new Token(TokenType.RCHEVRON, ">"),
+            new Token(TokenType.NEWLINE, "\n"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.LCHEVRON, "<"),
+            new Token(TokenType.IDENTIFIER, "div"),
+            new Token(TokenType.RCHEVRON, ">"),
+            new Token(TokenType.NEWLINE, "\n"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.LCHEVRON, "<"),
+            new Token(TokenType.IDENTIFIER, "div"),
+            new Token(TokenType.RCHEVRON, ">"),
+            new Token(TokenType.NEWLINE, "\n"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.INDENTATION, "\t"),
+            new Token(TokenType.EOF, "EOF"),
         ];
         check_tokens(tokens, expected_tokens);
     });

@@ -3,7 +3,7 @@ import { Context } from '../context.js';
 import { run } from '../run.js';
 import { Types } from '../tokens.js';
 import global_symbol_table, { SymbolTable } from '../symbol_table.js';
-import { BooleanValue, ClassValue, NoneValue } from '../values.js';
+import { BooleanValue, ClassValue, HtmlValue, NoneValue, TagValue } from '../values.js';
 import { RuntimeError } from '../Exceptions.js';
 
 const fn = "<stdin>";
@@ -846,10 +846,10 @@ describe("Interpreter", function() {
                 running
             end
 
-            var state = State.paused
+            var stat = State.paused
             var response = none
 
-            switch state:
+            switch stat:
                 case State.stopped: response = "stopped"
                 case State.paused: response = "paused"
                 case State.running: response = "running"
@@ -1133,5 +1133,254 @@ describe("Interpreter", function() {
         if (result) assert.deepStrictEqual(result.elements[2].state, 1);
         if (result) assert.deepStrictEqual(result.elements[3].state, 0);
         if (result) assert.deepStrictEqual(result.elements[4].state, 0);
+    });
+
+    it("should work with a custom tag", () => {
+        const result = run(`
+            tag CustomTag:
+                prop? items: list = []
+                state count: number = self.init_counter()
+
+                method __init():
+                    self.count++
+                end
+
+                method init_counter() -> 0
+
+                method render():
+                    return;
+                end
+            end
+
+            CustomTag
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof TagValue, true);
+    });
+
+    it("should work with a basic html structure", () => {
+        const result = run(`
+            var url = "https://sciencesky.fr/";
+            var div = <div#id.class1> "Content";
+            var a = <a href={url}> "Go to my website";
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].tagname, "div");
+        if (result) assert.deepStrictEqual(result.elements[1].id, "id");
+        if (result) assert.deepStrictEqual(result.elements[1].classes, ["class1"]);
+        if (result) assert.deepStrictEqual(result.elements[2] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[2].attributes[0][0], "href");
+        if (result) assert.deepStrictEqual(result.elements[2].attributes[0][1].value, "https://sciencesky.fr/");
+    });
+
+    it("should work with a complex html structure", () => {
+        const result = run(`
+            var url = "https://sciencesky.fr/";
+            var element = <a href={url}> "Go to my website";
+            var structure = <>
+                <div> "Content"
+                {element}
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[2] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[2].children.length, 2); // the div & "{element}"
+        if (result) assert.deepStrictEqual(result.elements[2].children[0].tagname, "div");
+        if (result) assert.deepStrictEqual(result.elements[2].children[0].children[0].value, "Content");
+        if (result) assert.deepStrictEqual(result.elements[2].children[1] instanceof HtmlValue, true); // {element} == <a>
+    });
+
+    it("should work with an even more complex html structure", () => {
+        const result = run(`
+            var url = "https://sciencesky.fr/";
+            var link = <>
+                <a href={url}>
+                    <span> "Go to my website"
+            </>
+
+            var structure = <>
+                <div> "Content"
+                {link}
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].children.length, 1); // just <a>
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children.length, 1); // <span> from <a>
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].children[0].value, "Go to my website");
+        if (result) assert.deepStrictEqual(result.elements[2] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[2].children.length, 2);
+        if (result) assert.deepStrictEqual(result.elements[2].children[1].tagname, null); // the fragment of {link}
+        if (result) assert.deepStrictEqual(result.elements[2].children[1].children[0].tagname, "a");
+    });
+
+    it("should work with a complex html structure including an if-statement", () => {
+        const result = run(`
+            var status = false
+            var structure = <>
+                <div>
+                    if status:
+                        <p> "status is true"
+                    else:
+                        <p> "status is false"
+                    end
+                    <p> "Good"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].tagname, "div");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].tagname, "p");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].children[0].value, "status is false");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[1].children[0].value, "Good");
+    });
+
+    it("should work with a complex html structure including an if-statement (complex)", () => {
+        const result = run(`
+            var status = false
+            var structure = <>
+                <div>
+                    if status:
+                        <p> "status is true"
+                    else:
+                        <>
+                            <p>
+                                <span> "status is false"
+                        </>
+                    end
+                    <p> "Good"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].tagname, "div");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].tagname, null);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].children[0].tagname, "p");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].children[0].children[0].tagname, "span");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].children[0].children[0].children[0].value, "status is false");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[1].children[0].value, "Good");
+    });
+
+    it("should work with a complex html structure including an if-statement (oneline)", () => {
+        const result = run(`
+            var status = false
+            var structure = <>
+                <div>
+                    if status: <p> "status is true" else: <p> "status is false"
+                    <p> "Good"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].tagname, "div");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].tagname, "p");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].children[0].value, "status is false");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[1].children[0].value, "Good");
+    });
+
+    it("should work with a complex html structure including a for-loop", () => {
+        const result = run(`
+            <>
+                <ul>
+                    for i to 10:
+                        <li> f"Item $i"
+                    end
+                    <li> "Last item"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[0] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children.length, 11);
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[0].tagname, "li");
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[5].children[0].value, "Item 5");
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[10].children[0].value, "Last item");
+    });
+
+    it("should work with a complex html structure including a for-loop (complex)", () => {
+        const result = run(`
+            <>
+                <ul>
+                    for i to 10:
+                        <>
+                            <li>
+                                <span> {f"Item $i"}
+                        </>
+                    end
+                    <li> "Last item"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[0] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children.length, 11);
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[0].tagname, null);
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[0].children[0].tagname, "li");
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[0].children[0].children[0].tagname, "span");
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[5].children[0].children[0].children[0].value, "Item 5");
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[10].children[0].value, "Last item");
+    });
+
+    it("should work with a complex html structure including a for-loop (oneline)", () => {
+        const result = run(`
+            <>
+                <ul>
+                    for i to 10: <li> f"Item $i"
+                    <li> "Last item"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[0] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children.length, 11);
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[0].tagname, "li");
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[5].children[0].value, "Item 5");
+        if (result) assert.deepStrictEqual(result.elements[0].children[0].children[10].children[0].value, "Last item");
+    });
+
+    it("should work with a complex html structure including a foreach-loop", () => {
+        const result = run(`
+            var list = [0, 1, 2]
+            <>
+                <ul>
+                    foreach list as el:
+                        <li> f"Item $el"
+                    end
+                    <li> "Last item"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children.length, 4);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].tagname, "li");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[2].children[0].value, "Item 2");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[3].children[0].value, "Last item");
+    });
+
+    it("should work with a complex html structure including a foreach-loop (complex)", () => {
+        const result = run(`
+            var list = [0, 1, 2]
+            <>
+                <ul>
+                    foreach list as el:
+                        <>
+                            <li>
+                                <span> {f"Item $el"}
+                        </>
+                    end
+                    <li> "Last item"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children.length, 4);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].tagname, null);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].children[0].tagname, "li");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].children[0].children[0].tagname, "span");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[2].children[0].children[0].children[0].value, "Item 2");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[3].children[0].value, "Last item");
+    });
+
+    it("should work with a complex html structure including a foreach-loop (oneline)", () => {
+        const result = run(`
+            var list = [0, 1, 2]
+            <>
+                <ul>
+                    foreach list as el: <li> f"Item $el"
+                    <li> "Last item"
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children.length, 4);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].tagname, "li");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[2].children[0].value, "Item 2");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].children[3].children[0].value, "Last item");
     });
 });

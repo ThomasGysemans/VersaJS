@@ -1,13 +1,16 @@
-import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, TypeofNode, InstanceofNode } from './nodes.js';
-import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, ListValue, NativeClassValue, NativeFunction, NativePropertyValue, NoneValue, NumberValue, StringValue, Value } from './values.js';
+"use strict";
+
+import { CustomNode, NumberNode, AddNode, SubtractNode, MultiplyNode, DivideNode, PlusNode, MinusNode, PowerNode, ModuloNode, VarAssignNode, VarAccessNode, VarModifyNode, AndNode, OrNode, NotNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, ListPushBracketsNode, ListBinarySelector, StringNode, IfNode, ForNode, WhileNode, FuncDefNode, CallNode, ReturnNode, ContinueNode, BreakNode, DefineNode, DeleteNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, ForeachNode, ClassDefNode, ClassPropertyDefNode, ClassCallNode, CallPropertyNode, AssignPropertyNode, CallMethodNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, NullishAssignmentNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, AndAssignmentNode, OrAssignmentNode, TypeofNode, InstanceofNode, TagDefNode, TagPropDefNode, TagStateDefNode, HtmlNode } from './nodes.js';
+import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, FunctionValue, HtmlValue, ListValue, NativeClassValue, NativeFunction, NativePropertyValue, NoneValue, NumberValue, StringValue, TagValue, Value } from './values.js';
 import { RuntimeResult } from './runtime.js';
-import { CustomTypeError, RuntimeError } from './Exceptions.js';
+import { CustomTypeError, InvalidSyntaxError, RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
 import { LETTERS_DIGITS } from './lexer.js';
 import { CONSTANTS, SymbolTable } from './symbol_table.js';
 import { is_in } from './miscellaneous.js';
 import { Position } from './position.js';
 import { Types } from './tokens.js';
+import { NATIVE_TAGS } from './native.js';
 
 class BinarySelectorValues {
     /**
@@ -256,6 +259,10 @@ export class Interpreter {
             return this.visit_TypeofNode(node, context);
         } else if (node instanceof InstanceofNode) {
             return this.visit_InstanceofNode(node, context);
+        } else if (node instanceof TagDefNode) {
+            return this.visit_TagDefNode(node, context);
+        } else if (node instanceof HtmlNode) {
+            return this.visit_HtmlNode(node, context);
         } else {
             throw new Error(`There is no visit method for node '${node.constructor.name}'`);
         }
@@ -2823,27 +2830,36 @@ export class Interpreter {
      */
     visit_IfNode(node, context) {
         let res = new RuntimeResult();
+        let should_return_null = node.should_return_null;
 
-        for (let [condition, expr, should_return_null] of node.cases) {
+        for (let [condition, expr] of node.cases) {
             let condition_value = res.register(this.visit(condition, context));
             if (res.should_return()) return res;
 
             if (condition_value.is_true()) {
                 let expr_value = res.register(this.visit(expr, context));
                 if (res.should_return()) return res;
-                return res.success(should_return_null ? new NoneValue() : expr_value);
+                return res.success(
+                    should_return_null && !node.prevent_null_return
+                        ? new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                        : expr_value
+                );
             }
         }
 
-        if (node.else_case.code) {
-            let code = node.else_case.code;
-            let should_return_null = node.else_case.should_return_null;
-            let else_value = res.register(this.visit(code, context));
+        if (node.else_case) {
+            let else_value = res.register(this.visit(node.else_case, context));
             if (res.should_return()) return res;
-            return res.success(should_return_null ? new NoneValue() : else_value);
+            return res.success(
+                should_return_null && !node.prevent_null_return
+                    ? new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                    : else_value
+            );
         }
 
-        return res.success(new NoneValue());
+        return res.success(
+            new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
     }
 
     /**
@@ -2896,7 +2912,13 @@ export class Interpreter {
             if (res.loop_should_continue) continue;
             if (res.loop_should_break) break;
 
-            elements.push(value);
+            if (!node.should_return_null && node.prevent_null_return && value instanceof ListValue) {
+                // to avoid list of lists (because of 'statements()' on multiline loops)
+                // useful inside html structures
+                elements.push(...value.elements);
+            } else {
+                elements.push(value);
+            }
         }
 
         return res.success(
@@ -2952,7 +2974,13 @@ export class Interpreter {
             if (res.loop_should_continue) continue;
             if (res.loop_should_break) break;
 
-            elements.push(value);
+            if (!node.should_return_null && node.prevent_null_return && value instanceof ListValue) {
+                // to avoid list of lists (because of 'statements()' on multiline loops)
+                // useful inside html structures
+                elements.push(...value.elements);
+            } else {
+                elements.push(value);
+            }
 
             i++;
             if (list instanceof ListValue) {
@@ -3100,7 +3128,7 @@ export class Interpreter {
             value = res.register(this.visit(node.node_to_return, context));
             if (res.should_return()) return res;
         } else {
-            value = new NoneValue();
+            value = new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context);
         }
 
         return res.success_return(value);
@@ -3799,7 +3827,7 @@ export class Interpreter {
             let method_status = method_node.status;
             if (method_name === "__name") {
                 throw new RuntimeError(
-                    method_node.pos_start, method_node.pos_end,
+                    method_node.func.var_name_tok.pos_start, method_node.func.var_name_tok.pos_end,
                     `The identifier '${method_name}' is already reserved.`,
                     context
                 );
@@ -3856,7 +3884,7 @@ export class Interpreter {
             }
             if (property_name === "__init" || property_name === "__repr") {
                 throw new RuntimeError(
-                    property_node.pos_start, property_node.pos_end,
+                    property_node.property_name_tok.pos_start, property_node.property_name_tok.pos_end,
                     `In a class, '${property_name}' must be a method.`,
                     context
                 );
@@ -3875,7 +3903,7 @@ export class Interpreter {
             let getter_name = getter_node.func.var_name_tok.value;
             if (getter_name === "__name") {
                 throw new RuntimeError(
-                    getter_node.pos_start, getter_node.pos_end,
+                    getter_node.func.var_name_tok.pos_start, getter_node.func.var_name_tok.pos_end,
                     `The identifier '${getter_name}' is already reserved.`,
                     context
                 );
@@ -3908,7 +3936,7 @@ export class Interpreter {
             let setter_name = setter_node.func.var_name_tok.value;
             if (setter_node.static_prop) {
                 throw new RuntimeError(
-                    setter_node.pos_start, setter_node.pos_end,
+                    setter_node.func.var_name_tok.pos_start, setter_node.func.var_name_tok.pos_end,
                     `A setter cannot be static`,
                     context
                 );
@@ -4012,12 +4040,14 @@ export class Interpreter {
         if (res.should_return()) return res;
         let property_name = node.property_tok.value;
 
-        if (property_name === "__init") {
-            throw new RuntimeError(
-                node.property_tok.pos_start, node.property_tok.pos_end,
-                `The __init method cannot be invoked.`,
-                context
-            );
+        if (base instanceof ClassValue || base instanceof NativeClassValue || base instanceof TagValue) {
+            if (property_name === "__init") {
+                throw new RuntimeError(
+                    node.property_tok.pos_start, node.property_tok.pos_end,
+                    `The __init method cannot be invoked.`,
+                    context
+                );
+            }
         }
 
         if (base instanceof ClassValue || base instanceof NativeClassValue) {
@@ -4061,6 +4091,18 @@ export class Interpreter {
                     return res.success(value.behavior(exec_ctx, node.pos_start, node.pos_end).value);
                 }
             }
+
+            return res.success(value);
+        } else if (base instanceof TagValue) {
+            let prop = base.self.get(property_name);
+
+            if (prop === undefined || prop === null) {
+                return res.success(
+                    new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+                );
+            }
+
+            let value = prop.value.value;
 
             return res.success(value);
         } else if (base instanceof EnumValue) {
@@ -4187,44 +4229,12 @@ export class Interpreter {
                 "You cannot assign new values to native properties.",
                 context
             );
-        } else if (!(base instanceof ClassValue)) {
+        } else if (!(base instanceof ClassValue) && !(base instanceof TagValue)) {
             throw new RuntimeError(
                 node.pos_start, node.pos_end,
                 "Cannot call a property from this type of value.",
                 context
             );
-        }
-
-        let prop = base.self.get(property_name);
-        let status = 1;
-        let static_prop = 0;
-
-        // the property does not exist
-        // and we call it as a static property
-        // that's not good
-        if (!prop && node.property instanceof CallStaticPropertyNode) {
-            throw new RuntimeError(
-                node.pos_start, node.pos_end,
-                "You cannot assign new static properties to the instance of a class",
-                context
-            );
-        }
-
-        if (prop) {
-            status = prop.status;
-            static_prop = prop.static_prop;
-            if (!context.is_context_in(base.context_name)) {
-                // this means that we are outside the class
-                if (status === 0 || status === 2) {
-                    // this means that the property we are looking for is not public
-                    let status_string = prop.status === 0 ? "private" : "protected";
-                    throw new RuntimeError(
-                        node.property.property_tok.pos_start, node.property.property_tok.pos_end,
-                        `The property '${property_name}' is marked as ${status_string}. You cannot access it outside the class itself.`,
-                        context
-                    );
-                }
-            }
         }
 
         const type_error = (value_type, expected_type) => {
@@ -4235,26 +4245,86 @@ export class Interpreter {
             );
         };
 
-        if (prop.value.type === Types.OBJECT) {
-            if (!this.is_value_object(new_value)) {
-                type_error(new_value.type, prop.value.type);
+        if (base instanceof ClassValue) {
+            let prop = base.self.get(property_name);
+            let status = 1;
+            let static_prop = 0;
+
+            // the property does not exist
+            // and we call it as a static property
+            // that's not good
+            if (!prop && node.property instanceof CallStaticPropertyNode) {
+                throw new RuntimeError(
+                    node.pos_start, node.pos_end,
+                    "You cannot assign new static properties to the instance of a class",
+                    context
+                );
             }
-        } else {
-            if (prop.value.type === Types.DYNAMIC) {
-                if (new_value.type instanceof NoneValue) {
-                    type_error('none', 'dynamic');
+
+            if (prop) {
+                status = prop.status;
+                static_prop = prop.static_prop;
+                if (!context.is_context_in(base.context_name)) {
+                    // this means that we are outside the class
+                    if (status === 0 || status === 2) {
+                        // this means that the property we are looking for is not public
+                        let status_string = prop.status === 0 ? "private" : "protected";
+                        throw new RuntimeError(
+                            node.property.property_tok.pos_start, node.property.property_tok.pos_end,
+                            `The property '${property_name}' is marked as ${status_string}. You cannot access it outside the class itself.`,
+                            context
+                        );
+                    }
                 }
-            } else if (prop.value.type !== Types.ANY) {
-                if (new_value.type !== prop.value.type) {
+            }
+
+            if (prop.value.type === Types.OBJECT) {
+                if (!this.is_value_object(new_value)) {
                     type_error(new_value.type, prop.value.type);
                 }
+            } else {
+                if (prop.value.type === Types.DYNAMIC) {
+                    if (new_value.type instanceof NoneValue) {
+                        type_error('none', 'dynamic');
+                    }
+                } else if (prop.value.type !== Types.ANY) {
+                    if (new_value.type !== prop.value.type) {
+                        type_error(new_value.type, prop.value.type);
+                    }
+                }
             }
+
+            new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
+            base.self.set(property_name, { static_prop, status, value: { type: prop.value.type, value: new_value } });
+
+            return res.success(new_value);
+        } else {
+            let property = base.self.get(property_name);
+            let prop = property.prop ?? 0;
+            let state = property.state ?? 0;
+            let optional = property.optional ?? 0;
+
+            if (property.value.type === Types.OBJECT) {
+                if (!this.is_value_object(new_value)) {
+                    type_error(new_value.type, property.value.type);
+                }
+            } else {
+                if (property.value.type === Types.DYNAMIC) {
+                    if (new_value.type instanceof NoneValue) {
+                        type_error('none', 'dynamic');
+                    }
+                } else if (property.value.type !== Types.ANY) {
+                    if (new_value.type !== property.value.type) {
+                        type_error(new_value.type, property.value.type);
+                    }
+                }
+            }
+
+            new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
+            base.self.set(property_name, { prop, state, optional, value: { type: property.value.type, value: new_value } });
+
+            return res.success(new_value);
         }
-
-        new_value = new_value.copy().set_pos(node.value_node.pos_start, node.value_node.pos_end).set_context(context);
-        base.self.set(property_name, { static_prop, status, value: { type: prop.value.type, value: new_value } });
-
-        return res.success(new_value);
     }
 
     /**
@@ -4282,7 +4352,7 @@ export class Interpreter {
             );
         }
 
-        if (origin_instance instanceof ClassValue) {
+        if (origin_instance instanceof ClassValue || origin_instance instanceof TagValue) {
             let exec_ctx = this.generate_new_context(context, origin_instance.context_name, node.pos_start);
             exec_ctx.symbol_table.set("self", { type: origin_instance.type, value: origin_instance });
 
@@ -4576,6 +4646,289 @@ export class Interpreter {
 
         return res.success(
             new BooleanValue(state).set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
+    }
+
+    /**
+     * Interprets the declaration of a prop or a state variable.
+     * @param {TagPropDefNode|TagStateDefNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_TagProperty(node, context) {
+        let res = new RuntimeResult();
+        let property_name = node.property_name_tok.value;
+        let value = res.register(this.visit(node.value_node, context));
+        if (res.should_return()) return res;
+
+        let given_type = node.type ?? Types.ANY;
+
+        if (context.symbol_table.doesExist(property_name)) {
+            throw new RuntimeError(
+                node.property_name_tok.pos_start, node.property_name_tok.pos_end,
+                `Prop '${property_name}' already exists.`,
+                context
+            );
+        }
+
+        const type_error = (value_type, expected_type) => {
+            throw new CustomTypeError(
+                node.pos_start, node.pos_end,
+                `Type '${value_type}' is not assignable to type '${expected_type}'`,
+                context
+            );
+        };
+
+        if (given_type === Types.OBJECT) {
+            if (!this.is_value_object(value)) {
+                type_error(value.type, given_type);
+            }
+        } else {
+            if (given_type === Types.DYNAMIC) {
+                if (value instanceof NoneValue) {
+                    type_error('none', 'dynamic');
+                }
+            } else if (given_type !== Types.ANY) {
+                if (value.type !== given_type) {
+                    type_error(value.type, given_type);
+                }
+            }
+        }
+
+        // add into the context allows us to check if a property, method etc. has already been defined inside the class
+        context.symbol_table.set(property_name, { type: node.type ? node.type : value.type, value });
+
+        return res.success(value);
+    }
+
+    /**
+     * Interprets the declaration of a custom tag.
+     * @param {TagDefNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_TagDefNode(node, context) {
+        let res = new RuntimeResult();
+        let tag_name = node.tag_name_tok.value;
+
+        if (context.symbol_table.doesExist(tag_name) || is_in(tag_name, Object.values(NATIVE_TAGS).map((v) => v.name))) {
+            throw new RuntimeError(
+                node.tag_name_tok.pos_start, node.tag_name_tok.pos_end,
+                `Tag "${tag_name}" already exists`,
+                context
+            );
+        }
+
+        let native_methods = [
+            "__init",
+            "render",
+            // more incoming
+        ]
+
+        let value = new TagValue(tag_name, new Map()).set_pos(node.pos_start, node.pos_end).set_context(context);
+        let exec_ctx = this.generate_new_context(context, value.context_name, node.pos_start);
+        value.self.set('__name', { prop: 0, state: 0, optional: 0, value: { type: Types.STRING, value: new StringValue(tag_name).set_context(exec_ctx) } });
+        exec_ctx.symbol_table.set("self", { type: value.type, value });
+
+        for (let i = 0; i < node.methods.length; i++) {
+            let method_node = node.methods[i];
+            let method_name = method_node.var_name_tok.value;
+            if (method_name === "__name") {
+                throw new RuntimeError(
+                    method_node.var_name_tok.pos_start, method_node.var_name_tok.pos_end,
+                    `The identifier '${method_name}' is already reserved.`,
+                    context
+                );
+            }
+            let method = res.register(this.visit(method_node, exec_ctx));
+            if (res.should_return()) return res;
+            method.type_name = "method";
+            value.self.set(method_name, { prop: 0, state: 0, optional: 0, value: { type: method.type, value: method } });
+        }
+
+        for (let i = 0; i < node.props.length; i++) {
+            let prop_node = node.props[i];
+            let prop_name = prop_node.property_name_tok.value;
+            let optional = prop_node.optional;
+            if (prop_name === "__name") {
+                throw new RuntimeError(
+                    prop_node.property_name_tok.pos_start, prop_node.property_name_tok.pos_end,
+                    `The identifier '${prop_name}' is already reserved.`,
+                    context
+                );
+            }
+            if (is_in(prop_name, native_methods)) {
+                throw new RuntimeError(
+                    prop_node.property_name_tok.pos_start, prop_node.property_name_tok.pos_end,
+                    `In a class, '${prop_name}' must be a method.`,
+                    context
+                );
+            }
+            let prop = res.register(this.visit_TagProperty(prop_node, exec_ctx));
+            if (res.should_return()) return res;
+            value.self.set(prop_name, { prop: 1, state: 0, optional, value: { type: prop.type, value: prop } });
+        }
+
+        for (let i = 0; i < node.states.length; i++) {
+            let state_node = node.states[i];
+            let state_name = state_node.property_name_tok.value;
+            if (state_name === "__name") {
+                throw new RuntimeError(
+                    state_node.property_name_tok.pos_start, state_node.property_name_tok.pos_end,
+                    `The identifier '${state_name}' is already reserved.`,
+                    context
+                );
+            }
+            if (is_in(state_name, native_methods)) {
+                throw new RuntimeError(
+                    state_node.property_name_tok.pos_start, state_node.property_name_tok.pos_end,
+                    `In a class, '${state_name}' must be a method.`,
+                    context
+                );
+            }
+            let state = res.register(this.visit_TagProperty(state_node, exec_ctx));
+            if (res.should_return()) return res;
+            value.self.set(state_name, { prop: 0, state: 1, optional: 0, value: { type: state.type, value: state } });
+        }
+
+        context.symbol_table.set(tag_name, { type: value.type, value });
+
+        return res.success(
+            new NoneValue().set_pos(node.pos_start, node.pos_end).set_context(context)
+        );
+    }
+
+    /**
+     * Interprets an html element.
+     * @param {HtmlNode} node The node.
+     * @param {Context} context The context to use.
+     * @returns {RuntimeResult}
+     */
+    visit_HtmlNode(node, context) {
+        let res = new RuntimeResult();
+        let tagname = node.tagname_tok?.value ?? null;
+        let classes = node.classes;
+        let id = node.id;
+        let attributes = [];
+        let children = [];
+        let is_fragment = tagname === null || tagname === undefined;
+
+        if (!is_fragment) {
+            const native_tagnames = Object.values(NATIVE_TAGS).map((v) => v.name);
+            let is_native = false;
+            let reftag;
+
+            if (is_in(tagname, native_tagnames)) {
+                is_native = true;
+                reftag = NATIVE_TAGS[Object.keys(NATIVE_TAGS).find((v) => NATIVE_TAGS[v].name === tagname)];
+            } else {
+                reftag = context.symbol_table.get(tagname)?.value;
+                if (!reftag) {
+                    throw new RuntimeError(
+                        node.tagname_tok.pos_start, node.tagname_tok.pos_end,
+                        "This tagname doesn't exist",
+                        context
+                    );
+                }
+            }
+
+            const type_error = (value_type, expected_type, pos_start, pos_end) => {
+                throw new CustomTypeError(
+                    pos_start, pos_end,
+                    `Type '${value_type}' is not assignable to type '${expected_type}'`,
+                    context
+                );
+            };
+
+            let visited_args = []; // prevents duplicates
+            let given_mandatory_args = [];
+
+            for (let attr of node.attributes) {
+                let name = attr[0].value;
+                let attr_pos_start = attr[0].pos_start;
+                let attr_pos_end = attr[0].pos_end;
+                if (is_in(name, visited_args)) {
+                    throw new RuntimeError(
+                        attr[0].pos_start, attr[0].pos_end,
+                        `The prop '${name}' has already been defined.`,
+                        context
+                    );
+                }
+                let defined_type;
+                let original_prop;
+                if (is_native) {
+                    if (!is_in(name, reftag.props)) {
+                        throw new RuntimeError(
+                            attr[0].pos_start, attr[0].pos_end,
+                            "This attribute doesn't exist in the original definition of the tag",
+                            context
+                        );
+                    }
+                    defined_type = Types.DYNAMIC;
+                } else {
+                    original_prop = reftag.self.get(name);
+                    if (original_prop && original_prop.prop === 0) {
+                        throw new RuntimeError(
+                            attr_pos_start, attr_pos_end,
+                            "This attribute doesn't exist in the original definition of the tag",
+                            context
+                        );
+                    }
+                    defined_type = original_prop.value.type; // .value = { type, value }
+                }
+                let value = res.register(this.visit(attr[1], context));
+                if (res.should_return()) return res;
+                if (defined_type === Types.OBJECT) {
+                    if (!this.is_value_object(value)) {
+                        type_error(value.type, defined_type, attr_pos_start, attr_pos_end);
+                    }
+                } else {
+                    if (defined_type === Types.DYNAMIC) {
+                        if (value instanceof NoneValue) {
+                            type_error('none', 'dynamic', attr_pos_start, attr_pos_end);
+                        }
+                    } else if (defined_type !== Types.ANY) {
+                        if (defined_type !== value.type) {
+                            type_error(value.type, defined_type, attr_pos_start, attr_pos_end);
+                        }
+                    }
+                }
+                attributes.push([name, value]);
+                visited_args.push(name);
+                if (original_prop?.optional === 0) given_mandatory_args.push(name);
+            }
+
+            const mandatory_props = is_native ? reftag.props.filter((v) => v.optional === 0).map((v) => v.name) : Array.from(reftag.self.entries()).filter((v) => v[1].prop === 1 && v[1].optional === 0).map((v) => v[0]);
+            const given_props_names = node.attributes.map((v) => v[0].value);
+
+            if (mandatory_props.length !== given_mandatory_args.length) {
+                const missing_args = mandatory_props.filter((v, i) => !is_in(given_props_names[i], mandatory_props));
+                throw new InvalidSyntaxError(
+                    node.tagname_tok.pos_start, node.tagname_tok.pos_end,
+                    `The following mandatory props are missing for this tag: ${missing_args.join(', ')}`,
+                    context
+                );
+            }
+        }
+
+        for (let child of node.children) {
+            let value = res.register(this.visit(child, context));
+            if (res.should_return()) return res;
+            if (value instanceof ListValue) {
+                children.push(...value.elements);
+            } else {
+                children.push(value);
+            }
+        }
+
+        return res.success(
+            new HtmlValue(
+                tagname,
+                classes,
+                id,
+                attributes,
+                children
+            ).set_pos(node.pos_start, node.pos_end).set_context(context)
         );
     }
 }

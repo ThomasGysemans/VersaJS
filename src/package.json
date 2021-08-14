@@ -13,6 +13,7 @@
     "prompt-sync": "^4.2.0"
   },
   "devDependencies": {
+    "@types/mocha": "^9.0.0",
     "mocha": "^9.0.3"
   },
   "directories": {

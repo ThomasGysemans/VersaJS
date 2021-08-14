@@ -1,3 +1,5 @@
+"use strict";
+
 import { CustomError } from "./Exceptions.js";
 
 /**

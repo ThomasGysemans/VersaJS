@@ -1,3 +1,5 @@
+"use strict";
+
 import { NATIVE_CLASSES, NATIVE_FUNCTIONS } from "./native.js";
 import { Types } from "./tokens.js";
 import { NativeClassValue, NativeFunction, NativePropertyValue } from "./values.js";

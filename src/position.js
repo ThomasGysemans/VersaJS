@@ -1,3 +1,5 @@
+"use strict";
+
 /**
  * @classdesc Describes the position of the lexer while it is reading the file.
  */

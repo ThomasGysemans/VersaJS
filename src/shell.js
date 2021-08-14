@@ -1,3 +1,5 @@
+"use strict";
+
 import prompt from 'prompt-sync';
 import { run } from './run.js';
 import { ListValue } from './values.js';

@@ -1,13 +1,15 @@
+"use strict";
+
 import KEYWORDS, { Token, TokenType } from './tokens.js';
 import { Position } from './position.js';
 import { is_in } from './miscellaneous.js';
 import { ExpectedCharError, IllegalCharError } from './Exceptions.js';
 
-export const WHITESPACE        = " \t";
-export const DIGITS            = "0123456789_"; // we want to allow 100_000 === 100000
-export const LETTERS           = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-export const LETTERS_DIGITS    = LETTERS + DIGITS;
-export const ESCAPE_CHARACTERS = new Map([['n', '\n'], ['t', '\t'], ['r', '\r']]);
+export const SPACES_FOR_INDENTATION = 4;
+export const DIGITS                 = "0123456789_"; // we want to allow 100_000 === 100000
+export const LETTERS                = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export const LETTERS_DIGITS         = LETTERS + DIGITS;
+export const ESCAPE_CHARACTERS      = new Map([['n', '\n'], ['t', '\t'], ['r', '\r']]);
 
 /**
  * @classdesc Reads the code and creates the tokens.
@@ -22,6 +24,8 @@ export class Lexer {
         this.text = text[Symbol.iterator]();
         this.filename = filename;
         this.pos = new Position(-1, 0, -1, filename, text);
+        this.wait_of_chevron = false; // true when we detect a left chevron
+        this.pause_in_chevron_search = false; // if we detect '{' while `wait_for_chevron` is true
         this.advance();
     }
 
@@ -37,8 +41,22 @@ export class Lexer {
      */
     * generate_tokens() {
         while (this.current_char !== null) {
-            if (is_in(this.current_char, WHITESPACE)) {
+            if (this.current_char === " ") {
+                let pos_start = this.pos.copy();
+                let count = 0;
+                
+                while (this.current_char === " ") {
+                    count++;
+                    this.advance();
+                    if (count === SPACES_FOR_INDENTATION) {
+                        yield new Token(TokenType.INDENTATION, "\t", pos_start);
+                        break;
+                    }
+                }
+            } else if (this.current_char === "\t") {
+                let pos = this.pos.copy();
                 this.advance();
+                yield new Token(TokenType.INDENTATION, "\t", pos);
             } else if (this.current_char === "\n" || this.current_char === "\r") {
                 let pos_start = this.pos.copy();
                 if (this.current_char === "\r") {
@@ -63,7 +81,7 @@ export class Lexer {
             } else if (this.current_char === "/") {
                 let pos = this.pos.copy();
                 this.advance();
-                yield new Token(TokenType.DIVIDE, "/", pos);
+                yield new Token(TokenType.SLASH, "/", pos);
             } else if (this.current_char === "%") {
                 let pos = this.pos.copy();
                 this.advance();
@@ -83,7 +101,14 @@ export class Lexer {
             } else if (this.current_char === "<") {
                 yield this.make_less_than_or_equal_or_binary();
             } else if (this.current_char === ">") {
-                yield this.make_greater_than_or_equal_or_binary();
+                if (this.wait_of_chevron && !this.pause_in_chevron_search) {
+                    let pos = this.pos.copy();
+                    this.wait_of_chevron = false;
+                    this.advance();
+                    yield new Token(TokenType.RCHEVRON, ">", pos);
+                } else {
+                    yield this.make_greater_than_or_equal_or_binary();
+                }
             } else if (this.current_char === "?") {
                 yield* this.make_qmark_or_nullish_or_ocp();
             } else if (this.current_char === "'") {
@@ -105,10 +130,16 @@ export class Lexer {
             } else if (this.current_char === "{") {
                 let pos = this.pos.copy();
                 this.advance();
+                if (this.wait_of_chevron) {
+                    this.pause_in_chevron_search = true;
+                }
                 yield new Token(TokenType.LBRACK, "{", pos);
             } else if (this.current_char === "}") {
                 let pos = this.pos.copy();
                 this.advance();
+                if (this.wait_of_chevron) {
+                    this.pause_in_chevron_search = false;
+                }
                 yield new Token(TokenType.RBRACK, "}", pos);
             } else if (this.current_char === ",") {
                 let pos = this.pos.copy();
@@ -127,7 +158,13 @@ export class Lexer {
                 this.advance();
                 yield new Token(TokenType.BIN_NOT, "~", pos);
             } else if (this.current_char === "#") {
-                this.skip_comment();
+                let pos = this.pos.copy();
+                this.advance();
+                if (this.current_char === " ") {
+                    this.skip_comment(); // a comment has to be followed by a whitespace
+                } else {
+                    yield new Token(TokenType.HASH, "#", pos); // otherwise it's an "hash"
+                }
             } else {
                 let char = this.current_char;
                 let pos_start = this.pos.copy();
@@ -254,6 +291,11 @@ export class Lexer {
             this.advance();
             tok_type = TokenType.BINARY_LEFT;
             value = "<<";
+        } else if (is_in(this.current_char, LETTERS) || this.current_char === "/" || this.current_char === ">") { // <a or <> or </
+            // we don't advance
+            tok_type = TokenType.LCHEVRON;
+            value = "<";
+            this.wait_of_chevron = true;
         }
 
         return new Token(tok_type, value, pos_start, this.pos);

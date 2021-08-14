@@ -1,3 +1,5 @@
+"use strict";
+
 import { Position } from "./position.js";
 import { Context } from "./context.js";
 import { ArgumentNode, CustomNode, NoneNode } from "./nodes.js";
@@ -444,6 +446,43 @@ export class ClassValue extends Value {
     }
 }
 
+export class TagValue extends Value {
+    /**
+     * @constructs TagValue
+     * @param {string} name The name of the class.
+     * @param {Map<string, { prop: number, state: number, optional: number, value: { type: string, value: Value } }>} value Value of 'self'. Note: "optional" is just for "prop".
+     */
+    constructor(name, value) {
+        super(Types.TAG);
+        this.name = name;
+        this.context_name = `<Tag ${this.name}>`; // we do it here because this name cannot be changed, it's very important
+        this.self = value;
+    }
+
+    is_true() {
+        return true;
+    }
+
+    equivalent() {
+        return {}; // todo
+    }
+
+    /**
+     * @override
+     * @return {TagValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new TagValue(this.name, this.self);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    toString() {
+        return `<Tag ${this.name}>`;
+    }
+}
+
 export class NativeClassValue extends Value {
     /**
      * @constructs NativeClassValue
@@ -809,5 +848,51 @@ export class BooleanValue extends Value {
 
     toString() {
         return `${this.display_name}`;
+    }
+}
+
+export class HtmlValue extends Value {
+    /**
+     * @constructs HtmlValue
+     * @param {string|null} tagname The name of the tag
+     * @param {string[]} classes The CSS classes attached to this tag.
+     * @param {string|null} id The ID attached to this tag.
+     * @param {[string, Value][]} attributes 
+     * @param {Value[]} children The list of children for that tag.
+     */
+    constructor(tagname, classes, id, attributes, children) {
+        super(Types.HTML);
+        this.tagname = tagname;
+        this.classes = classes;
+        this.id = id;
+        this.attributes = attributes;
+        this.children = children;
+    }
+
+    is_true() {
+        return true;
+    }
+
+    equivalent() {
+        return {};
+    }
+
+    /**
+     * @override
+     * @return {HtmlValue} A copy of that instance.
+     */
+    copy() {
+        let copy = new HtmlValue(this.tagname, this.classes, this.id, this.attributes, this.children);
+        copy.set_context(this.context);
+        copy.set_pos(this.pos_start, this.pos_end);
+        return copy;
+    }
+
+    indent(n) {
+        return '\t'.repeat(n);
+    }
+
+    toString() {
+        return `[Tag ${this.tagname ?? 'Fragment'}]`;
     }
 }

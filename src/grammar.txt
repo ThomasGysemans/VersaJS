@@ -8,8 +8,16 @@ statement   : KEYWORD:RETURN expr?
             : KEYWORD:BREAK
             : KEYWORD:super call_func
             : class-expr
+            : tag-expr
             : enum-expr
             : expr
+
+tag-expr:   : KEYWORD:class IDENTIFIER COLON (KEYWORD:pass)?
+                KEYWORD:prop (QMARK)? IDENTIFIER (COLON Types)? EQUALS expr
+                | KEYWORD:state IDENTIFIER (COLON Types)? EQUALS expr
+                | KEYWORD:method IDENTIFIER call_func
+                # greedy
+                KEYWORD:end
 
 enum-expr   : KEYWORD:enum IDENTIFIER COLON (KEYWORD:pass)? |
                 (IDENTIFIER COMMA)*
@@ -21,17 +29,28 @@ class-expr  : KEYWORD:class IDENTIFIER (KEYWORD:extends IDENTIFIER) COLON (KEYWO
                 | (KEYWORD:get) IDENTIFIER call_func
                 | (KEYWORD:set) IDENTIFIER call_func
                 # greedy
+                KEYWORD:end
 
 expr        : KEYWORD:VAR IDENTIFIER (COLON Types)? (EQUALS expr)?
             : KEYWORD:DEFINE IDENTIFIER (COLON Types)? EQUALS expr
             : KEYWORD:DELETE call
-            : comp-expr ((KEYWORD:AND|KEYWORD:OR|AND|OR) comp-expr)*
+            : html-expr
+
+html-expr   : (LCHEVRON IDENTIFIER (DOT IDENTIFIER)* (HASH IDENTIFIER)? (IDENTIFIER EQUALS (LBRACK cond-expr RBRACK)|atom)* RCHEVRON (cond-expr)?)
+                | (LCHEVRON RCHEVRON)
+                    (LCHEVRON IDENTIFIER (DOT IDENTIFIER)* (HASH IDENTIFIER)? (IDENTIFIER EQUALS (LBRACK cond-expr RBRACK)|atom)* RCHEVRON (cond-expr)?)*
+                    (INDENTATION* (LCHEVRON IDENTIFIER (DOT IDENTIFIER)* (HASH IDENTIFIER)? (IDENTIFIER EQUALS (LBRACK cond-expr RBRACK)|atom)* RCHEVRON (cond-expr)?)*)*
+                    #todo: add foreach, for and if#
+                  (LCHEVRON SLASH RCHEVRON)
+            : cond-expr
+
+cond-expr   : comp-expr ((KEYWORD:AND|KEYWORD:OR|AND|OR) comp-expr)*
             
 comp-expr   : NOT comp-expr
             : bin-op ((DOUBLE_EQUALS|NOT_EQUAL|LT|GT|LTE|GTE|NULLISH) bin-op)*
 
 bin-op      : arith-expr ((BINARY_LEFT|BINARY_RIGHT|BINARY_UNSIGNED_RIGHT|LOGICAL_AND|LOGICAL_XOR|LOGICAL_OR) (EQUALS expr)?|bin-op)*
-            : arith-expr (KEYWORD:instanceof IDENTIFIER)
+            : arith-expr (KEYWORD:instanceof IDENTIFIER)?
 
 arith-expr  : term ((PLUS|MINUS) (EQUALS expr)?|term)*
             : term (INC|DEC)*

@@ -1,3 +1,5 @@
+"use strict";
+
 import { Position } from "./position.js";
 import { SymbolTable } from "./symbol_table.js";
 
