@@ -1408,7 +1408,6 @@ export class ClassCallNode extends CustomNode {
         super();
         this.class_name_tok = class_name_tok;
         this.arg_nodes = arg_nodes;
-
         this.pos_start = this.class_name_tok.pos_start;
 
         if (this.arg_nodes.length > 0) {
@@ -1513,6 +1512,8 @@ export class EnumNode extends CustomNode {
      * @constructs EnumNode
      * @param {Token} enum_name_tok The name of the enum
      * @param {Array<Token>} properties The names of the properties
+     * @param {Position|null} pos_start The starting position.
+     * @param {Position|null} pos_end The end position.
      */
     constructor(enum_name_tok, properties, pos_start=null, pos_end=null) {
         super();

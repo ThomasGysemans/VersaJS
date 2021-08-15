@@ -21,8 +21,8 @@ export function string_with_arrows(text, pos_start, pos_end) {
     for (let i = 0; i < line_count; i++) {
         // Calculate line columns
         let line = text.substring(index_start, index_end);
-        let col_start = i == 0 ? pos_start.col : 0;
-        let col_end = i == line_count - 1 ? pos_end.col : line.length - 1;
+        let col_start = i === 0 ? pos_start.col : 0;
+        let col_end = i === line_count - 1 ? pos_end.col : line.length - 1;
         let n = col_end - col_start;
 
         // Append to result
@@ -49,7 +49,7 @@ export function is_in(value, list) {
     }
 
     for (let list_value of list) {
-        if (list_value == value) {
+        if (list_value === value) {
             return true;
         }
     }

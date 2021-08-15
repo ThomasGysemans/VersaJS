@@ -174,19 +174,14 @@ export class Parser {
                 
                 if (this.current_token.matches(TokenType.KEYWORD, "elif")) {
                     more_statements = false;
-                    continue;
                 } else if (this.current_token.matches(TokenType.KEYWORD, "else")) {
                     more_statements = false;
-                    continue;
                 } else if (this.current_token.matches(TokenType.KEYWORD, "end")) {
                     more_statements = false;
-                    continue;
                 } else if (this.current_token.matches(TokenType.KEYWORD, "case")) { // we don't use `break` for the end of a case in a switch
                     more_statements = false;
-                    continue;
                 } else if (this.current_token.matches(TokenType.KEYWORD, "default")) { // we don't use `break` for the end of a case in a switch
                     more_statements = false;
-                    continue;
                 } else {
                     statement = this.statement();
 
@@ -235,13 +230,11 @@ export class Parser {
         }
 
         if (this.current_token.matches(TokenType.KEYWORD, "class")) {
-            let class_expr = this.class_expr();
-            return class_expr;
+            return this.class_expr();
         }
 
         if (this.current_token.matches(TokenType.KEYWORD, "tag")) {
-            let tag_expr = this.tag_expr();
-            return tag_expr;
+            return this.tag_expr();
         }
 
         if (this.current_token.matches(TokenType.KEYWORD, "super")) {
@@ -258,8 +251,7 @@ export class Parser {
         }
 
         if (this.current_token.matches(TokenType.KEYWORD, "enum")) {
-            let enum_expr = this.enum_expr();
-            return enum_expr;
+            return this.enum_expr();
         }
 
         return this.expr();
@@ -981,12 +973,12 @@ export class Parser {
                 let children = [];
                 let pos_end = null;
 
-                /** @type {Array<{element:any, level: number}} */
+                /** @type {{element: any, level: number}[]} */
                 let all_elements = [];
                 let previous_indentation = starting_indentation;
                 let idx = 0;
                 
-                /** @type {Array<{element: any, idx: number}>} */
+                /** @type {{element: any, idx: number}[]} */
                 const mainElements = [];
 
                 const is_if      = () => this.current_token.matches(TokenType.KEYWORD, "if");
@@ -1728,7 +1720,6 @@ export class Parser {
 
     call() {
         if (this.current_token.matches(TokenType.KEYWORD, "new")) {
-            let pos_start = this.current_token.pos_start.copy();
             this.advance();
             if (this.current_token.type !== TokenType.IDENTIFIER) {
                 throw new InvalidSyntaxError(
@@ -2063,29 +2054,21 @@ export class Parser {
 
             return new VarAccessNode(token);
         } else if (this.current_token.type === TokenType.LSQUARE) {
-            let list_expr = this.list_expr();
-            return list_expr;
+            return this.list_expr();
         } else if (this.current_token.type === TokenType.LBRACK) {
-            let dict_expr = this.dict_expr();
-            return dict_expr;
+            return this.dict_expr();
         } else if (this.current_token.matches(TokenType.KEYWORD, "if")) {
-            let if_expr = this.if_expr();
-            return if_expr;
+            return this.if_expr();
         } else if (this.current_token.matches(TokenType.KEYWORD, "for")) {
-            let for_expr = this.for_expr();
-            return for_expr;
+            return this.for_expr();
         } else if (this.current_token.matches(TokenType.KEYWORD, "foreach")) {
-            let foreach_expr = this.foreach_expr();
-            return foreach_expr;
+            return this.foreach_expr();
         } else if (this.current_token.matches(TokenType.KEYWORD, "while")) {
-            let while_expr = this.while_expr();
-            return while_expr;
+            return this.while_expr();
         } else if (this.current_token.matches(TokenType.KEYWORD, "func")) {
-            let func_expr = this.func_expr();
-            return func_expr;
+            return this.func_expr();
         } else if (this.current_token.matches(TokenType.KEYWORD, "switch")) {
-            let switch_expr = this.switch_expr();
-            return switch_expr;
+            return this.switch_expr();
         } else if (this.current_token.matches(TokenType.KEYWORD, "none")) {
             this.advance();
             return new NoneNode(token.pos_start, token.pos_end);
@@ -2388,8 +2371,7 @@ export class Parser {
             if (this.is_newline()) {
                 this.advance();
                 
-                let statements = this.statements();
-                else_case = statements;
+                else_case = this.statements();
 
                 if (this.current_token.matches(TokenType.KEYWORD, "end")) {
                     this.advance();
@@ -2400,8 +2382,7 @@ export class Parser {
                     );
                 }
             } else {
-                let statement = this.statement();
-                else_case = statement;
+                else_case = this.statement();
             }
         }
 
@@ -3020,8 +3001,7 @@ export class Parser {
                 }
                 this.advance();
                 this.ignore_newlines();
-                let body = this.statements();
-                default_case = body;
+                default_case = this.statements();
             }
         };
 

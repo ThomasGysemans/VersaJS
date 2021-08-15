@@ -10,6 +10,7 @@
   "author": "CodoPixel",
   "license": "MIT",
   "dependencies": {
+    "process": "^0.11.10",
     "prompt-sync": "^4.2.0"
   },
   "devDependencies": {

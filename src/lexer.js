@@ -23,7 +23,7 @@ export class Lexer {
     constructor(text, filename="<stdin>") {
         this.text = text[Symbol.iterator]();
         this.filename = filename;
-        this.pos = new Position(-1, 0, -1, filename, text);
+        this.pos = new Position(-1, 0, -1, this.filename, text);
         this.wait_of_chevron = false; // true when we detect a left chevron
         this.pause_in_chevron_search = false; // if we detect '{' while `wait_for_chevron` is true
         this.advance();
@@ -242,8 +242,8 @@ export class Lexer {
             this.advance();
         }
 
-        var is_keyword = is_in(identifier, KEYWORDS);
-        var token_type = is_keyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
+        let is_keyword = is_in(identifier, KEYWORDS);
+        let token_type = is_keyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
         return new Token(token_type, identifier, pos_start, this.pos);
     }
 

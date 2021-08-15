@@ -4,7 +4,7 @@ A language made to create websites in a javascript-like way.
 
 ## Work in progress
 
-At the moment, the language cannot be used to create websites because all the primitive features of any language such as javascript have not yet been created.
+At the moment, the language cannot be used to create websites because it cannot yet be compiled into JavaScript.
 
 ## Syntax
 

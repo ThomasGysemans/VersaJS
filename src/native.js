@@ -7,7 +7,7 @@ import { ArgumentNode } from "./nodes.js";
 import { Position } from "./position.js";
 import { RuntimeResult } from "./runtime.js";
 import { Token, TokenType, Types } from "./tokens.js";
-import { ClassValue, DictionnaryValue, ListValue, NativeClassValue, NativePropertyValue, NoneValue, NumberValue, StringValue, Value } from "./values.js";
+import { ClassValue, DictionnaryValue, ListValue, NativeClassValue, NoneValue, NumberValue, StringValue, Value } from "./values.js";
 
 /**
  * A shortcut to create arguments for native functions faster.
@@ -19,7 +19,7 @@ import { ClassValue, DictionnaryValue, ListValue, NativeClassValue, NativeProper
  */
 export function argNode(name, type=Types.ANY, is_rest=false, is_optional=false, default_value=null) {
     return new ArgumentNode(new Token(TokenType.STRING, name), type, is_rest, is_optional, default_value);
-};
+}
 
 /**
  * Gets a property that belongs to the executed native class.
@@ -58,7 +58,7 @@ export const NATIVE_CLASSES = {
                      * Equivalent of `console.log`.
                      * @param {Context} exec_ctx The execution context.
                      */
-                    behavior: (exec_ctx, pos_start, pos_end) => {
+                    behavior: (exec_ctx) => {
                         /** @type {ListValue} */
                         let value = exec_ctx.symbol_table.get('value').value;
                         let str = "";
@@ -84,6 +84,8 @@ export const NATIVE_CLASSES = {
                     /**
                      * Equivalent of `console.assert`.
                      * @param {Context} exec_ctx The execution context.
+                     * @param {Position} pos_start The starting position.
+                     * @param {Position} pos_end The end position.
                      */
                     behavior: (exec_ctx, pos_start, pos_end) => {
                         let expression = exec_ctx.symbol_table.get('expression').value;
@@ -116,7 +118,7 @@ export const NATIVE_FUNCTIONS = {
          * Equivalent of `console.log`.
          * @param {Context} exec_ctx The execution context.
          */
-        behavior: (exec_ctx, pos_start, pos_end) => {
+        behavior: (exec_ctx) => {
             /** @type {ListValue} */
             let value = exec_ctx.symbol_table.get('value').value;
             let str = "";
@@ -133,6 +135,8 @@ export const NATIVE_FUNCTIONS = {
         /**
          * Equivalent of `len()` in python.
          * @param {Context} exec_ctx The execution context.
+         * @param {Position} pos_start The starting position.
+         * @param {Position} pos_end The end position.
          */
         behavior: (exec_ctx, pos_start, pos_end) => {
             let s = exec_ctx.symbol_table.get('s').value;
@@ -157,7 +161,7 @@ export const NATIVE_FUNCTIONS = {
         /**
          * Exists the entire program
          */
-        behavior: (exec_ctx, pos_start, pos_end) => {
+        behavior: () => {
             process.exit()
         }
     }

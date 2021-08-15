@@ -40,7 +40,9 @@ html-expr   : (LCHEVRON IDENTIFIER (DOT IDENTIFIER)* (HASH IDENTIFIER)? (ARROBAS
                 | (LCHEVRON RCHEVRON)
                     (LCHEVRON IDENTIFIER (DOT IDENTIFIER)* (HASH IDENTIFIER)? (ARROBASE IDENTIFIER EQUALS LBRACK prop RBRACK)* (IDENTIFIER EQUALS (LBRACK cond-expr RBRACK)|atom)* RCHEVRON (cond-expr)?)*
                     (INDENTATION* (LCHEVRON IDENTIFIER (DOT IDENTIFIER)* (HASH IDENTIFIER)? (ARROBASE IDENTIFIER EQUALS LBRACK prop RBRACK)* (IDENTIFIER EQUALS (LBRACK cond-expr RBRACK)|atom)* RCHEVRON (cond-expr)?)*)*
-                    #todo: add foreach, for and if#
+                    | if_expr
+                    | for_expr
+                    | foreach_expr
                   (LCHEVRON SLASH RCHEVRON)
             : cond-expr
 

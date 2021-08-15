@@ -5,16 +5,14 @@ import { run } from './run.js';
 import { ListValue } from './values.js';
 
 while (true) {
-    const text = prompt()("run > ");
+    const text = prompt({sigint: false})("run > ");
     if (text === null) {
         // if the user uses the shortcut Ctrl + C
-        const want_to_exit = prompt()("Do you want to exit the program ? (Y|N) ");
+        const want_to_exit = prompt({sigint: false})("Do you want to exit the program ? (Y|N) ");
         // if want_to_exit is null, that means that the user uses the shortcut Ctrl + C again
         if (want_to_exit) {
             if (want_to_exit.toUpperCase() === "Y") {
                 break;
-            } else {
-                continue;
             }
         } else {
             break;
@@ -34,8 +32,6 @@ while (true) {
                     console.log(result.value.toString());
                 }
             }
-        } else {
-            continue;
         }
     }
 }

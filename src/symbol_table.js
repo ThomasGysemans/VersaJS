@@ -52,7 +52,7 @@ export class SymbolTable {
             let type = this.symbols.get(name).type;
             this.symbols.set(name, { type, value: new_value });
         } else {
-            var parent = this.parent;
+            let parent = this.parent;
             while (parent) {
                 if (parent.symbols.has(name)) {
                     let type = parent.symbols.get(name).type;
@@ -67,7 +67,7 @@ export class SymbolTable {
     /**
      * Creates a variable.
      * @param {string} name The name of the variable to create.
-     * @param {{type: Types, value: any}} value The value of that variable.
+     * @param {{type: string, value: any}} value The value of that variable.
      */
     set(name, value) {
         this.symbols.set(name, value);
@@ -81,7 +81,7 @@ export class SymbolTable {
         if (this.symbols.has(name)) {
             this.symbols.delete(name);
         } else {
-            var parent = this.parent;
+            let parent = this.parent;
             while (parent) {
                 if (parent.symbols.has(name)) {
                     parent.symbols.delete(name);

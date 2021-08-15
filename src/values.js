@@ -13,7 +13,7 @@ import { Types } from "./tokens.js";
 export class Value {
     /**
      * @constructs Value
-     * @param {Types} type The type of value
+     * @param {string} type The type of value
      */
     constructor(type) {
         this.type = type;
@@ -819,7 +819,7 @@ export class BooleanValue extends Value {
     /**
      * @constructs BooleanValue
      * @param {number} state false or true?
-     * @param {string} display_name "yes", "true", "no" or "false"
+     * @param {string|null} display_name "yes", "true", "no" or "false"
      */
     constructor(state, display_name=null) {
         super(Types.BOOLEAN);
@@ -828,11 +828,11 @@ export class BooleanValue extends Value {
     }
 
     is_true() {
-        return this.state === 1 ? true : false;
+        return this.state === 1;
     }
 
     equivalent() {
-        return this.state === 1 ? true : false;
+        return this.state === 1;
     }
 
     /**
@@ -888,10 +888,6 @@ export class HtmlValue extends Value {
         copy.set_context(this.context);
         copy.set_pos(this.pos_start, this.pos_end);
         return copy;
-    }
-
-    indent(n) {
-        return '\t'.repeat(n);
     }
 
     toString() {
