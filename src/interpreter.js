@@ -4810,6 +4810,7 @@ export class Interpreter {
         let classes = node.classes;
         let id = node.id;
         let attributes = [];
+        let events = [];
         let children = [];
         let is_fragment = tagname === null || tagname === undefined;
 
@@ -4909,6 +4910,32 @@ export class Interpreter {
                     context
                 );
             }
+
+            let visited_events = [];
+
+            for (let event of node.events) {
+                let name = event[0].value;
+                let event_pos_start = event[0].pos_start;
+                let event_pos_end = event[0].pos_end;
+                if (is_in(name, visited_events)) {
+                    throw new RuntimeError(
+                        event_pos_start, event_pos_end,
+                        `The event '${name}' has already been defined.`,
+                        context
+                    );
+                }
+                let value = res.register(this.visit(event[1], context));
+                if (res.should_return()) return res;
+                if (!(value instanceof BaseFunction)) {
+                    throw new RuntimeError(
+                        value.pos_start, value.pos_end,
+                        "An event expects a function as value",
+                        context
+                    );
+                }
+                visited_events.push(name);
+                events.push([name, value]);
+            }
         }
 
         for (let child of node.children) {
@@ -4927,6 +4954,7 @@ export class Interpreter {
                 classes,
                 id,
                 attributes,
+                events,
                 children
             ).set_pos(node.pos_start, node.pos_end).set_context(context)
         );

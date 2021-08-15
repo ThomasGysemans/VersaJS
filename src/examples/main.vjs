@@ -1,7 +1,9 @@
 tag Counter:
     prop? start: number = 0
     prop? max = none
-    state counter: number = self.start
+    state count: number = self.start
+
+    method increment() -> self.setState({"count": ++self.count});
 
     method render():
         return <>
@@ -9,7 +11,7 @@ tag Counter:
             if self.max && self.start >= self.max:
                 <span> "Maximum reached"
             else:
-                <button> "Click"
+                <button @click={self.increment}> "Click"
             end
         </>
     end

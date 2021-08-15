@@ -815,6 +815,7 @@ export class Parser {
                 let classes = [];
                 let id = null;
                 let attributes = [];
+                let events = [];
                 let beginning_pos_start = this.current_token.pos_start.copy();
                 let pos_end = null;
 
@@ -824,8 +825,8 @@ export class Parser {
                     this.advance();
 
                     let potential_tokens = [
-                        TokenType.HASH,
-                        TokenType.DOT
+                        TokenType.DOT,
+                        TokenType.HASH
                     ];
 
                     while (is_in(this.current_token.type, potential_tokens)) {
@@ -854,35 +855,67 @@ export class Parser {
                         }
                     }
                     
-                    while (this.current_token.type === TokenType.IDENTIFIER) {
-                        let attr_tok = this.current_token;
-                        let value_node;
-                        this.advance();
-                        if (this.current_token.type === TokenType.EQUALS) {
+                    while (
+                        this.current_token.type === TokenType.IDENTIFIER ||
+                        this.current_token.type === TokenType.ARROBASE
+                    ) {
+                        if (this.current_token.type === TokenType.IDENTIFIER) {
+                            let attr_tok = this.current_token;
+                            let value_node;
                             this.advance();
-                            if (this.current_token.type === TokenType.LBRACK) {
+                            if (this.current_token.type === TokenType.EQUALS) {
                                 this.advance();
-                                value_node = this.cond_expr();
-                                if (this.current_token.type !== TokenType.RBRACK) {
-                                    throw new InvalidSyntaxError(
-                                        this.current_token.pos_start, this.current_token.pos_end,
-                                        "Expected '}'"
-                                    );
+                                if (this.current_token.type === TokenType.LBRACK) {
+                                    this.advance();
+                                    value_node = this.cond_expr();
+                                    if (this.current_token.type !== TokenType.RBRACK) {
+                                        throw new InvalidSyntaxError(
+                                            this.current_token.pos_start, this.current_token.pos_end,
+                                            "Expected '}'"
+                                        );
+                                    }
+                                    this.advance();
+                                } else {
+                                    if (this.current_token.type !== TokenType.STRING) {
+                                        throw new InvalidSyntaxError(
+                                            this.current_token.pos_start, this.current_token.pos_end,
+                                            "For more readability and consistency, you must use brackets {} around your value, or a simple string"
+                                        );
+                                    }
+                                    value_node = this.atom();
                                 }
-                                this.advance();
                             } else {
-                                if (this.current_token.type !== TokenType.STRING) {
-                                    throw new InvalidSyntaxError(
-                                        this.current_token.pos_start, this.current_token.pos_end,
-                                        "For more readability and consistency, you must use brackets {} around your value, or a simple string"
-                                    );
-                                }
-                                value_node = this.atom();
+                                value_node = new StringNode(attr_tok); // <button disabled> === <button disabled="disabled">
                             }
-                        } else {
-                            value_node = new StringNode(attr_tok); // <button disabled> === <button disabled="disabled">
+                            attributes.push([attr_tok, value_node]);
+                        } else if (this.current_token.type === TokenType.ARROBASE) {
+                            this.advance();
+                            let eventname = this.current_token;
+                            this.advance();
+                            if (this.current_token.type !== TokenType.EQUALS) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "Expected '='"
+                                );
+                            }
+                            this.advance();
+                            if (this.current_token.type !== TokenType.LBRACK) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "Expected '{'"
+                                );
+                            }
+                            this.advance();
+                            let value_node = this.prop();
+                            if (this.current_token.type !== TokenType.RBRACK) {
+                                throw new InvalidSyntaxError(
+                                    this.current_token.pos_start, this.current_token.pos_end,
+                                    "Expected '}'"
+                                );
+                            }
+                            events.push([eventname, value_node]);
+                            this.advance();
                         }
-                        attributes.push([attr_tok, value_node]);
                     }
 
                     if (this.current_token.type !== TokenType.RCHEVRON) {
@@ -911,6 +944,7 @@ export class Parser {
                     classes,
                     id,
                     attributes,
+                    events,
                     [],
                     beginning_pos_start,
                     pos_end
@@ -1127,6 +1161,7 @@ export class Parser {
                     null, // because this is a fragment
                     [],
                     null,
+                    [],
                     [],
                     children,
                     pos_start,

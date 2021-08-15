@@ -157,6 +157,10 @@ export class Lexer {
                 let pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.BIN_NOT, "~", pos);
+            } else if (this.current_char === "@") {
+                let pos = this.pos.copy();
+                this.advance();
+                yield new Token(TokenType.ARROBASE, "@", pos);
             } else if (this.current_char === "#") {
                 let pos = this.pos.copy();
                 this.advance();

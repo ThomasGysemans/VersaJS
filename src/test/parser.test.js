@@ -1,7 +1,7 @@
 import assert from 'assert';
 import { Lexer } from '../lexer.js';
 import { Parser } from '../parser.js';
-import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, MinusNode, NullishAssignmentNode, AndAssignmentNode, OrAssignmentNode, TypeofNode, InstanceofNode, TagDefNode, HtmlNode, IfNode } from '../nodes.js';
+import { AddNode, AndNode, DivideNode, ModuloNode, MultiplyNode, NotNode, NumberNode, OrNode, PowerNode, SubtractNode, VarAssignNode, EqualsNode, LessThanNode, GreaterThanNode, LessThanOrEqualNode, GreaterThanOrEqualNode, NotEqualsNode, NullishOperatorNode, ListNode, ListAccessNode, ListAssignmentNode, FuncDefNode, CallNode, PrefixOperationNode, PostfixOperationNode, DictionnaryNode, DeleteNode, ForeachNode, CallPropertyNode, ClassCallNode, VarModifyNode, AssignPropertyNode, CallMethodNode, VarAccessNode, CallStaticPropertyNode, SuperNode, EnumNode, SwitchNode, NoneNode, BooleanNode, BinaryShiftLeftNode, BinaryShiftRightNode, UnsignedBinaryShiftRightNode, LogicalAndNode, LogicalOrNode, LogicalXORNode, BinaryNotNode, MinusNode, NullishAssignmentNode, AndAssignmentNode, OrAssignmentNode, TypeofNode, InstanceofNode, TagDefNode, HtmlNode, IfNode, ForNode } from '../nodes.js';
 import { InvalidSyntaxError } from '../Exceptions.js';
 
 // npm run test ./test/parser.test.js
@@ -567,26 +567,83 @@ describe('Parser tests', () => {
         assert.deepStrictEqual(node.element_nodes[0].children[1].tagname_tok.value, "div"); // div
     });
 
-    it('should work with a if statement inside an html structure', () => {
+    it('should work with an if-statement inside an html structure', () => {
         const tokens = new Lexer(`
-            var status = true
-
             <>
                 <div.class1.class2#id>
                     <span#id.class1 attr={5}>
                         if status:
-                            <strong>
-                                <span>
+                            <>
+                                <strong>
+                                    <span>
+                            </>
                         end
                         <div>
             </>
         `).generate_tokens();
         const node = new Parser(tokens).parse();
-        assert.deepStrictEqual(node.element_nodes[1] instanceof HtmlNode, true);
-        assert.deepStrictEqual(node.element_nodes[1].children.length, 1); // just the div, child of the fragment
-        assert.deepStrictEqual(node.element_nodes[1].children[0].tagname_tok.value, "div");
-        assert.deepStrictEqual(node.element_nodes[1].children[0].children[0].tagname_tok.value, "span");
-        assert.deepStrictEqual(node.element_nodes[1].children[0].children[0].children[0] instanceof IfNode, true);
-        assert.deepStrictEqual(node.element_nodes[1].children[0].children[0].children[1].tagname_tok.value, "div");
+        assert.deepStrictEqual(node.element_nodes[0] instanceof HtmlNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children.length, 1); // just the div, child of the fragment
+        assert.deepStrictEqual(node.element_nodes[0].children[0].tagname_tok.value, "div");
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].tagname_tok.value, "span");
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].children[0] instanceof IfNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].children[1].tagname_tok.value, "div");
+    });
+
+    it('should work with a for-loop inside an html structure', () => {
+        const tokens = new Lexer(`
+            <>
+                <div.class1.class2#id>
+                    <span#id.class1 attr={5}>
+                        for i to 10:
+                            <>
+                                <strong>
+                                    <span>
+                            </>
+                        end
+                        <div>
+            </>
+        `).generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof HtmlNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children.length, 1); // just the div, child of the fragment
+        assert.deepStrictEqual(node.element_nodes[0].children[0].tagname_tok.value, "div");
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].tagname_tok.value, "span");
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].children[0] instanceof ForNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].children[1].tagname_tok.value, "div");
+    });
+
+    it('should work with a foreach-loop inside an html structure', () => {
+        const tokens = new Lexer(`
+            <>
+                <div.class1.class2#id>
+                    <span#id.class1 attr={5}>
+                        foreach list as element:
+                            <>
+                                <strong>
+                                    <span>
+                            </>
+                        end
+                        <div>
+            </>
+        `).generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof HtmlNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children.length, 1); // just the div, child of the fragment
+        assert.deepStrictEqual(node.element_nodes[0].children[0].tagname_tok.value, "div");
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].tagname_tok.value, "span");
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].children[0] instanceof ForeachNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children[0].children[0].children[1].tagname_tok.value, "div");
+    });
+
+    it('should work with events in html structure', () => {
+        const tokens = new Lexer(`
+            <>
+                <div.class1#id attr={5} @mousemove={function} attr={5}>
+            </>
+        `).generate_tokens();
+        const node = new Parser(tokens).parse();
+        assert.deepStrictEqual(node.element_nodes[0] instanceof HtmlNode, true);
+        assert.deepStrictEqual(node.element_nodes[0].children[0].tagname_tok.value, "div");
     });
 });

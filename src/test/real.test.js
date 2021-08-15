@@ -3,7 +3,7 @@ import { Context } from '../context.js';
 import { run } from '../run.js';
 import { Types } from '../tokens.js';
 import global_symbol_table, { SymbolTable } from '../symbol_table.js';
-import { BooleanValue, ClassValue, HtmlValue, NoneValue, TagValue } from '../values.js';
+import { BooleanValue, ClassValue, FunctionValue, HtmlValue, NoneValue, TagValue } from '../values.js';
 import { RuntimeError } from '../Exceptions.js';
 
 const fn = "<stdin>";
@@ -1382,5 +1382,19 @@ describe("Interpreter", function() {
         if (result) assert.deepStrictEqual(result.elements[1].children[0].children[0].tagname, "li");
         if (result) assert.deepStrictEqual(result.elements[1].children[0].children[2].children[0].value, "Item 2");
         if (result) assert.deepStrictEqual(result.elements[1].children[0].children[3].children[0].value, "Last item");
+    });
+
+    it("should work with an event attached to a tag", () => {
+        const result = run(`
+            var function = func() -> 5
+
+            <>
+                <div.class1#id @mousemove={function}>
+            </>
+            `, fn, context).value;
+        if (result) assert.deepStrictEqual(result.elements[1] instanceof HtmlValue, true);
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].tagname, "div");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].events[0][0], "mousemove");
+        if (result) assert.deepStrictEqual(result.elements[1].children[0].events[0][1] instanceof FunctionValue, true);
     });
 });

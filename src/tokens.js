@@ -57,6 +57,7 @@ export class TokenType {
     static RCHEVRON                   = 'RCHEVRON' // >
     static HASH                       = 'HASH' // #
     static INDENTATION                = 'INDENTATION' // \t
+    static ARROBASE                   = 'ARROBASE' // @
     static EOF                        = 'EOF'
 }
 

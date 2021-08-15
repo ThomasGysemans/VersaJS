@@ -1626,22 +1626,24 @@ export class HtmlNode extends CustomNode {
      * @param {string[]} classes The classes attached to that tag.
      * @param {string|null} id The id attached to that tag. Null because it's optional.
      * @param {[Token, CustomNode][]} attributes The attributes attached to that tag.
-     * @param {CustomNode[]} children The children elements. Might be other HtmlNodes or any other CustomNode
-     * @param {Position} pos_start The starting position
+     * @param {[Token, CustomNode][]} events The events attached to that tag.
+     * @param {CustomNode[]} children The children elements. Might be other HtmlNodes or any other CustomNode.
+     * @param {Position} pos_start The starting position.
      * @param {Position} pos_end The end position.
      */
-    constructor(tagname_tok, classes, id, attributes, children, pos_start, pos_end) {
+    constructor(tagname_tok, classes, id, attributes, events, children, pos_start, pos_end) {
         super();
         this.tagname_tok = tagname_tok;
         this.classes = classes;
         this.id = id;
         this.attributes = attributes;
+        this.events = events;
         this.children = children;
         this.pos_start = pos_start;
         this.pos_end = pos_end;
     }
 
     toString() {
-        return `<${this.tagname_tok?.value ?? ''}${this.classes.map((v) => '.' + v)}${this.id ? '#' + this.id : ''} (${this.attributes.length} attribute${this.attributes.length > 1 ? 's' : ''})> (${this.children.length} ${this.children.length > 1 ? 'children' : 'child'})`;
+        return `<${this.tagname_tok?.value ?? ''}${this.classes.map((v) => '.' + v)}${this.id ? '#' + this.id : ''} (${this.attributes.length} attribute${this.attributes.length > 1 ? 's' : ''}) (${this.events.length} event${this.events.length > 1 ? 's' : ''})> (${this.children.length} ${this.children.length > 1 ? 'children' : 'child'})`;
     }
 }

@@ -857,15 +857,17 @@ export class HtmlValue extends Value {
      * @param {string|null} tagname The name of the tag
      * @param {string[]} classes The CSS classes attached to this tag.
      * @param {string|null} id The ID attached to this tag.
-     * @param {[string, Value][]} attributes 
+     * @param {[string, Value][]} attributes The attributes attached to this tag.
+     * @param {[string, Value][]} events The events attached to this tag.
      * @param {Value[]} children The list of children for that tag.
      */
-    constructor(tagname, classes, id, attributes, children) {
+    constructor(tagname, classes, id, attributes, events, children) {
         super(Types.HTML);
         this.tagname = tagname;
         this.classes = classes;
         this.id = id;
         this.attributes = attributes;
+        this.events = events;
         this.children = children;
     }
 
@@ -882,7 +884,7 @@ export class HtmlValue extends Value {
      * @return {HtmlValue} A copy of that instance.
      */
     copy() {
-        let copy = new HtmlValue(this.tagname, this.classes, this.id, this.attributes, this.children);
+        let copy = new HtmlValue(this.tagname, this.classes, this.id, this.attributes, this.events, this.children);
         copy.set_context(this.context);
         copy.set_pos(this.pos_start, this.pos_end);
         return copy;
