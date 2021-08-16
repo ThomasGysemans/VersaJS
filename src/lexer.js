@@ -368,14 +368,23 @@ export class Lexer {
         let pos_start = this.pos.copy();
         let escape_character = false; // do we have to escape the following character?
         let opening_quote = this.current_char; // ', " or `
+        let allow_concatenation = this.current_char === '"';
+        let brackets_counter = 0;
         this.advance();
 
         // if we have to escape a character,
         // even if we have a '"',
-        // we don't stop the loop
-        while (this.current_char !== null && (this.current_char !== opening_quote || escape_character)) {
+        // we don't stop the loop.
+        // However, we must not stop the loop if:
+        // we allow concatenation and brackets_counter !== 0 and this.current_char = opening_quote
+        while (
+            this.current_char !== null &&
+            (this.current_char !== opening_quote || (this.current_char === opening_quote && allow_concatenation && brackets_counter !== 0) || escape_character)
+        ) {
+            if (allow_concatenation && this.current_char === "{") brackets_counter++;
+            if (allow_concatenation && this.current_char === "}") brackets_counter--;
             if (escape_character) {
-                string += ESCAPE_CHARACTERS.has(this.current_char) ? ESCAPE_CHARACTERS.get(this.current_char) : this.current_char;
+                string += ESCAPE_CHARACTERS.get(this.current_char) ?? this.current_char;
                 escape_character = false;
             } else {
                 if (this.current_char === '\\') {
@@ -389,7 +398,7 @@ export class Lexer {
 
         // end of the string
         this.advance();
-        return new Token(TokenType.STRING, string, pos_start, this.pos);
+        return new Token(TokenType.STRING, string, pos_start, this.pos, { allow_concatenation });
     }
 
     make_minus_decrement_or_arrow() {

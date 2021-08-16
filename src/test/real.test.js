@@ -354,7 +354,7 @@ describe("Interpreter", function() {
     it("should work with concatenation", () => {
         const result = run(`
             var age = 17;
-            var str = f"I am $age.";
+            var str = "I am {age}.";
         `, fn, context).value;
         if (result) assert.deepStrictEqual(result.elements[1].value, "I am 17.");
     });
@@ -1278,7 +1278,7 @@ describe("Interpreter", function() {
             <>
                 <ul>
                     for i to 10:
-                        <li> f"Item $i"
+                        <li> "Item {i}"
                     end
                     <li> "Last item"
             </>
@@ -1297,7 +1297,7 @@ describe("Interpreter", function() {
                     for i to 10:
                         <>
                             <li>
-                                <span> {f"Item $i"}
+                                <span> "Item {i}"
                         </>
                     end
                     <li> "Last item"
@@ -1316,7 +1316,7 @@ describe("Interpreter", function() {
         const result = run(`
             <>
                 <ul>
-                    for i to 10: <li> f"Item $i"
+                    for i to 10: <li> "Item {i}"
                     <li> "Last item"
             </>
             `, fn, context).value;
@@ -1333,7 +1333,7 @@ describe("Interpreter", function() {
             <>
                 <ul>
                     foreach list as el:
-                        <li> f"Item $el"
+                        <li> "Item {el}"
                     end
                     <li> "Last item"
             </>
@@ -1353,7 +1353,7 @@ describe("Interpreter", function() {
                     foreach list as el:
                         <>
                             <li>
-                                <span> {f"Item $el"}
+                                <span> "Item {el}"
                         </>
                     end
                     <li> "Last item"
@@ -1373,7 +1373,7 @@ describe("Interpreter", function() {
             var list = [0, 1, 2]
             <>
                 <ul>
-                    foreach list as el: <li> f"Item $el"
+                    foreach list as el: <li> "Item {el}"
                     <li> "Last item"
             </>
             `, fn, context).value;

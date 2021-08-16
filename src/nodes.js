@@ -858,14 +858,13 @@ export class StringNode extends CustomNode {
     /**
      * @constructs StringNode
      * @param {Token} token The token that represents a string.
-     * @param {boolean} allow_concatenation
      */
-    constructor(token, allow_concatenation=false) {
+    constructor(token) {
         super();
         this.token = token;
         this.pos_start = this.token.pos_start;
         this.pos_end = this.token.pos_end;
-        this.allow_concatenation = allow_concatenation;
+        this.allow_concatenation = this.token.data.allow_concatenation;
     }
 
     toString() {

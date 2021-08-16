@@ -5,12 +5,13 @@ import { BaseFunction, BooleanValue, ClassValue, DictionnaryValue, EnumValue, Fu
 import { RuntimeResult } from './runtime.js';
 import { CustomTypeError, InvalidSyntaxError, RuntimeError } from './Exceptions.js';
 import { Context } from './context.js';
-import { LETTERS_DIGITS } from './lexer.js';
+import { Lexer } from './lexer.js';
 import { CONSTANTS, SymbolTable } from './symbol_table.js';
 import { is_in } from './miscellaneous.js';
 import { Position } from './position.js';
 import { Types } from './tokens.js';
 import { NATIVE_TAGS } from './native.js';
+import {Parser} from "./parser.js";
 
 class BinarySelectorValues {
     /**
@@ -36,10 +37,10 @@ function array_equals(a, b) {
         return false;
 
     // compare lengths - can save a lot of time
-    if (a.length != b.length)
+    if (a.length !== b.length)
         return false;
 
-    for (var i = 0, l=a.length; i < l; i++) {
+    for (let i = 0, l=a.length; i < l; i++) {
         if (a[i].constructor.name !== b[i].constructor.name) return false;
 
         if (a[i] instanceof ListValue && b[i] instanceof ListValue) {
@@ -2773,41 +2774,46 @@ export class Interpreter {
      */
     visit_StringNode(node, context) {
         let interpreted_string = "";
+        let filename = node.pos_start.fn;
         let allow_concatenation = node.allow_concatenation;
 
         if (allow_concatenation) {
             for (let i = 0; i < node.token.value.length; i++) {
                 let char = node.token.value[i];
-                let variable_name = "";
-                if (char === "$") {
-                    let previous_char = "";
+                let code = "";
+                let brackets_counter = 1; // so as not to confuse the braces of the concatenation with those of a dictionary inside.
+                if (char === "{") {
                     while (true) {
                         i++;
-                        if (i >= node.token.value.length) break;
-                        if (node.token.value[i] === " ") break;
-                        if (!is_in(node.token.value[i], LETTERS_DIGITS)) {
-                            previous_char = node.token.value[i];
-                            break;
-                        }
-                        char = node.token.value[i];
-                        variable_name += char;
-                    }
-                    if (variable_name) {
-                        let value = context.symbol_table.get(variable_name)?.value;
-                        if (value === null || value === undefined) {
+                        if (i >= node.token.value.length) {
                             throw new RuntimeError(
                                 node.pos_start, node.pos_end,
-                                `Undefined variable '${variable_name}'`,
+                                "Invalid internal concatenation: the closure '}' is missing",
                                 context
                             );
                         }
-                        if (value.repr !== undefined) {
-                            interpreted_string += value.repr() + previous_char;
-                        } else {
-                            interpreted_string += value.toString() + previous_char;
+                        char = node.token.value[i];
+                        if (char === "{") brackets_counter++;
+                        if (char === "}") brackets_counter--;
+                        if (brackets_counter === 0) break;
+                        code += char;
+                    }
+                    if (code.trim().length > 0) {
+                        const lexer = new Lexer(code, filename);
+                        const tokens = lexer.generate_tokens();
+                        const parser = new Parser(tokens);
+                        const tree = parser.parse();
+
+                        if (!tree) {
+                            interpreted_string += "{}";
+                            continue;
                         }
+
+                        const result = this.visit(tree, context);
+                        interpreted_string += result.value.elements.join();
+                        code = "";
                     } else {
-                        interpreted_string += "$";
+                        interpreted_string += "{" + code + "}";
                     }
                 } else {
                     interpreted_string += char;
