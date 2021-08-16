@@ -6,3 +6,5 @@ var positive = +5
 var negative = -5
 var mylist = [1, 2]
 var operation = -(27 + (43 / 36 - 48) * +51)
+var name = "Thomas"
+var concatenation = f"My name is $name"

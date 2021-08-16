@@ -7,6 +7,10 @@ let positive = +5
 let negative = -5
 let mylist = [1, 2]
 let operation = -(27 + (((43 / 36) - 48) * +51))
+let name = "Thomas"
+let concatenation = "My name is $name"
+
+
 
 
 

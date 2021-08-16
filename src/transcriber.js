@@ -6,7 +6,7 @@ import {
     SubtractNode,
     MultiplyNode,
     DivideNode,
-    PlusNode, MinusNode
+    PlusNode, MinusNode, DictionnaryNode, StringNode
 } from "./nodes.js";
 import {CompilerError} from "./Exceptions.js";
 import {Context} from "./context.js";
@@ -89,14 +89,16 @@ export class Transcriber {
             this.transcribe_PlusNode(node);
         } else if (node instanceof MinusNode) {
             this.transcribe_MinusNode(node);
+        } else if (node instanceof StringNode) {
+            this.transcribe_StringNode(node);
+        } else if (node instanceof DictionnaryNode) {
+            this.transcribe_DictionnaryNode(node);
         } else {
             throw new CompilerError(
                 node.pos_start, node.pos_end,
                 `There is no way to compile this kind of node.`
             );
         }
-
-        // todo: faut faire en sorte de contrôler simultanément la position du noeud et la position du token, et ainsi pouvoir vérifier si on entre dans une parenthèse
 
         return "";
     }
@@ -197,5 +199,27 @@ export class Transcriber {
     transcribe_MinusNode(node) {
         this.javascript += "-";
         this.transcribe(node.node);
+    }
+
+    /**
+     * Transcribes a string
+     * @param {StringNode} node
+     */
+    transcribe_StringNode(node) {
+        this.javascript += '"';
+        this.javascript += node.token.value;
+        this.javascript += '"';
+    }
+
+    /**
+     * Transcribes a dictionnary
+     * @param {DictionnaryNode} node
+     */
+    transcribe_DictionnaryNode(node) {
+        this.javascript += "{ ";
+        for (let element of node.element_nodes) {
+            // todo: transcribe strings before
+        }
+        this.javascript += " }";
     }
 }
