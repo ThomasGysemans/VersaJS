@@ -1,21 +1,8 @@
-tag Counter:
-    prop? start: number = 0
-    prop? max = none
-    state count: number = self.start
-
-    method increment() -> self.setState({"count": ++self.count});
-
-    method render():
-        return <>
-            <span> {self.count}
-            if self.max && self.start >= self.max:
-                <span> "Maximum reached"
-            else:
-                <button @click={self.increment}> "Click"
-            end
-        </>
-    end
-end
-
-var counter = <Counter start={5}>
-log(counter)
+var addition = 5 + 5
+var subtraction = 5 - 5
+var multiplication = 5 * 5
+var division = 5 / 5
+var positive = +5
+var negative = -5
+var mylist = [1, 2]
+var operation = -(27 + (43 / 36 - 48) * +51)

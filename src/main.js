@@ -2,6 +2,7 @@
 
 import fs from 'fs';
 import { run } from './run.js';
+import {Transcriber} from "./transcriber.js";
 
 let script = ``;
 let fn = "./examples/main.vjs";
@@ -14,4 +15,6 @@ try {
     );
 }
 
-run(script, fn);
+// run(script, fn);
+const transcriber = new Transcriber(script, fn, "./compiled/");
+transcriber.create();

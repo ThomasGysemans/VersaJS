@@ -142,3 +142,18 @@ export class CustomTypeError extends BaseRuntime {
         super(pos_start, pos_end, "Type Error", details, context);
     }
 }
+
+/**
+ * @classdesc Error thrown during the compilation of vjs
+ */
+export class CompilerError extends CustomError {
+    /**
+     * @constructs CompilerError
+     * @param {Position} pos_start The starting position.
+     * @param {Position} pos_end The end position.
+     * @param {string} details Details about the error.
+     */
+    constructor(pos_start, pos_end, details) {
+        super(pos_start, pos_end, "Compiler Error", details);
+    }
+}
