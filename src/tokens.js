@@ -62,7 +62,7 @@ export class TokenType {
 }
 
 export class Types {
-    static ANY      = "any" // everything, var a = none, a is of type any
+    static ANY      = "any" // everything, var a = none, `a` is of type any
     static DYNAMIC  = "dynamic" // everything except none
     static NUMBER   = "number"
     static STRING   = "string"

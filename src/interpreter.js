@@ -11,7 +11,7 @@ import { is_in } from './miscellaneous.js';
 import { Position } from './position.js';
 import { Types } from './tokens.js';
 import { NATIVE_TAGS } from './native.js';
-import {Parser} from "./parser.js";
+import { Parser } from "./parser.js";
 
 class BinarySelectorValues {
     /**
@@ -333,7 +333,7 @@ export class Interpreter {
         // I keep forgetting some combinations
         // therefore, I designed this solution
         // just to keep my mind safe
-        // I test every scenario in `./test/interpreter.test.js`
+        // I test every scenario in `./test/maths.test.js`
 
         // ---
         // Every possible addition which returns a number
@@ -407,11 +407,11 @@ export class Interpreter {
             );
         } else if (left instanceof StringValue && right instanceof BooleanValue) { // string + boolean
             return new RuntimeResult().success(
-                new StringValue(left.value + right.display_name).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new StringValue(left.value + right.state.toString()).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof BooleanValue && right instanceof StringValue) { // boolean + string
             return new RuntimeResult().success(
-                new StringValue(left.display_name + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new StringValue(left.state.toString() + right.value).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         }
 
@@ -798,7 +798,7 @@ export class Interpreter {
             );
         } else if (left instanceof NoneValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new NumberValue(1).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NoneValue && right instanceof NoneValue) {
             return new RuntimeResult().success(
@@ -1664,11 +1664,11 @@ export class Interpreter {
             );
         } else if (left instanceof StringValue && right instanceof NumberValue) {
             return new RuntimeResult().success(
-                new BooleanValue(left.value == right.value.toString() ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(left.value === right.value.toString() ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
-                new BooleanValue(right.value == left.value.toString() ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new BooleanValue(right.value === left.value.toString() ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof StringValue && right instanceof StringValue) {
             return new RuntimeResult().success(
@@ -1746,6 +1746,10 @@ export class Interpreter {
         } else if (left instanceof NumberValue && right instanceof StringValue) {
             return new RuntimeResult().success(
                 new BooleanValue(left.value < right.value.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
+            );
+        } else if (left instanceof StringValue && right instanceof StringValue) {
+            return new RuntimeResult().success(
+                new BooleanValue(left.value.length < right.value.length ? 1 : 0).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else if (left instanceof DictionnaryValue && right instanceof DictionnaryValue) {
             return new RuntimeResult().success(
@@ -3626,7 +3630,7 @@ export class Interpreter {
             );
         } else if (visited instanceof NoneValue) {
             return res.success(
-                new NumberValue(0 + difference).set_pos(node.pos_start, node.pos_end).set_context(context)
+                new NumberValue(difference).set_pos(node.pos_start, node.pos_end).set_context(context)
             );
         } else {
             this.illegal_operation(node, context); 
@@ -3675,7 +3679,7 @@ export class Interpreter {
             context.symbol_table.modify(var_name, new_value);
             return new RuntimeResult().success(new_value);
         } else if (value instanceof NoneValue) {
-            let new_value = new NumberValue(0 + difference).set_pos(node.pos_start, node.pos_end).set_context(context);
+            let new_value = new NumberValue(difference).set_pos(node.pos_start, node.pos_end).set_context(context);
             context.symbol_table.modify(var_name, new_value);
             return new RuntimeResult().success(new_value);
         } else {
@@ -3831,7 +3835,7 @@ export class Interpreter {
             let method_node = node.methods[i];
             let method_name = method_node.func.var_name_tok.value;
             let method_status = method_node.status;
-            if (method_name === "__name") {
+            if (method_name === "__name" || method_name === "toString") {
                 throw new RuntimeError(
                     method_node.func.var_name_tok.pos_start, method_node.func.var_name_tok.pos_end,
                     `The identifier '${method_name}' is already reserved.`,
@@ -3881,7 +3885,7 @@ export class Interpreter {
         for (let i = 0; i < node.properties.length; i++) {
             let property_node = node.properties[i];
             let property_name = property_node.property_name_tok.value;
-            if (property_name === "__name") {
+            if (property_name === "__name" || property_name === "toString") {
                 throw new RuntimeError(
                     property_node.pos_start, property_node.pos_end,
                     `The identifier '${property_name}' is already reserved.`,
@@ -3907,7 +3911,7 @@ export class Interpreter {
         for (let i = 0; i < node.getters.length; i++) {
             let getter_node = node.getters[i];
             let getter_name = getter_node.func.var_name_tok.value;
-            if (getter_name === "__name") {
+            if (getter_name === "__name" || getter_name === "toString") {
                 throw new RuntimeError(
                     getter_node.func.var_name_tok.pos_start, getter_node.func.var_name_tok.pos_end,
                     `The identifier '${getter_name}' is already reserved.`,
@@ -3947,7 +3951,7 @@ export class Interpreter {
                     context
                 );
             }
-            if (setter_name === "__name") {
+            if (setter_name === "__name" || setter_name === "toString") {
                 throw new RuntimeError(
                     setter_node.pos_start, setter_node.pos_end,
                     `The identifier '${setter_name}' is already reserved.`,

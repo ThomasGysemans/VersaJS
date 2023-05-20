@@ -1,0 +1,19 @@
+tag Counter:
+    prop initial_counter: number = 0
+    state counter: number = self.initial_counter
+
+    method increment():
+        self.setState({"counter": ++self.counter})
+    end
+
+    method render():
+        return <>
+            <span> {self.counter}
+            <button @click={self.increment}> "Click"
+        </>
+    end
+end
+
+Versa.mount(
+    <Counter initial_counter={0}>
+)

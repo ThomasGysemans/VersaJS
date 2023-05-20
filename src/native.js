@@ -63,7 +63,7 @@ export const NATIVE_CLASSES = {
                         let value = exec_ctx.symbol_table.get('value').value;
                         let str = "";
                         // @ts-ignore
-                        for (let el of value.elements) str += el.repr ? el.repr() + " " : el.toString() + " ";
+                        for (let el of value.elements) str += el.repr && !(el instanceof ListValue) ? el.repr() + " " : el.toString() + " ";
                         console.log(str); // normal
                         return new RuntimeResult().success(new NoneValue()); // useless to define the position or the context of NoneValue here
                     }
@@ -106,6 +106,30 @@ export const NATIVE_CLASSES = {
                 }
             }
         ],
+    },
+    versa: {
+        name: "Versa",
+        properties: [
+            {
+                name: "mount",
+                nature: 'method',
+                type: Types.FUNCTION,
+                status: 1,
+                static_prop: 0,
+                value: {
+                    args: [
+                        argNode("element", Types.HTML),
+                    ],
+                    /**
+                     * Just an empty function that will build the DOM. In the shell, this function won't do a thing.
+                     */
+                    behavior: (exec_ctx, pos_start, pos_end) => {
+                        console.warn("WARNING: Versa.mount() has no effect outside a browser.");
+                        return new RuntimeResult().success(new NoneValue());
+                    }
+                }
+            }
+        ]
     }
 }
 
@@ -123,7 +147,7 @@ export const NATIVE_FUNCTIONS = {
             let value = exec_ctx.symbol_table.get('value').value;
             let str = "";
             // @ts-ignore
-            for (let el of value.elements) str += el.repr ? el.repr() + " " : el.toString() + " ";
+            for (let el of value.elements) str += el.repr && !(el instanceof ListValue) ? el.repr() + " " : el.toString() + " ";
             console.log(str); // normal
             return new RuntimeResult().success(new NoneValue());
         }

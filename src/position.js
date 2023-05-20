@@ -23,7 +23,7 @@ export class Position {
     /**
      * Moves forward.
      * @param {string|null} current_char The current character (we need to check if this is a new line).
-     * @returns {Position} this.
+     * @returns {this}
      */
     advance(current_char) {
         this.idx += 1;

@@ -110,14 +110,6 @@ export class Parser {
         }
     }
 
-    /**
-     * Assigns a type.
-     * @param {string} token_value The value of the token following ':'
-     */
-    assign_type(token_value) {
-        return token_value;
-    }
-
     parse() {
         if (this.current_token === null) {
             return null;
@@ -355,7 +347,7 @@ export class Parser {
                 this.advance();
                 if (this.current_token.type === TokenType.COLON) {
                     this.advance();
-                    property_type = this.assign_type(this.current_token.value);
+                    property_type = this.current_token.value;
                     this.advance();
                 }
                 let value_node;
@@ -504,11 +496,11 @@ export class Parser {
                 );
             }
         } else {
-            // on a single line statement, we expect the end of the enum statement to be a newline or the end of the file
+            // on a single line statement, we expect the end of the enum statement to be a new line or the end of the file
             if (this.current_token.type !== TokenType.EOF && !this.is_newline()) {
                 throw new InvalidSyntaxError(
                     this.current_token.pos_start, this.current_token.pos_end,
-                    "Expected newline or ';'"
+                    "Expected new line or ';'"
                 );
             }
         }
@@ -688,7 +680,7 @@ export class Parser {
                 this.advance();
                 if (this.current_token.type === TokenType.COLON) {
                     this.advance();
-                    property_type = this.assign_type(this.current_token.value);
+                    property_type = this.current_token.value;
                     this.advance();
                 }
                 let value_node;
@@ -760,7 +752,7 @@ export class Parser {
 
             if (this.current_token.type === TokenType.COLON) {
                 this.advance();
-                type = this.assign_type(this.current_token.value);
+                type = this.current_token.value;
                 this.advance();
             }
 
@@ -962,7 +954,7 @@ export class Parser {
                 if (!this.is_newline()) {
                     throw new InvalidSyntaxError(
                         this.current_token.pos_start, this.current_token.pos_end,
-                        "Expected a newline after an opening fragment"
+                        "Expected a new line after an opening fragment"
                     );
                 }
 
@@ -1051,7 +1043,7 @@ export class Parser {
                         if (!this.is_newline()) {
                             throw new InvalidSyntaxError(
                                 this.current_token.pos_start, this.current_token.pos_end,
-                                "Expected a newline"
+                                "Expected a new line"
                             );
                         }
                         all_elements.push({
@@ -1089,7 +1081,7 @@ export class Parser {
                         if (!this.is_newline()) {
                             throw new InvalidSyntaxError(
                                 this.current_token.pos_start, this.current_token.pos_end,
-                                "Expected a newline"
+                                "Expected a new line"
                             );
                         }
                         all_elements.push({
@@ -1668,7 +1660,7 @@ export class Parser {
                     if (!result) { // the risk is that we might have "function?.()" too
                         result = this.helper_call_func(node_to_call, true);
                     } else {
-                        result = new CallMethodNode(this.helper_call_func(result), node_to_call, true);
+                        result = new CallMethodNode(this.helper_call_func(result, true), node_to_call, true);
                     }
                 } else if (is_lsquare() && is_optional) { // or "example.list?.[0]"
                     if (!result) { // the risk is that we might have "simplelist?.[]" too
@@ -2689,7 +2681,7 @@ export class Parser {
                 // is the type specified?
                 if (this.current_token.type === TokenType.COLON) {
                     this.advance();
-                    type = this.assign_type(this.current_token.value);
+                    type = this.current_token.value;
                     this.advance();
                 }
                 // just in case a default value has been assigned
@@ -2720,7 +2712,7 @@ export class Parser {
 
                             if (this.current_token.type === TokenType.COLON) {
                                 this.advance();
-                                type = this.assign_type(this.current_token.value);
+                                type = this.current_token.value;
                                 this.advance();
                             }
 
@@ -2736,7 +2728,7 @@ export class Parser {
                             let type = Types.LIST;
                             if (this.current_token.type === TokenType.COLON) {
                                 this.advance();
-                                type = this.assign_type(this.current_token.value);
+                                type = this.current_token.value;
                                 this.advance();
                             }
                             all_args.push(new ArgumentNode(identifier_token, type, is_rest, false));
@@ -2757,7 +2749,7 @@ export class Parser {
 
                         if (this.current_token.type === TokenType.COLON) {
                             this.advance();
-                            type = this.assign_type(this.current_token.value);
+                            type = this.current_token.value;
                             this.advance();
                         }
 
@@ -2784,7 +2776,7 @@ export class Parser {
                             let is_specified_type = this.current_token.type === TokenType.COLON;
                             if (is_specified_type) {
                                 this.advance();
-                                type = this.assign_type(this.current_token.value);
+                                type = this.current_token.value;
                                 this.advance();
                             }
                             if (this.current_token.type === TokenType.EQUALS) {
@@ -2946,6 +2938,14 @@ export class Parser {
         }
 
         this.advance();
+
+        if (!this.is_newline()) {
+            throw new InvalidSyntaxError(
+                this.current_token.pos_start, this.current_token.pos_end,
+                "Expected a new line"
+            );
+        }
+
         this.ignore_newlines();
 
         /** @type {Array<{conditions:Array<CustomNode>,body:CustomNode}>} */

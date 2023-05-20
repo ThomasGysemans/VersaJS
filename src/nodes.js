@@ -875,7 +875,7 @@ export class StringNode extends CustomNode {
 export class IfNode extends CustomNode {
     /**
      * @constructs IfNode
-     * @param {[CustomNode, CustomNode][]} cases The cases [[condition, expr, should_return_null]].
+     * @param {[CustomNode, CustomNode][]} cases The cases [[condition, expr]].
      * @param {CustomNode} else_case The else case.
      * @param {boolean} should_return_null Should return null? False for inline loops.
      * @param {boolean} prevent_null_return Prevents the loop from returning "none" in an HTML structure.

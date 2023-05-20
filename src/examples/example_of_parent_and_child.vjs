@@ -1,0 +1,20 @@
+tag Child:
+    method render():
+        return <>
+            <h1> "Bonjour"
+        </>
+    end
+end
+
+tag Parent:
+    method render():
+        return <>
+            <Child>
+            <h2> "Sous-titre"
+        </>
+    end
+end
+
+Versa.mount(
+    <Parent>
+)

@@ -70,10 +70,10 @@ describe("Maths (tests every possible combinations for every kind of arithmetic 
             "string" + "string" == "stringstring"
             "string" + none == "string"
             none + "string" == "string"
-            "string" + true == "stringtrue"
-            false + "string" == "falsestring"
-            "string" + yes == "stringyes"
-            no + "string" == "nostring"
+            "string" + true == "string1"
+            false + "string" == "0string"
+            "string" + yes == "string1"
+            no + "string" == "0string"
 
             # Every possible addition that returns a list
             [0] + 1 == [0, 1]
@@ -149,7 +149,7 @@ describe("Maths (tests every possible combinations for every kind of arithmetic 
             # Every possible power operation that returns a number
             10 ** 2 == 100
             10 ** none == 1
-            none ** 10 == 1
+            none ** 10 == 0
             none ** none == 1
             5 ** true == 5
             false ** 5 == 0
@@ -187,6 +187,7 @@ describe("Maths (tests every possible combinations for every kind of arithmetic 
             "str" < 1 == 0
             1 < "str" == 1
             5 < "str" == 0
+            "str" < "string" == 1
             {} < {"a":1} == 1
             {"a":1} < {} == 0
             {"a":1} < 0 == 0

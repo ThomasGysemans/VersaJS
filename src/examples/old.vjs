@@ -1,0 +1,37 @@
+tag Button:
+    prop title: string = ""
+
+    method render():
+        return <>
+            <button> {self.title}
+        </>
+    end
+end
+
+tag Title:
+    prop age: number = 18
+    state _age: number = self.age
+    state name: string = "Anonyme"
+
+    method increaseAge():
+        self.setState({"_age": ++self._age});
+    end
+
+    method render():
+        return <>
+            <h1>
+                <span> {self.name}
+                <span> {self._age}
+                <br>
+                <button @click={func() -> self.setState({"name": "YEAH"})}> "Change name"
+                <button @click={self.increaseAge}> "Increase age"
+                <Button title="Change name">
+        </>
+    end
+end
+
+Versa.mount(
+    <>
+        <Title age={17}>
+    </>
+)

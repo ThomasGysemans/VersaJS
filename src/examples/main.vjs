@@ -1,10 +1,22 @@
-var addition = 5 + 5
-var subtraction = 5 - 5
-var multiplication = 5 * 5
-var division = 5 / 5
-var positive = +5
-var negative = -5
-var mylist = [1, 2]
-var operation = -(27 + (43 / 36 - 48) * +51)
-var name = "Thomas"
-var concatenation = f"My name is $name"
+tag IdCard:
+    prop name:string = ""
+    prop age:number = 0
+
+    method deleteData():
+        self.setState({"name": "Anonyme", "age": 0});
+    end
+
+    method render():
+        return <>
+            <h1> "Carte d'identité"
+            <ul>
+                <li> {self.name}
+                <li> {self.age}
+            <button @click={self.deleteData}> "Delete all data"
+        </>
+    end
+end
+
+Versa.mount(
+    <IdCard name="Thomas" age={17}>
+)

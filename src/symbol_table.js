@@ -31,7 +31,7 @@ export class SymbolTable {
     /**
      * Gets a variable.
      * @param {string} name The name of a variable.
-     * @returns {{type: Types, value: any}|null}
+     * @returns {{type: string, value: any}|null}
      */
     get(name) {
         let value = this.symbols.has(name) ? this.symbols.get(name) : null;
@@ -122,7 +122,7 @@ export class SymbolTable {
     /**
      * Creates a constant.
      * @param {string} name The name of the constant to create.
-     * @param {{type: Types, value: any}} value The value of that constant.
+     * @param {{type: string, value: any}} value The value of that constant.
      */
     define_constant(name, value) {
         let table = this.getHighestParentContext();

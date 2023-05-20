@@ -1,0 +1,29 @@
+tag Button:
+    prop title:string = ""
+
+    method render():
+        return <>
+            <button> {self.title}
+        </>
+    end
+end
+
+tag Title:
+    prop name:string = ""
+
+    method changeName():
+        self.setState({"name": "NAME CHANGED"});
+    end
+
+    method render():
+        return <>
+            <h1> {self.name}
+            <button @click={self.changeName}> "Change name"
+            <Button title="Other button">
+        </>
+    end
+end
+
+Versa.mount(
+    <Title name="Thomas">
+)

@@ -373,7 +373,7 @@ export class Lexer {
         this.advance();
 
         // if we have to escape a character,
-        // even if we have a '"',
+        // even if we have a `"`,
         // we don't stop the loop.
         // However, we must not stop the loop if:
         // we allow concatenation and brackets_counter !== 0 and this.current_char = opening_quote

@@ -323,7 +323,12 @@ describe('Parser tests', () => {
     });
 
     it('should work with a switch statement', () => {
-        const tokens = new Lexer("switch value: case 4: log('4') case 5: log('5') end").generate_tokens();
+        const tokens = new Lexer(`
+            switch value:
+                case 4: log('4')
+                case 5: log('5')
+            end
+        `).generate_tokens();
         const node = new Parser(tokens).parse();
         assert.deepStrictEqual(true, node.element_nodes[0] instanceof SwitchNode);
         assert.deepStrictEqual(true, node.element_nodes[0].primary_value instanceof VarAccessNode);

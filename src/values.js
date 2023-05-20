@@ -268,7 +268,7 @@ export class BaseFunction extends Value {
     check_args(args, given_args) {
         // checks types
         for (let i = 0; i < given_args.length; i++) {
-            if (i > args.length) break;
+            if (i >= args.length) break;
             let given_arg = given_args[i];
             let arg = args[i];
             // a rest parameter can only be of type 'list'
@@ -434,7 +434,7 @@ export class ClassValue extends Value {
     toString() {
         let __repr = this.self.get("__repr");
         if (__repr) {
-            let method = __repr.value;
+            let method = __repr.value.value;
             // @ts-ignore
             let return_value = method.execute([]).value;
             if (return_value.repr !== undefined) {

@@ -1,0 +1,11 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\src",
+    "\\src\\build",
+    "\\src\\template",
+    "\\src\\test"
+  ],
+  "SelectedNode": "\\src\\interpreter.js",
+  "PreviewInSolutionExplorer": false
+}

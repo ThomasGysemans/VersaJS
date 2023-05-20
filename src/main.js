@@ -8,7 +8,9 @@ let script = ``;
 let fn = "./examples/main.vjs";
 
 try {
-    script = fs.readFileSync(fn, 'utf8');
+    script = fs.readFileSync(fn, { encoding: 'utf8' });
+    const transcriber = new Transcriber(script, fn);
+    transcriber.create();
 } catch(e) {
     throw new Error(
         `Failed to load script "${fn}"\n` + e.toString(),
@@ -16,5 +18,3 @@ try {
 }
 
 // run(script, fn);
-const transcriber = new Transcriber(script, fn, "./compiled/");
-transcriber.create();

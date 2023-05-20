@@ -93,11 +93,11 @@ list-expr   : LSQUARE (expr (COMMA expr)*)? RSQUARE
 
 dict-expr   : LBRACK (((expr COLON expr)|(IDENTIFIER) COMMA)*)? RBRACK
 
-if-expr     : KEYWORD:IF expr KEYWORD:THEN
+if-expr     : KEYWORD:IF expr COLON
                 (statement if-expr-elif|if-expr-else?)
                 | (NEWLINE statements KEYWORD:END|if-expr-elif|if-expr-else)
 
-if-expr-elif: KEYWORD:ELIF expr KEYWORD:THEN
+if-expr-elif: KEYWORD:ELIF expr COLON
                 (statement if-expr-elif|if-expr-else?)
                 | (NEWLINE statements KEYWORD:END|if-expr-elif|if-expr-else)
 
@@ -106,14 +106,14 @@ if-expr-else: KEYWORD:ELSE
                 | (NEWLINE statements KEYWORD:END)
 
 for-expr    : KEYWORD:FOR IDENTIFIER EQ expr KEYWORD:TO expr
-                (KEYWORD:STEP expr)? KEYWORD:THEN
+                (KEYWORD:STEP expr)? COLON
                 statement
                 | (NEWLINE statements KEYWORD:END)
 
 foreach-expr: KEYWORD:FOREACH prop KEYWORD:AS (IDENTIFIER DOUBLE_ARROW IDENTIFIER)|(IDENTIFIER) COLON
                 (statement) | (NEWLINE statements KEYWORD:END)
 
-while-expr  : KEYWORD:WHILE expr KEYWORD:THEN
+while-expr  : KEYWORD:WHILE expr COLON
                 statement
                 | (NEWLINE statements KEYWORD:END)
 
