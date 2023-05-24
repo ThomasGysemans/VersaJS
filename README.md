@@ -4,11 +4,27 @@ A language made to create websites in a javascript-like way.
 
 ## Work in progress
 
-At the moment, the language cannot be used to create websites because it cannot yet be compiled into JavaScript.
+The compilation process to JavaScript is not entirely complete, and for now tags don't work.
+
+To try and execute some code, clone the project and run these commands :
+
+```bash
+npm i # install dependencies
+npm run tsc # to compile TypeScript to JavaScript (necessary)
+npm run play # starts the shell
+```
+
+So far, the compiler is only able to translate a single file into JavaScript. Write your code into [./examples/main.vjs](./examples/main.vjs) and run the following command:
+
+```bash
+npm run exec
+```
+
+> **NOTE**: not all given examples work as expected.
 
 ## Syntax
 
-In the `src` folder, there is a text file which describes the grammar of the language. Inspired by `CodePulse`.
+In the `src` folder, there is a text file which describes the grammar of the language. Inspired by [CodePulse](https://www.youtube.com/@CodePulse).
 
 ## Examples
 
@@ -21,8 +37,8 @@ var falsy = no # or 'false'
 var null = none # 'null' does not exist by default
 var list = ["Hello"]
 var name = "Thomas"
-var dictionnary = {"age": 17}
-var concatenation = f"My name is $name, I'm " + dictionnary["age"] + "."
+var dictionary = {"age": 17}
+var concatenation = f"My name is $name, I'm " + dictionary["age"] + "."
 ```
 
 * Constants

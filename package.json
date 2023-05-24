@@ -1,0 +1,45 @@
+{
+  "name": "versajs",
+  "version": "0.0.1",
+  "description": "A language made to create websites in a javascript-like way.",
+  "main": "main.js",
+  "scripts": {
+    "test": "mocha js/test",
+    "exec": "node ./js/main",
+    "play": "node ./js/shell",
+    "tsc": "npx tsc"
+  },
+  "type": "module",
+  "author": "CodoPixel",
+  "license": "MIT",
+  "dependencies": {
+    "process": "^0.11.10",
+    "prompt-sync": "^4.2.0"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.5",
+    "@types/mocha": "^10.0.1",
+    "@types/node": "^20.2.3",
+    "@types/prompt-sync": "^4.2.0",
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "typescript": "^5.0.4"
+  },
+  "directories": {
+    "example": "examples",
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CodoPixel/VersaJS.git"
+  },
+  "keywords": [
+    "language",
+    "website",
+    "javascript"
+  ],
+  "bugs": {
+    "url": "https://github.com/CodoPixel/VersaJS/issues"
+  },
+  "homepage": "https://github.com/CodoPixel/VersaJS#readme"
+}
