@@ -1,6 +1,7 @@
 "use strict";
 
 import { string_with_arrows } from "./miscellaneous.js";
+import { getFileContent } from "./files.js";
 import Position from "./position.js";
 import Context from "./context.js";
 
@@ -29,7 +30,7 @@ export class CustomError {
     public toString() {
         let result = `${this.error_name}: ${this.details}\n`;
         result    += `File ${this.pos_start.fn}, line ${this.pos_start.ln + 1}\n\n`;
-        result    += string_with_arrows(this.pos_start.ftxt, this.pos_start, this.pos_end);
+        result    += string_with_arrows(getFileContent(this.pos_start.fn) ?? "", this.pos_start, this.pos_end);
         return result;
     }
 }
@@ -94,7 +95,7 @@ class BaseRuntime extends CustomError {
     public toString() {
         let result = this.generate_traceback();
         result    += `${this.error_name}: ${this.details}\n\n`;
-        result    += string_with_arrows(this.pos_start.ftxt, this.pos_start, this.pos_end);
+        result    += string_with_arrows(getFileContent(this.pos_start.fn) ?? "", this.pos_start, this.pos_end);
         return result;
     }
 

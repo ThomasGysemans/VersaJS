@@ -29,14 +29,14 @@ export class Lexer {
     constructor(text: string, filename: string = "<stdin>") {
         this.text = text[Symbol.iterator]();
         this.filename = filename;
-        this.pos = new Position(-1, 0, -1, this.filename, text);
+        this.pos = new Position(-1, 0, -1, this.filename);
         this.wait_of_chevron = false; // true when we detect a left chevron
         this.pause_in_chevron_search = false; // if we detect '{' while `wait_for_chevron` is true
         this.advance();
     }
 
-    public advance() {
-        let iterator = this.text.next();
+    private advance() {
+        const iterator = this.text.next();
         this.current_char = iterator.done ? null : (iterator.value as string);
         this.pos.advance(this.current_char);
     }
@@ -59,18 +59,18 @@ export class Lexer {
                     }
                 }
             } else if (this.current_char === "\t") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.INDENTATION, "\t", pos);
             } else if (this.current_char === "\n" || this.current_char === "\r") {
-                let pos_start = this.pos.copy();
+                const pos_start = this.pos.copy();
                 if (this.current_char === "\r") {
                     this.advance(); // a newline can be sometimes : '\r\n'
                 }
                 this.advance();
                 yield new Token(TokenType.NEWLINE, "\n", pos_start);
             } else if (this.current_char === ";") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.SEMICOLON, ";", pos);
             } else if (is_in(this.current_char, LETTERS + "_")) { // has to be before digits
@@ -84,19 +84,19 @@ export class Lexer {
             } else if (this.current_char === "*") {
                 yield this.make_mul_or_power();
             } else if (this.current_char === "/") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.SLASH, "/", pos);
             } else if (this.current_char === "%") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.MODULO, "%", pos);
             } else if (this.current_char === "(") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.LPAREN, "(", pos);
             } else if (this.current_char === ")") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.RPAREN, ")", pos);
             } else if (this.current_char === "=") {
@@ -107,7 +107,7 @@ export class Lexer {
                 yield this.make_less_than_or_equal_or_binary();
             } else if (this.current_char === ">") {
                 if (this.wait_of_chevron && !this.pause_in_chevron_search) {
-                    let pos = this.pos.copy();
+                    const pos = this.pos.copy();
                     this.wait_of_chevron = false;
                     this.advance();
                     yield new Token(TokenType.RCHEVRON, ">", pos);
@@ -125,29 +125,29 @@ export class Lexer {
             } else if (this.current_char === ":") {
                 yield this.make_colon_or_doublecolon();
             } else if (this.current_char === "[") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.LSQUARE, "[", pos);
             } else if (this.current_char === "]") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.RSQUARE, "]", pos);
             } else if (this.current_char === "{") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 if (this.wait_of_chevron) {
                     this.pause_in_chevron_search = true;
                 }
                 yield new Token(TokenType.LBRACK, "{", pos);
             } else if (this.current_char === "}") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 if (this.wait_of_chevron) {
                     this.pause_in_chevron_search = false;
                 }
                 yield new Token(TokenType.RBRACK, "}", pos);
             } else if (this.current_char === ",") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.COMMA, ",", pos);
             } else if (this.current_char === "&") {
@@ -155,19 +155,19 @@ export class Lexer {
             } else if (this.current_char === "|") {
                 yield this.make_or();
             } else if (this.current_char === "^") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.LOGICAL_XOR, "^", pos);
             } else if (this.current_char === "~") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.BIN_NOT, "~", pos);
             } else if (this.current_char === "@") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 yield new Token(TokenType.ARROBASE, "@", pos);
             } else if (this.current_char === "#") {
-                let pos = this.pos.copy();
+                const pos = this.pos.copy();
                 this.advance();
                 if ((this.current_char as string) === " ") {
                     this.skip_comment(); // a comment has to be followed by a whitespace
@@ -175,8 +175,8 @@ export class Lexer {
                     yield new Token(TokenType.HASH, "#", pos); // otherwise it's an "hash"
                 }
             } else {
-                let char = this.current_char;
-                let pos_start = this.pos.copy();
+                const char = this.current_char;
+                const pos_start = this.pos.copy();
                 this.advance();
                 throw new IllegalCharError(pos_start, this.pos, `'${char}'`);
             }
@@ -187,13 +187,12 @@ export class Lexer {
 
     /**
      * Builds a number when the `generate_tokens` method has found a digit or a decimal point.
-     * @returns {Token}
      */
-    make_number() {
-        let pos_start = this.pos.copy();
+    private make_number(): Token<any> {
+        const pos_start = this.pos.copy();
+        const is_beginning_with_a_dot = this.current_char === ".";
         let number_str = this.current_char!;
         let decimal_point_count = 0;
-        let is_beginning_with_a_dot = this.current_char === ".";
         this.advance();
 
         // handles console.log (the dot)
@@ -232,13 +231,13 @@ export class Lexer {
             number_str += '0';
         }
 
-        number_str = number_str.replace(/_/g, "");
-        let is_int = number_str.indexOf('.') === -1;
+        number_str = number_str.replace(/_/g, '');
+        const is_int = number_str.indexOf('.') === -1;
         return new Token<number>(TokenType.NUMBER, is_int ? parseInt(number_str, 10) : parseFloat(number_str), pos_start, this.pos);
     }
 
-    make_identifier() {
-        let pos_start = this.pos.copy();
+    private make_identifier(): Token {
+        const pos_start = this.pos.copy();
         let identifier = this.current_char!;
         this.advance();
 
@@ -247,13 +246,13 @@ export class Lexer {
             this.advance();
         }
 
-        let is_keyword = is_in(identifier, KEYWORDS);
-        let token_type = is_keyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
+        const is_keyword = is_in(identifier, KEYWORDS);
+        const token_type = is_keyword ? TokenType.KEYWORD : TokenType.IDENTIFIER
         return new Token(token_type, identifier, pos_start, this.pos);
     }
 
-    make_doublearrow_or_equal() {
-        let pos_start = this.pos.copy();
+    private make_doublearrow_or_equal(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.EQUALS;
         let value = "=";
         this.advance();
@@ -271,8 +270,8 @@ export class Lexer {
         return new Token(tok_type, value, pos_start, this.pos);
     }
 
-    make_not_equal() {
-        let pos_start = this.pos.copy();
+    private make_not_equal(): Token {
+        const pos_start = this.pos.copy();
         this.advance();
 
         if (this.current_char === "=") {
@@ -286,8 +285,8 @@ export class Lexer {
         );
     }
 
-    make_less_than_or_equal_or_binary() {
-        let pos_start = this.pos.copy();
+    private make_less_than_or_equal_or_binary(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.LT;
         let value = "<";
         this.advance();
@@ -310,8 +309,8 @@ export class Lexer {
         return new Token(tok_type, value, pos_start, this.pos);
     }
 
-    make_greater_than_or_equal_or_binary() {
-        let pos_start = this.pos.copy();
+    private make_greater_than_or_equal_or_binary(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.GT;
         let value = ">";
         this.advance();
@@ -336,8 +335,8 @@ export class Lexer {
 
     // much more complex than expected
     // because I forgot that '?:' could be used with optional argument and a specified type on function declaration
-    * make_qmark_or_nullish_or_ocp() {
-        let pos_start = this.pos.copy();
+    private * make_qmark_or_nullish_or_ocp(): Generator<Token<string>> {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.QMARK;
         let value = "?";
         this.advance();
@@ -368,13 +367,13 @@ export class Lexer {
         yield new Token(tok_type, value, pos_start, this.pos);
     }
 
-    make_string() {
-        let string = "";
-        let pos_start = this.pos.copy();
+    private make_string(): Token {
+        const pos_start = this.pos.copy();
+        const allow_concatenation = this.current_char === '"';
+        const opening_quote = this.current_char; // ', " or `
         let escape_character = false; // do we have to escape the following character?
-        let opening_quote = this.current_char; // ', " or `
-        let allow_concatenation = this.current_char === '"';
         let brackets_counter = 0;
+        let string = "";
         this.advance();
 
         // if we have to escape a character,
@@ -406,8 +405,8 @@ export class Lexer {
         return new Token(TokenType.STRING, string, pos_start, this.pos, { allow_concatenation });
     }
 
-    make_minus_decrement_or_arrow() {
-        let pos_start = this.pos.copy();
+    private make_minus_decrement_or_arrow(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.MINUS;
         let value = "-";
         this.advance();
@@ -425,8 +424,8 @@ export class Lexer {
         return new Token(tok_type, value, pos_start, this.pos);
     }
 
-    make_plus_or_increment() {
-        let pos_start = this.pos.copy();
+    private make_plus_or_increment(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.PLUS;
         let value = "+";
         this.advance();
@@ -440,8 +439,8 @@ export class Lexer {
         return new Token(tok_type, value, pos_start, this.pos);
     }
 
-    make_colon_or_doublecolon() {
-        let pos_start = this.pos.copy();
+    private make_colon_or_doublecolon(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.COLON;
         let value = ":";
         this.advance();
@@ -455,8 +454,8 @@ export class Lexer {
         return new Token(tok_type, value, pos_start, this.pos);
     }
 
-    make_mul_or_power() {
-        let pos_start = this.pos.copy();
+    private make_mul_or_power(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.MULTIPLY;
         let value = "*";
         this.advance();
@@ -470,8 +469,8 @@ export class Lexer {
         return new Token(tok_type, value, pos_start, this.pos);
     }
 
-    make_or() {
-        let pos_start = this.pos.copy();
+    private make_or(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.LOGICAL_OR;
         let value = "|";
         this.advance();
@@ -485,8 +484,8 @@ export class Lexer {
         return new Token(tok_type, value, pos_start, this.pos);
     }
 
-    make_and() {
-        let pos_start = this.pos.copy();
+    private make_and(): Token {
+        const pos_start = this.pos.copy();
         let tok_type = TokenType.LOGICAL_AND;
         let value = "&";
         this.advance();
@@ -500,7 +499,7 @@ export class Lexer {
         return new Token(tok_type, value, pos_start, this.pos);
     }
 
-    skip_comment() {
+    private skip_comment() {
         this.advance();
         while (this.current_char !== "\n" && this.current_char !== null) {
             this.advance();

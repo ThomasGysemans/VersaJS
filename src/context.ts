@@ -16,7 +16,7 @@ export default class Context {
     /**
      * @param display_name The name of the context (the name of the function where an error has occured for example).
      * @param parent The parent context of the current context.
-     * @param parent_entry_pos The position in the code where the paren context has been created.
+     * @param parent_entry_pos The position in the code where the parent context has been created.
      */
     constructor(display_name: string, parent: Context | null = null, parent_entry_pos: Position | null = null) {
         this.display_name = display_name;

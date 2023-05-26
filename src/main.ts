@@ -23,5 +23,3 @@ try {
         `Failed to load script "${fn}"\n` + (e as CustomError | Error).toString(), // might be both type of error
     );
 }
-
-// run(script, fn);

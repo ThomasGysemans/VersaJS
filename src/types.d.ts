@@ -39,7 +39,8 @@ declare global {
     static_prop: number;
   }
 
-  // TODO: status is a number representing the visibility, an enum would be better
+  type FileStore = Map<string, string>;
+
   type ClassInstanciation = Map<string, ClassMember>;
   type TagInstanciation = Map<string, TagMember>;
   type NativeClassInstanciation = Map<string, { status: Visibility, value: NativePropertyValue, static_prop: number }>;
